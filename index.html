@@ -195,20 +195,35 @@
   @keyframes drift { to { transform: translate3d(3rem, 2rem, 0) scale(1.08); } }
 
   @media (max-width: 860px) {
+    body {
+      display: block;
+      height: auto;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
     #gh, #lang { top: 12px; }
     #gh { right: 12px; }
     #lang { right: 64px; width: 195px; max-width: calc(100vw - 88px); }
-    #join { margin-top: 48px; }
-    #room { grid-template-columns: minmax(0,1fr); grid-template-rows: auto minmax(0,1fr) auto auto; padding: 66px 10px 10px; }
+    #join { margin: 76px auto max(24px, env(safe-area-inset-bottom)); }
+    #room {
+      width: 100%;
+      height: auto;
+      min-height: 100dvh;
+      overflow: visible;
+      grid-template-columns: minmax(0,1fr);
+      grid-template-rows: auto minmax(240px, 60vh) auto auto;
+      padding: 66px 10px max(10px, env(safe-area-inset-bottom));
+    }
     #room header { padding: 4px; }
     #room header .brand { width: 100%; }
     aside { max-height: 145px; }
-    #controls { max-height: 180px; overflow-y: auto; }
+    #controls { max-height: none; overflow: visible; }
   }
   @media (max-width: 520px) {
     #join { width: calc(100% - 24px); padding: 24px 20px; border-radius: 22px; }
     #join h1 { font-size: 1.85rem; }
     #join > .mut:last-of-type { font-size: .78rem; }
+    #room { grid-template-rows: auto minmax(220px, 52vh) auto auto; }
     #room header h2 { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #controls label { width: calc(50% - 5px); justify-content: space-between; }
     #controls label select { min-width: 0; max-width: 105px; }
