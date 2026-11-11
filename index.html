@@ -2,9 +2,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#070b18">
 <title>NetShare — Compartilhamento simples e seguro</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
@@ -12,51 +11,64 @@
   :root {
     --bg: #070b18;
     --bg-soft: #0b1124;
-    --card: rgba(17, 25, 49, .92);
+    --card: rgba(17, 25, 49, .78);
     --card-solid: #111931;
-    --surface: rgba(255, 255, 255, .07);
-    --surface-hover: rgba(255, 255, 255, .12);
+    --surface: rgba(255, 255, 255, .055);
+    --surface-hover: rgba(255, 255, 255, .09);
     --fg: #f7f9ff;
     --mut: #9da8c2;
-    --line: rgba(255, 255, 255, .12);
+    --line: rgba(255, 255, 255, .105);
     --acc: #6c7cff;
     --acc-2: #8f6cff;
     --cyan: #49d9ff;
     --ok: #43d9a3;
     --bad: #ff667d;
     --warning: #ffd166;
-    --shadow: 0 16px 48px rgba(0, 0, 0, .45);
-    --sat: env(safe-area-inset-top, 0px);
-    --sab: env(safe-area-inset-bottom, 0px);
-    --sal: env(safe-area-inset-left, 0px);
-    --sar: env(safe-area-inset-right, 0px);
+    --shadow: 0 30px 80px rgba(0, 0, 0, .42);
   }
 
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    min-height: 100%;
-    background-color: var(--bg);
-    color: var(--fg);
-    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-  }
-
-  /* Fundo sutil e performático sem background-attachment: fixed no mobile */
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
   html {
     background:
-      radial-gradient(circle at 18% 12%, rgba(108, 124, 255, .14) 0, transparent 35rem),
-      radial-gradient(circle at 88% 84%, rgba(73, 217, 255, .09) 0, transparent 32rem),
+      radial-gradient(circle at 18% 12%, rgba(108, 124, 255, .18) 0, rgba(108, 124, 255, .08) 22rem, transparent 42rem),
+      radial-gradient(circle at 88% 84%, rgba(73, 217, 255, .12) 0, rgba(73, 217, 255, .05) 20rem, transparent 40rem),
       var(--bg);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+  body {
+    margin: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: transparent;
+    color: var(--fg);
+    overflow: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: .18;
+    background-image:
+      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+    background-size: 56px 56px;
   }
 
   button, input, select { font: inherit; }
+  button, a, input, select { -webkit-tap-highlight-color: transparent; }
   button {
     min-height: 44px;
-    border: 1px solid rgba(255,255,255,.14);
+    border: 1px solid rgba(255,255,255,.12);
     border-radius: 12px;
     padding: 10px 16px;
     background: linear-gradient(135deg, var(--acc), var(--acc-2));
@@ -64,792 +76,380 @@
     font-weight: 700;
     letter-spacing: -.01em;
     cursor: pointer;
-    box-shadow: 0 8px 20px rgba(108,124,255,.24);
-    transition: transform .15s ease, opacity .15s ease, background .15s ease, border-color .15s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    touch-action: manipulation;
+    box-shadow: 0 10px 25px rgba(108,124,255,.22), inset 0 1px rgba(255,255,255,.18);
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease, opacity .2s ease;
   }
-  button:hover:not(:disabled) { transform: translateY(-1px); }
-  button:active:not(:disabled) { transform: scale(.97); }
+  button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(108,124,255,.3), inset 0 1px rgba(255,255,255,.2); }
+  button:active:not(:disabled) { transform: translateY(0) scale(.98); }
   button.sec { background: var(--surface); box-shadow: none; color: #dce3f7; }
-  button.sec:hover:not(:disabled) { background: var(--surface-hover); border-color: rgba(255,255,255,.25); }
-  button.bad { background: rgba(255,102,125,.15); border-color: rgba(255,102,125,.3); color: #ff9bad; box-shadow: none; }
-  button.bad:hover:not(:disabled) { background: rgba(255,102,125,.25); }
-  button.active-btn { background: linear-gradient(135deg, #05c282, #10b981); color: #fff; border-color: rgba(255,255,255,.3); }
-  button:disabled { opacity: .42; cursor: not-allowed; box-shadow: none; transform: none !important; }
-
+  button.sec:hover:not(:disabled) { background: var(--surface-hover); border-color: rgba(255,255,255,.2); box-shadow: none; }
+  button.bad { background: rgba(255,102,125,.12); border-color: rgba(255,102,125,.25); color: #ff9bad; box-shadow: none; }
+  button:disabled { opacity: .38; cursor: not-allowed; box-shadow: none; }
   input, select {
     width: 100%;
     min-height: 48px;
     border: 1px solid var(--line);
     border-radius: 12px;
-    padding: 11px 14px;
+    padding: 11px 13px;
     outline: none;
-    background: rgba(5, 9, 22, .75);
+    background: rgba(5, 9, 22, .65);
     color: var(--fg);
-    transition: border-color .15s ease, box-shadow .15s ease;
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
   }
   input::placeholder { color: #66718c; }
-  input:focus, select:focus { border-color: var(--acc); box-shadow: 0 0 0 3px rgba(108,124,255,.2); }
+  input:hover, select:hover { border-color: rgba(255,255,255,.2); }
+  input:focus, select:focus { border-color: var(--acc); background: rgba(8,13,30,.9); box-shadow: 0 0 0 4px rgba(108,124,255,.13); }
   select { cursor: pointer; }
   option { background: #111931; color: var(--fg); }
-  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
-
+  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
   .hidden { display: none !important; }
-  .mut { color: var(--mut); font-size: .84rem; line-height: 1.5; }
+  .mut { color: var(--mut); font-size: .84rem; line-height: 1.55; }
 
-  .brand { display: flex; align-items: center; gap: 10px; font: 800 1.15rem/1 'Manrope', sans-serif; letter-spacing: -.03em; }
-  .brand-mark { position: relative; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: linear-gradient(135deg, var(--acc), var(--cyan)); box-shadow: 0 6px 18px rgba(79,132,255,.34); flex-shrink: 0; }
+  .ambient { display: none; }
+
+  .brand { display: flex; align-items: center; gap: 11px; font: 800 1.14rem/1 'Manrope', sans-serif; letter-spacing: -.04em; }
+  .brand-mark { position: relative; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: linear-gradient(135deg, var(--acc), var(--cyan)); box-shadow: 0 9px 24px rgba(79,132,255,.34); }
   .brand-mark svg { width: 19px; height: 19px; }
-  .brand-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 4px rgba(67,217,163,.15); }
-  .eyebrow { display: flex; align-items: center; gap: 8px; color: #b6c0db; font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
+  .brand-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 4px rgba(67,217,163,.12); }
+  .eyebrow { display: flex; align-items: center; gap: 8px; color: #b6c0db; font-size: .76rem; text-transform: uppercase; letter-spacing: .12em; font-weight: 700; }
 
-  /* Top actions (Idioma e Github) */
-  #topBar {
-    position: absolute;
-    top: max(14px, var(--sat));
-    right: max(14px, var(--sar));
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    z-index: 30;
-  }
-  #gh {
-    width: 42px;
-    height: 42px;
-    display: grid;
-    place-items: center;
-    border-radius: 12px;
-    border: 1px solid var(--line);
-    background: rgba(12,18,37,.85);
-    color: #dfe5f6;
-    transition: transform .15s, background .15s, color .15s;
-  }
-  #gh:hover { background: #fff; color: #0b1020; transform: translateY(-1px); }
+  #gh, #lang { position: fixed; top: 22px; z-index: 20; border: 1px solid var(--line); background: rgba(12,18,37,.7); backdrop-filter: blur(16px); box-shadow: 0 10px 30px rgba(0,0,0,.2); }
+  #gh { right: 24px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 13px; color: #dfe5f6; transition: transform .2s, background .2s, color .2s; }
+  #gh:hover { background: #fff; color: #0b1020; transform: translateY(-2px); }
   #lang {
-    width: auto;
-    min-width: 140px;
-    max-width: 170px;
-    min-height: 42px;
-    padding: 0 28px 0 12px;
-    border-radius: 12px;
-    font-size: .84rem;
-    border: 1px solid var(--line);
-    background: rgba(12,18,37,.85);
+    right: 78px;
+    width: 205px;
+    max-width: calc(100vw - 102px);
+    min-height: 44px;
+    padding: 0 36px 0 13px;
+    border-radius: 13px;
+    font-size: .88rem;
     text-overflow: ellipsis;
   }
 
-  /* TELA DE LOGIN / ENTRAR */
-  #joinContainer {
-    min-height: 100vh;
-    min-height: 100dvh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: calc(60px + var(--sat)) max(16px, var(--sar)) max(24px, var(--sab)) max(16px, var(--sal));
-  }
   #join {
     position: relative;
-    width: min(100%, 470px);
-    padding: clamp(24px, 5vw, 36px);
+    width: min(92vw, 480px);
+    margin: 36px auto 0;
+    padding: clamp(25px, 5vw, 38px);
     display: grid;
-    gap: 15px;
+    gap: 16px;
     border: 1px solid var(--line);
-    border-radius: 24px;
-    background: linear-gradient(150deg, rgba(21,31,60,.94), rgba(10,16,35,.92));
-    box-shadow: var(--shadow);
-    animation: enter .45s ease both;
+    border-radius: 26px;
+    background: linear-gradient(145deg, rgba(21,31,60,.88), rgba(10,16,35,.82));
+    box-shadow: var(--shadow), inset 0 1px rgba(255,255,255,.08);
+    backdrop-filter: blur(22px);
+    animation: enter .65s cubic-bezier(.2,.8,.2,1) both;
   }
-  #join .brand { margin-bottom: 6px; }
-  #join h1 { margin: 2px 0 0; font: 800 clamp(1.6rem, 5vw, 2.3rem)/1.15 'Manrope', sans-serif; letter-spacing: -.04em; }
+  #join::before { content: ''; position: absolute; inset: -1px; padding: 1px; border-radius: inherit; background: linear-gradient(135deg, rgba(132,145,255,.42), transparent 42%, rgba(73,217,255,.2)); pointer-events: none; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+  #join .brand { margin-bottom: 10px; }
+  #join h1 { margin: 4px 0 0; max-width: 390px; font: 800 clamp(1.75rem, 6vw, 2.5rem)/1.08 'Manrope', sans-serif; letter-spacing: -.055em; }
   #join > p { margin: 0; }
-  #join label { display: grid; gap: 6px; color: #c8d0e5; font-size: .84rem; font-weight: 600; }
-  #btnJoin { width: 100%; margin-top: 4px; min-height: 50px; font-size: 1rem; }
-  #joinErr { margin: 0; color: #ff9bad; font-size: .85rem; font-weight: 700; }
+  #join label { display: grid; gap: 7px; color: #c8d0e5; font-size: .84rem; font-weight: 600; }
+  #join label:first-of-type { margin-top: 6px; }
+  #btnJoin { width: 100%; margin-top: 4px; min-height: 52px; }
+  #joinErr { margin: 0; min-height: 0; color: #ff9bad; font-size: .85rem; font-weight: 700; }
   #joinErr:empty { display: none; }
-  .privacy-note { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: rgba(67,217,163,.06); border: 1px solid rgba(67,217,163,.12); }
-  .privacy-note svg { flex-shrink: 0; margin-top: 2px; color: var(--ok); }
-  .https-warn { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: rgba(255,209,102,.08); border: 1px solid rgba(255,209,102,.2); color: var(--warning); font-size: .82rem; }
+  .privacy-note { display: flex; gap: 9px; align-items: flex-start; padding: 11px 12px; border-radius: 12px; background: rgba(67,217,163,.055); border: 1px solid rgba(67,217,163,.1); }
+  .privacy-note svg { flex: 0 0 auto; margin-top: 2px; color: var(--ok); }
 
-  /* TELA DA SALA (ROOM) */
-  #room {
-    width: 100%;
-    height: 100vh;
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding: var(--sat) var(--sar) var(--sab) var(--sal);
-    position: relative;
-  }
+  #room { width: 100vw; height: 100vh; height: 100dvh; overflow: hidden; display: grid; grid-template-columns: minmax(0,1fr) 280px; grid-template-rows: auto minmax(0,1fr) auto; gap: 12px; padding: 16px; background: transparent; }
+  #room header { grid-column: 1/-1; min-height: 58px; display: flex; justify-content: flex-start; align-items: center; gap: 12px; padding: 7px 220px 7px 8px; flex-wrap: wrap; }
+  #room header .brand { margin-right: 10px; }
+  #room header h2 { margin: 0; padding: 9px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); font-size: .9rem; font-weight: 600; }
+  #msg { color: var(--warning); font-size: .84rem; }
+  #status { opacity: .82; }
+  #btnLink { min-height: 38px; padding: 7px 12px; }
+  #grid { display: grid; gap: 10px; min-height: 0; min-width: 0; overflow: hidden; grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr); }
+  .tile { position: relative; min-height: 0; min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: #02040a; box-shadow: 0 18px 45px rgba(0,0,0,.28); animation: enter .35s ease both; }
+  .tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #02040a; }
+  .note { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mut); font-size: .9rem; text-align: center; padding: 12px; white-space: pre-line; }
+  .tbtn { position: absolute; min-height: 34px; padding: 5px 10px; font-size: .76rem; border-radius: 9px; background: rgba(7,11,24,.78); box-shadow: none; backdrop-filter: blur(10px); }
+  .tbtn.snd { right: 10px; bottom: 10px; }
+  .tbtn.hide { right: 10px; top: 10px; }
+  .tvol { position: absolute; left: 10px; top: 15px; width: 95px; min-height: 0; padding: 0; border: 0; background: transparent; opacity: .85; }
+  .label { position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 160px); padding: 6px 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 9px; background: rgba(7,11,24,.78); color: #fff; font-size: .78rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; backdrop-filter: blur(10px); }
+  .tile .tbtn, .tile .tvol, .tile .label { transition: opacity .18s; }
+  .tile:not(.ui) .tbtn, .tile:not(.ui) .tvol, .tile:not(.ui) .label { opacity: 0; pointer-events: none; }
+  #empty { position: relative; display: grid; place-items: center; text-align: center; padding: 60px 20px 20px; border: 1px dashed rgba(139,151,186,.28); border-radius: 18px; color: var(--mut); background: radial-gradient(circle at center, rgba(108,124,255,.07), transparent 48%), rgba(255,255,255,.018); }
+  #empty::before { content: ''; position: absolute; width: 64px; height: 64px; top: calc(50% - 70px); border: 1px solid rgba(108,124,255,.22); border-radius: 20px; background: rgba(108,124,255,.08); }
 
-  /* Header da Sala */
-  #roomHeader {
-    flex-shrink: 0;
-    min-height: 54px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 8px 14px;
-    border-bottom: 1px solid var(--line);
-    background: rgba(11, 17, 36, .95);
-    z-index: 25;
-  }
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-  }
-  .room-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 10px;
-    border-radius: 10px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    font-size: .82rem;
-    font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 170px;
-  }
-  .header-msg {
-    color: var(--warning);
-    font-size: .8rem;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 320px;
-  }
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-  #btnLink { min-height: 36px; padding: 6px 12px; font-size: .8rem; }
-  #btnTogglePeople { min-height: 36px; padding: 6px 12px; font-size: .8rem; position: relative; }
+  aside { min-height: 0; overflow: auto; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); box-shadow: 0 18px 45px rgba(0,0,0,.18); backdrop-filter: blur(16px); }
+  aside h3 { margin: 2px 0 14px; font: 700 .92rem 'Manrope', sans-serif; }
+  #people { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  #people li { padding: 10px 11px; border: 1px solid rgba(255,255,255,.06); border-radius: 11px; background: rgba(4,8,20,.38); font-size: .86rem; }
+  .prow { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .prow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .acts { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+  .acts button { min-height: 29px; padding: 4px 8px; border-radius: 7px; font-size: .7rem; }
+  .badge { color: var(--ok); font-size: .74rem; white-space: nowrap; }
 
-  /* Área Principal da Sala */
-  #roomBody {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    position: relative;
-    overflow: hidden;
-  }
+  #controls { grid-column: 1/-1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px; border: 1px solid var(--line); border-radius: 16px; background: rgba(17,25,49,.84); box-shadow: 0 15px 40px rgba(0,0,0,.22); backdrop-filter: blur(18px); }
+  #controls .sp { flex: 1; }
+  #controls label { display: flex; gap: 7px; align-items: center; padding-left: 5px; }
+  #controls select { width: auto; min-height: 38px; padding: 7px 32px 7px 10px; border-radius: 9px; font-size: .78rem; }
+  #controls input[type='range'] { min-height: 0; accent-color: var(--acc); box-shadow: none; }
+  #controls button { min-height: 40px; padding: 8px 13px; font-size: .82rem; }
 
-  /* Grid de Vídeo */
-  #gridWrapper {
-    flex: 1;
-    min-height: 0;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    padding: 10px;
-    position: relative;
-    overflow: hidden;
-  }
-  #grid {
-    flex: 1;
-    min-height: 0;
-    min-width: 0;
-    display: grid;
-    gap: 10px;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
+  @keyframes enter { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+  @keyframes drift { to { transform: translate3d(3rem, 2rem, 0) scale(1.08); } }
 
-  /* Tiles de Vídeo - Otimizados para GPU móvel */
-  .tile {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    min-width: 0;
-    overflow: hidden;
-    border-radius: 16px;
-    background: #02040a;
-    border: 1px solid var(--line);
-    box-shadow: 0 10px 30px rgba(0,0,0,.35);
-    transform: translateZ(0); /* Aceleração de hardware */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    touch-action: manipulation;
-  }
-  .tile video {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    background: #02040a;
-    display: block;
-    transform: translateZ(0);
-  }
-  .tile-note {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: var(--mut);
-    font-size: .88rem;
-    text-align: center;
-    padding: 16px;
-    white-space: pre-line;
-    background: rgba(4, 7, 18, .75);
-    pointer-events: none;
-    z-index: 5;
-  }
-  .tile-note.interactive { pointer-events: auto; cursor: pointer; }
-
-  /* Controles sobre o Tile */
-  .tile-controls {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: 10px;
-    z-index: 10;
-    transition: opacity .2s ease;
-  }
-  .tile:not(.ui) .tile-controls {
-    opacity: 0;
-  }
-  .tile-ctrl-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    pointer-events: auto;
-  }
-  .tile-ctrl-bot {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    pointer-events: auto;
-    gap: 8px;
-  }
-  .tile-label {
-    padding: 5px 9px;
-    border-radius: 8px;
-    background: rgba(7,11,24,.85);
-    border: 1px solid rgba(255,255,255,.1);
-    color: #fff;
-    font-size: .75rem;
-    font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: calc(100% - 110px);
-  }
-  .tbtn {
-    min-height: 34px;
-    padding: 4px 9px;
-    font-size: .74rem;
-    border-radius: 8px;
-    background: rgba(7,11,24,.88);
-    border: 1px solid rgba(255,255,255,.15);
-    box-shadow: none;
-    color: #fff;
-    cursor: pointer;
-  }
-  .tvol {
-    width: 80px;
-    min-height: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    opacity: .9;
-    accent-color: var(--acc);
-  }
-
-  /* Estado vazio na sala */
-  #empty {
-    grid-column: 1/-1;
-    grid-row: 1/-1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 40px 20px;
-    border: 1px dashed rgba(139,151,186,.25);
-    border-radius: 18px;
-    color: var(--mut);
-    background: rgba(255,255,255,.015);
-    gap: 12px;
-  }
-  #empty svg { color: var(--acc); opacity: .7; }
-
-  /* Barra Lateral de Participantes (Gaveta no Mobile) */
-  #asidePeople {
-    width: 280px;
-    flex-shrink: 0;
-    background: var(--card-solid);
-    border-left: 1px solid var(--line);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    transition: transform .25s cubic-bezier(.2, .9, .2, 1);
-    z-index: 20;
-  }
-  .aside-head {
-    padding: 14px;
-    border-bottom: 1px solid var(--line);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .aside-head h3 { margin: 0; font: 700 .92rem 'Manrope', sans-serif; }
-  .aside-close { min-height: 30px; padding: 4px 8px; font-size: .75rem; display: none; }
-  #peopleList {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px;
-    list-style: none;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  #peopleList li {
-    padding: 10px;
-    border: 1px solid rgba(255,255,255,.07);
-    border-radius: 11px;
-    background: rgba(4,8,20,.45);
-    font-size: .84rem;
-  }
-  .prow { display: flex; justify-content: space-between; gap: 6px; align-items: center; }
-  .prow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-  .badge { color: var(--ok); font-size: .72rem; font-weight: 700; white-space: nowrap; }
-  .acts { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
-  .acts button { min-height: 28px; padding: 3px 7px; border-radius: 6px; font-size: .7rem; }
-
-  /* Barra de Controles Inferior */
-  #controls {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 10px 14px;
-    background: rgba(14, 21, 44, .96);
-    border-top: 1px solid var(--line);
-    z-index: 25;
-    flex-wrap: wrap;
-  }
-  .ctrl-group {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  #controls select {
-    width: auto;
-    min-height: 40px;
-    padding: 6px 28px 6px 10px;
-    border-radius: 10px;
-    font-size: .8rem;
-  }
-  #controls button {
-    min-height: 42px;
-    padding: 8px 14px;
-    font-size: .84rem;
-    border-radius: 11px;
-  }
-  .sp { flex: 1; }
-
-  /* Modal de Configurações no Mobile */
-  #settingsModal {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,.65);
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    z-index: 100;
-    animation: enter .2s ease;
-  }
-  #settingsContent {
-    width: min(100%, 450px);
-    background: var(--card-solid);
-    border: 1px solid var(--line);
-    border-radius: 20px 20px 0 0;
-    padding: 20px;
-    display: grid;
-    gap: 14px;
-    box-shadow: var(--shadow);
-  }
-  .modal-head { display: flex; justify-content: space-between; align-items: center; }
-  .modal-head h3 { margin: 0; font-size: 1rem; }
-
-  @keyframes enter {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  /* ========================================================
-     OTIMIZAÇÕES RESPONSIVAS E MOBILE
-     ======================================================== */
-  @media (max-width: 768px) {
-    #topBar { top: max(10px, var(--sat)); right: max(10px, var(--sar)); }
-    #lang { max-width: 140px; min-width: 110px; font-size: .78rem; min-height: 38px; }
-    #gh { width: 38px; height: 38px; }
-
-    #roomHeader {
-      padding: 6px 10px;
-      min-height: 48px;
+  @media (max-width: 860px) {
+    body {
+      display: block;
+      height: auto;
+      overflow-x: hidden;
+      overflow-y: auto;
     }
-    .header-msg { max-width: 140px; font-size: .75rem; }
-    .room-tag { max-width: 120px; font-size: .76rem; padding: 4px 8px; }
-    #btnLink, #btnTogglePeople { min-height: 34px; padding: 5px 10px; font-size: .74rem; }
-
-    /* Barra de Participantes vira Drawer no mobile */
-    #asidePeople {
-      position: absolute;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      width: min(85vw, 320px);
-      box-shadow: -8px 0 25px rgba(0,0,0,.6);
-      transform: translateX(100%);
+    #gh, #lang { top: 12px; }
+    #gh { right: 12px; }
+    #lang { right: 64px; width: 195px; max-width: calc(100vw - 88px); }
+    #join { margin: 76px auto max(24px, env(safe-area-inset-bottom)); }
+    #room {
+      width: 100%;
+      height: auto;
+      min-height: 100dvh;
+      overflow: visible;
+      grid-template-columns: minmax(0,1fr);
+      grid-template-rows: auto minmax(240px, 60vh) auto auto;
+      padding: 66px 10px max(10px, env(safe-area-inset-bottom));
     }
-    #asidePeople.open {
-      transform: translateX(0);
-    }
-    .aside-close { display: inline-flex; }
-
-    /* Barra de controles compacta e amigável ao toque no mobile */
-    #controls {
-      padding: 8px 8px calc(8px + var(--sab)) 8px;
-      gap: 6px;
-      justify-content: space-around;
-    }
-    #controls button {
-      flex: 1 1 auto;
-      min-height: 42px;
-      padding: 6px 10px;
-      font-size: .78rem;
-    }
-    #controls button span.txt { display: inline; }
-    .desk-only { display: none !important; }
-    .mob-only { display: inline-flex !important; }
-
-    #gridWrapper { padding: 6px; }
-    .tile { border-radius: 14px; }
+    #room header { padding: 4px; }
+    #room header .brand { width: 100%; }
+    aside { max-height: 145px; }
+    #controls { max-height: none; overflow: visible; }
   }
-
-  @media (min-width: 769px) {
-    .mob-only { display: none !important; }
+  @media (max-width: 520px) {
+    #join { width: calc(100% - 24px); padding: 24px 20px; border-radius: 22px; }
+    #join h1 { font-size: 1.85rem; }
+    #join > .mut:last-of-type { font-size: .78rem; }
+    #room { grid-template-rows: auto minmax(220px, 52vh) auto auto; }
+    #room header h2 { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #controls label { width: calc(50% - 5px); justify-content: space-between; }
+    #controls label select { min-width: 0; max-width: 105px; }
+    #controls label:has(#vol) { width: 100%; }
+    #btnLeave { width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
   }
 </style>
 </head>
 <body>
+<div class="ambient" aria-hidden="true"><span class="orb one"></span><span class="orb two"></span></div>
 
-<div id="topBar">
-  <select id="lang" aria-label="Idioma / Language">
-    <option value="pt-BR">Português (BR)</option>
-    <option value="en">English</option>
-    <option value="pt-PT">Português (PT)</option>
-  </select>
+<select id="lang" aria-label="Idioma / Language">
+  <option value="pt-BR">Português (Brasil)</option>
+  <option value="en">English</option>
+  <option value="pt-PT">Português (Portugal)</option>
+</select>
 
-  <a id="gh" href="https://github.com/netkkj" target="_blank" rel="noopener" title="GitHub" aria-label="GitHub netkkj">
-    <svg viewBox="0 0 16 16" width="20" height="20" fill="currentColor" aria-hidden="true">
-      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
-    </svg>
-  </a>
-</div>
+<a id="gh" href="https://github.com/netkkj" target="_blank" rel="noopener" title="https://github.com/netkkj" aria-label="GitHub netkkj">
+  <svg viewBox="0 0 16 16" width="22" height="22" fill="currentColor" aria-hidden="true">
+    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+  </svg>
+</a>
 
-<!-- ================= TELA DE LOGIN ================= -->
-<div id="joinContainer">
-  <section id="join">
-    <div class="brand" aria-label="NetShare">
-      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="12" r="2.5" fill="white"/><circle cx="18" cy="6" r="2.5" fill="white"/><circle cx="18" cy="18" r="2.5" fill="white"/><path d="M8.2 10.9 15.7 7M8.2 13.1l7.5 3.9" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></span>
-      <span>NetShare</span><span class="brand-dot" aria-hidden="true"></span>
-    </div>
-    <div class="eyebrow"><span>P2P Direto</span><span>•</span><span>Otimizado para Celular e PC</span></div>
-    <h1 data-i18n="title"></h1>
-    <p class="mut" data-i18n="joinIntro"></p>
-
-    <div id="httpsNotice" class="https-warn hidden">
-      <span>⚠️</span>
-      <span data-i18n="httpsWarn"></span>
-    </div>
-
-    <label><span data-i18n="lblName"></span> <input id="inName" maxlength="24" data-i18n-ph="phName" autocomplete="off"></label>
-    <label><span data-i18n="lblRoom"></span> <input id="inRoom" maxlength="32" data-i18n-ph="phRoom" autocomplete="off"></label>
-    <label><span data-i18n="lblPass"></span> <input id="inPass" type="password" maxlength="64" autocomplete="off" data-i18n-ph="phPass"></label>
-    <p id="joinErr"></p>
-    <button id="btnJoin" data-i18n="btnJoin"></button>
-    <p class="mut privacy-note">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 5 6v5c0 4.7 2.9 8.3 7 10 4.1-1.7 7-5.3 7-10V6l-7-3Z" stroke="currentColor" stroke-width="2"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span data-i18n="joinNote"></span>
-    </p>
-  </section>
-</div>
-
-<!-- ================= TELA DA SALA ================= -->
-<section id="room" class="hidden">
-  <header id="roomHeader">
-    <div class="header-left">
-      <div class="brand" aria-label="NetShare">
-        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="12" r="2.5" fill="white"/><circle cx="18" cy="6" r="2.5" fill="white"/><circle cx="18" cy="18" r="2.5" fill="white"/><path d="M8.2 10.9 15.7 7M8.2 13.1l7.5 3.9" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></span>
-      </div>
-      <div class="room-tag">
-        <span data-i18n="roomLbl"></span> <span id="roomName"></span>
-      </div>
-      <span id="msg" class="header-msg"></span>
-    </div>
-
-    <div class="header-right">
-      <button id="btnLink" class="sec" title="Copiar link" data-i18n="copyLink"></button>
-      <button id="btnTogglePeople" class="sec" title="Participantes">
-        👥 <span id="count">1</span>
-      </button>
-    </div>
-  </header>
-
-  <div id="roomBody">
-    <div id="gridWrapper">
-      <div id="grid">
-        <div id="empty">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
-          <span id="emptyTxt" data-i18n="emptyNone"></span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Barra lateral / Gaveta de participantes -->
-    <aside id="asidePeople">
-      <div class="aside-head">
-        <h3><span data-i18n="participants"></span> (<span id="count2">1</span>)</h3>
-        <button id="btnClosePeople" class="sec aside-close">✕</button>
-      </div>
-      <ul id="peopleList"></ul>
-    </aside>
+<section id="join">
+  <div class="brand" aria-label="NetShare">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="12" r="2.5" fill="white"/><circle cx="18" cy="6" r="2.5" fill="white"/><circle cx="18" cy="18" r="2.5" fill="white"/><path d="M8.2 10.9 15.7 7M8.2 13.1l7.5 3.9" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></span>
+    <span>NetShare</span><span class="brand-dot" aria-hidden="true"></span>
   </div>
-
-  <!-- Controles Principais Inferiores -->
-  <footer id="controls">
-    <button id="btnScreen">
-      <span>🖥️</span> <span class="txt" data-i18n="btnScreen"></span>
-    </button>
-    <button id="btnCam" class="sec">
-      <span>📷</span> <span class="txt" data-i18n="btnCam"></span>
-    </button>
-    <button id="btnFlipCam" class="sec hidden" title="Inverter câmera">
-      <span>🔄</span> <span class="txt" data-i18n="btnFlip"></span>
-    </button>
-    <button id="btnStop" class="bad" disabled>
-      <span>🛑</span> <span class="txt" data-i18n="btnStop"></span>
-    </button>
-
-    <!-- Controles Desktop Inline -->
-    <div class="ctrl-group desk-only">
-      <label class="mut"><span data-i18n="lblFps"></span>
-        <select id="fps">
-          <option value="30" selected>30 FPS</option>
-          <option value="60">60 FPS</option>
-        </select>
-      </label>
-      <label class="mut"><span data-i18n="lblRes"></span>
-        <select id="res">
-          <option value="720" selected>720p (HD)</option>
-          <option value="1080">1080p (FHD)</option>
-        </select>
-      </label>
-      <label class="mut"><span data-i18n="lblVol"></span>
-        <input id="vol" type="range" min="0" max="100" value="100" style="width:75px;vertical-align:middle">
-      </label>
-    </div>
-
-    <!-- Botão de Ajustes para Mobile -->
-    <button id="btnSettings" class="sec mob-only" title="Qualidade e Volume">
-      <span>⚙️</span>
-    </button>
-
-    <div class="sp desk-only"></div>
-    <button id="btnLeave" class="sec bad">
-      <span>🚪</span> <span class="txt" data-i18n="btnLeave"></span>
-    </button>
-  </footer>
+  <div class="eyebrow"><span>Conexão direta</span><span>•</span><span>Sem cadastro</span></div>
+  <h1 data-i18n="title"></h1>
+  <p class="mut" data-i18n="joinIntro"></p>
+  <label><span data-i18n="lblName"></span> <input id="inName" maxlength="24" data-i18n-ph="phName" autocomplete="off"></label>
+  <label><span data-i18n="lblRoom"></span> <input id="inRoom" maxlength="32" data-i18n-ph="phRoom" autocomplete="off"></label>
+  <label><span data-i18n="lblPass"></span> <input id="inPass" type="password" maxlength="64" autocomplete="off" data-i18n-ph="phPass"></label>
+  <p id="joinErr"></p>
+  <button id="btnJoin" data-i18n="btnJoin"></button>
+  <p class="mut privacy-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 5 6v5c0 4.7 2.9 8.3 7 10 4.1-1.7 7-5.3 7-10V6l-7-3Z" stroke="currentColor" stroke-width="2"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="joinNote"></span></p>
 </section>
 
-<!-- Modal de Configurações no Mobile -->
-<div id="settingsModal" class="hidden">
-  <div id="settingsContent">
-    <div class="modal-head">
-      <h3 data-i18n="settingsTitle">Ajustes da Transmissão</h3>
-      <button id="btnCloseSettings" class="sec" style="min-height:30px;padding:4px 10px;">✕</button>
+<section id="room" class="hidden">
+  <header>
+    <div class="brand" aria-label="NetShare">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="12" r="2.5" fill="white"/><circle cx="18" cy="6" r="2.5" fill="white"/><circle cx="18" cy="18" r="2.5" fill="white"/><path d="M8.2 10.9 15.7 7M8.2 13.1l7.5 3.9" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></span>
+      <span>NetShare</span>
     </div>
+    <h2><span data-i18n="roomLbl"></span> <span id="roomName"></span></h2>
+    <span id="msg"></span>
+    <span id="status" class="mut"></span>
+    <button id="btnLink" class="sec" data-i18n="copyLink"></button>
+  </header>
+
+  <div id="grid">
+    <div id="empty"></div>
+  </div>
+
+  <aside>
+    <h3><span data-i18n="participants"></span> (<span id="count">1</span>)</h3>
+    <ul id="people"></ul>
+  </aside>
+
+  <div id="controls">
+    <button id="btnScreen"></button>
+    <button id="btnCam" class="sec"></button>
+    <label class="mut"><span data-i18n="lblCam"></span>
+      <select id="facing">
+        <option value="user" data-i18n="camFront" selected></option>
+        <option value="environment" data-i18n="camBack"></option>
+      </select>
+    </label>
+    <button id="btnStop" class="bad" disabled data-i18n="btnStop"></button>
     <label class="mut"><span data-i18n="lblFps"></span>
-      <select id="fpsMob">
-        <option value="30" selected>30 FPS (Leve)</option>
-        <option value="60">60 FPS (Fluido)</option>
+      <select id="fps">
+        <option value="30" selected>30 FPS</option>
+        <option value="60">60 FPS</option>
+        <option value="120">120 FPS</option>
+        <option value="144">144 FPS</option>
+        <option value="240">240 FPS</option>
       </select>
     </label>
     <label class="mut"><span data-i18n="lblRes"></span>
-      <select id="resMob">
-        <option value="720" selected>720p (Recomendado no celular)</option>
-        <option value="1080">1080p (Full HD)</option>
+      <select id="res">
+        <option value="720" data-i18n="res720" selected></option>
+        <option value="1080" data-i18n="res1080"></option>
+        <option value="1440" data-i18n="res1440"></option>
+        <option value="2160" data-i18n="res2160"></option>
       </select>
     </label>
-    <label class="mut"><span data-i18n="lblVol"></span>
-      <input id="volMob" type="range" min="0" max="100" value="100" style="width:100%;margin-top:8px;">
-    </label>
-    <div style="font-size:0.75rem;color:var(--mut);" id="statusMobile"></div>
+    <label class="mut"><span data-i18n="lblVol"></span> <input id="vol" type="range" min="0" max="100" value="100" style="width:90px;padding:0;vertical-align:middle"></label>
+    <span class="sp"></span>
+    <button id="btnLeave" class="sec" data-i18n="btnLeave"></button>
   </div>
-</div>
+</section>
 
 <script>
 const $ = id => document.getElementById(id);
 
-/* =========================================================
-   DETECÇÃO DE APARELHO E AMBIENTE SEGURO
-   ========================================================= */
-const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && window.innerWidth < 850);
-const isSecureContext = window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-
-if (!isSecureContext) {
-  $('httpsNotice').classList.remove('hidden');
-}
-
-/* =========================================================
-   IDIOMAS E TRADUÇÕES
-   ========================================================= */
+/* =====================  IDIOMAS  ===================== */
 const I18N = {
 'pt-BR': {
-  title:'Compartilhe tela e câmera, no PC e Celular.',
-  joinIntro:'Sem cadastro e com conexão direta P2P. Quem digitar a mesma sala conecta com você.',
-  httpsWarn:'Atenção: O compartilhamento de tela e câmera requer página segura (HTTPS) no celular.',
-  lblName:'Seu nome', phName:'Ex.: Ana', lblRoom:'Nome da sala', phRoom:'Ex.: sala-amigos',
+  title:'Compartilhe sua tela, sem complicação.',
+  joinIntro:'Entre com seu nome e o nome de uma sala. Quem digitar o mesmo nome de sala entra junto com você.',
+  lblName:'Seu nome', phName:'Ex.: Ana', lblRoom:'Nome da sala', phRoom:'Ex.: galera-do-jogo',
   lblPass:'Senha da sala (opcional)', phPass:'Deixe vazio para sala aberta', btnJoin:'Entrar na sala',
-  joinNote:'Conexão direta criptografada. Quem cria a sala define a senha e é o dono.',
+  joinNote:'Quem cria a sala define a senha e vira o dono. Quem entrar depois precisa digitar a mesma senha.',
   fillFields:'Preencha seu nome e o nome da sala.',
-  eSecure:'A senha exige página segura (HTTPS) para proteção dos dados.',
-  libFail:'Falha ao carregar a biblioteca WebRTC. Verifique sua conexão e tente novamente.',
-  roomLbl:'Sala:', copyLink:'Copiar link', linkCopied:'Link copiado!', copyPrompt:'Copie o link da sala:',
-  participants:'Participantes', emptyNone:'Ninguém está transmitindo no momento', emptyHidden:'Todas as transmissões estão ocultas',
-  btnScreen:'Compartilhar tela', btnScreenRe:'Reiniciar tela', btnScreenNA:'Tela não suportada neste navegador',
-  btnCam:'Ligar câmera', btnCamRe:'Reiniciar câmera', btnFlip:'Inverter', lblCam:'Câmera:',
-  btnStop:'Parar', lblFps:'Fluidez:', lblRes:'Resolução:',
-  btnLeave:'Sair', lblVol:'Volume Geral:', volTile:'Volume desta transmissão',
-  settingsTitle:'Ajustes de Áudio e Vídeo',
-  you:'você', owner:'Dono', kick:'Expulsar', ban:'Banir', makeOwner:'Tornar Dono',
-  hideScreen:'Ocultar', showScreen:'Mostrar', soundOn:'Ouvir som', soundOff:'Silenciar',
-  confirmKick:'Expulsar {name}?', confirmBan:'Banir {name}?', confirmOwner:'Tornar {name} dono da sala?',
+  eSecure:'Senha de sala só funciona em página segura (https). Abra o endereço https do site ou deixe a senha vazia.',
+  libFail:'Não foi possível carregar a biblioteca de conexão. Verifique sua internet ou bloqueadores de anúncio e tente de novo.',
+  roomLbl:'Sala:', copyLink:'Copiar link da sala', linkCopied:'Link copiado!', copyPrompt:'Copie o link da sala:',
+  participants:'Participantes', emptyNone:'Ninguém está compartilhando ainda', emptyHidden:'Todas as telas estão ocultas',
+  btnScreen:'Compartilhar tela', btnScreenRe:'Reiniciar tela', btnScreenNA:'Tela indisponível neste aparelho',
+  btnCam:'Ligar câmera', btnCamRe:'Reiniciar câmera', lblCam:'Câmera:', camFront:'Frontal', camBack:'Traseira',
+  btnStop:'Parar', lblFps:'Fluidez:', lblRes:'Resolução:', res720:'720p (leve)', res1080:'1080p (Full HD)', res1440:'1440p (2K)', res2160:'2160p (4K)',
+  btnLeave:'Sair da sala', lblVol:'Volume:', volTile:'Volume desta transmissão',
+  you:'você', owner:'Dono da sala', kick:'Expulsar', ban:'Banir', makeOwner:'Passar posse',
+  hideScreen:'Ocultar tela', showScreen:'Mostrar tela', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
+  confirmKick:'Expulsar {name} da sala? A pessoa poderá entrar de novo.',
+  confirmBan:'Banir {name}? A pessoa não poderá mais entrar enquanto a sala existir.',
+  confirmOwner:'Passar a posse da sala para {name}? Você perderá os poderes de dono.',
   badgeCam:'● câmera', badgeScreen:'● tela', tagCam:'câmera', tagScreen:'tela', noAudio:'sem áudio',
-  searching:'Buscando participantes...', created:'Sala criada. Aguardando outras pessoas...',
-  connFail:'Falha na conexão direta P2P com alguém da sala. Em 4G/5G, tente usar Wi-Fi.',
-  oldVersion:'{name} está em outra versão. Peça para recarregar a página.',
-  statusLine:'Status: {srv} · Vaga {slot} · Conectados: {n}', srvOk:'Conectado', srvOff:'Desconectado', srvWait:'Conectando...',
-  serverDown:'Servidor de sinalização instável. Reconectando...', reconnecting:'Reconectando...', errConn:'Erro: {e}',
-  eName:'Já existe alguém com esse nome na sala.', eRequired:'Esta sala exige senha.', eOpen:'Esta sala não usa senha.',
-  eFull:'Sala lotada (máx {n} pessoas).', eWrong:'Senha incorreta.', eBanned:'Você foi banido desta sala.', eKicked:'Você foi expulso.',
-  youOwner:'Você agora é o dono da sala.', newOwner:'{name} é o novo dono da sala.',
-  cantScreen:'Para compartilhar a tela no celular, utilize o Google Chrome ou Samsung Internet atualizado em HTTPS.',
-  cantCam:'Câmera bloqueada ou indisponível.',
+  searching:'Procurando a sala...', created:'Sala criada. Aguardando outras pessoas...',
+  connFail:'Não foi possível conectar com um participante: a rede bloqueou a conexão direta (comum em 4G/5G e em redes de empresa ou escola). Tente outra rede, como Wi-Fi.',
+  oldVersion:'O site de {name} está em outra versão (v{ver}). Peça para recarregar a página (Ctrl+F5) e faça o mesmo no seu aparelho.',
+  statusLine:'Servidor: {srv} · vaga {slot} · conectados: {n}', srvOk:'ok', srvOff:'sem conexão', srvWait:'conectando',
+  serverDown:'Servidor de conexão indisponível. Tentando de novo...', reconnecting:'Reconectando à sala...', errConn:'Erro de conexão: {e}',
+  eName:'Já existe alguém com esse nome nesta sala. Escolha outro nome (ou aguarde alguns segundos se você acabou de recarregar a página).',
+  eRequired:'Esta sala exige senha. Digite a senha para entrar.', eOpen:'Esta sala não usa senha. Deixe o campo de senha vazio.',
+  eFull:'Esta sala está cheia (máximo de {n} pessoas).', eWrong:'Senha incorreta.',
+  eBanned:'Você foi banido desta sala pelo dono.', eKicked:'Você foi expulso da sala pelo dono.',
+  youOwner:'Você agora é o dono da sala.', newOwner:'{name} agora é o dono da sala.',
+  cantScreen:'Este aparelho/navegador não permite compartilhar a tela. Use um computador, ou ligue a câmera.',
+  cantCam:'A câmera só funciona em páginas seguras (https). Abra o endereço https do site.',
   startFail:'Não foi possível iniciar: {e}',
-  noSysAudio:'Nota: No celular, o sistema transmite o vídeo da tela sem áudio interno do sistema.',
-  camNoAudio:'Câmera sem microfone.',
+  noSysAudio:'Sem o som do computador: na janela do navegador, escolha "Tela inteira" ou uma "Aba" e marque "Compartilhar áudio".',
+  camNoAudio:'Sem permissão de áudio: a câmera segue sem som.',
+  qualityHigh:'Qualidade alta: exige computador e internet (envio) fortes. Se travar, reduza.',
   audOn:'com áudio', audNone:'sem áudio',
-  sharing1:'Transmitindo para 1 pessoa', sharingN:'Transmitindo para {n} pessoas',
-  sharingReady:'Transmissão pronta, aguardando participantes',
-  loadingImg:'Carregando vídeo...\nToque para iniciar se não começar.',
-  tapToPlay:'Toque para ativar áudio e vídeo'
+  sharing1:'Sua tela está sendo transmitida para 1 pessoa', sharingN:'Sua tela está sendo transmitida para {n} pessoas',
+  sharingReady:'Sua tela está pronta, ninguém assistindo ainda',
+  loadingImg:'Carregando a imagem...\nSe continuar preto, clique aqui.', pausedImg:'Vídeo pausado pelo navegador.\nClique aqui para reproduzir.'
 },
 'en': {
-  title:'Share your screen and camera effortlessly.',
-  joinIntro:'Direct P2P connection, no sign up required. Anyone typing the same room name joins.',
-  httpsWarn:'Notice: Screen and camera sharing requires a secure context (HTTPS) on mobile.',
-  lblName:'Your name', phName:'e.g. Alex', lblRoom:'Room name', phRoom:'e.g. game-room',
-  lblPass:'Room password (optional)', phPass:'Leave empty for open room', btnJoin:'Join room',
-  joinNote:'Direct encrypted connection. The creator sets the password and becomes owner.',
-  fillFields:'Please enter your name and room name.',
-  eSecure:'Password requires HTTPS for cryptographic security.',
-  libFail:'Failed to load WebRTC library. Check connection and retry.',
-  roomLbl:'Room:', copyLink:'Copy link', linkCopied:'Link copied!', copyPrompt:'Copy room link:',
-  participants:'Participants', emptyNone:'Nobody is streaming right now', emptyHidden:'All streams are hidden',
-  btnScreen:'Share screen', btnScreenRe:'Restart screen', btnScreenNA:'Screen share unsupported',
-  btnCam:'Turn on camera', btnCamRe:'Restart camera', btnFlip:'Flip', lblCam:'Camera:',
-  btnStop:'Stop', lblFps:'Framerate:', lblRes:'Resolution:',
-  btnLeave:'Leave', lblVol:'Master Volume:', volTile:'Volume of this stream',
-  settingsTitle:'Audio & Video Settings',
-  you:'you', owner:'Owner', kick:'Kick', ban:'Ban', makeOwner:'Make Owner',
-  hideScreen:'Hide', showScreen:'Show', soundOn:'Unmute', soundOff:'Mute',
-  confirmKick:'Kick {name}?', confirmBan:'Ban {name}?', confirmOwner:'Make {name} owner?',
+  title:'Share your screen, effortlessly.',
+  joinIntro:'Enter your name and a room name. Anyone who types the same room name joins you.',
+  lblName:'Your name', phName:'e.g. Alex', lblRoom:'Room name', phRoom:'e.g. gaming-crew',
+  lblPass:'Room password (optional)', phPass:'Leave empty for an open room', btnJoin:'Join room',
+  joinNote:'Whoever creates the room sets the password and becomes the owner. Others must type the same password.',
+  fillFields:'Fill in your name and the room name.',
+  eSecure:'Room passwords only work on secure pages (https). Open the site\'s https address or leave the password empty.',
+  libFail:'Could not load the connection library. Check your internet or ad blockers and try again.',
+  roomLbl:'Room:', copyLink:'Copy room link', linkCopied:'Link copied!', copyPrompt:'Copy the room link:',
+  participants:'Participants', emptyNone:'Nobody is sharing yet', emptyHidden:'All screens are hidden',
+  btnScreen:'Share screen', btnScreenRe:'Restart screen', btnScreenNA:'Screen sharing unavailable on this device',
+  btnCam:'Turn on camera', btnCamRe:'Restart camera', lblCam:'Camera:', camFront:'Front', camBack:'Rear',
+  btnStop:'Stop', lblFps:'Smoothness:', lblRes:'Resolution:', res720:'720p (light)', res1080:'1080p (Full HD)', res1440:'1440p (2K)', res2160:'2160p (4K)',
+  btnLeave:'Leave room', lblVol:'Volume:', volTile:'Volume of this stream',
+  you:'you', owner:'Room owner', kick:'Kick', ban:'Ban', makeOwner:'Make owner',
+  hideScreen:'Hide screen', showScreen:'Show screen', hideBtn:'Hide', soundOn:'Turn sound on', soundOff:'Mute',
+  confirmKick:'Kick {name} from the room? They will be able to join again.',
+  confirmBan:'Ban {name}? They will not be able to join again while the room exists.',
+  confirmOwner:'Make {name} the room owner? You will lose the owner powers.',
   badgeCam:'● camera', badgeScreen:'● screen', tagCam:'camera', tagScreen:'screen', noAudio:'no audio',
-  searching:'Looking for peers...', created:'Room created. Waiting for peers...',
-  connFail:'Could not connect P2P. On mobile cellular data, try Wi-Fi.',
-  oldVersion:'{name} is on another version. Ask them to reload.',
-  statusLine:'Status: {srv} · Slot {slot} · Connected: {n}', srvOk:'Connected', srvOff:'Offline', srvWait:'Connecting...',
-  serverDown:'Signaling server unavailable. Retrying...', reconnecting:'Reconnecting...', errConn:'Error: {e}',
-  eName:'Someone with that name is already in room.', eRequired:'Password required.', eOpen:'No password needed.',
-  eFull:'Room full (max {n}).', eWrong:'Wrong password.', eBanned:'You were banned.', eKicked:'You were kicked.',
-  youOwner:'You are now the room owner.', newOwner:'{name} is the new owner.',
-  cantScreen:'To share screen on mobile, please use modern Chrome or Samsung Internet over HTTPS.',
-  cantCam:'Camera unavailable or permission denied.',
+  searching:'Looking for the room...', created:'Room created. Waiting for other people...',
+  connFail:'Could not connect to a participant: the network blocked the direct connection (common on 4G/5G and company or school networks). Try another network, such as Wi-Fi.',
+  oldVersion:'{name}\'s site is on a different version (v{ver}). Ask them to reload the page (Ctrl+F5) and do the same on your device.',
+  statusLine:'Server: {srv} · slot {slot} · connected: {n}', srvOk:'ok', srvOff:'offline', srvWait:'connecting',
+  serverDown:'Connection server unavailable. Trying again...', reconnecting:'Reconnecting to the room...', errConn:'Connection error: {e}',
+  eName:'Someone with that name is already in this room. Choose another name (or wait a few seconds if you just reloaded the page).',
+  eRequired:'This room requires a password. Type the password to join.', eOpen:'This room has no password. Leave the password field empty.',
+  eFull:'This room is full (max {n} people).', eWrong:'Wrong password.',
+  eBanned:'You were banned from this room by the owner.', eKicked:'You were kicked from the room by the owner.',
+  youOwner:'You are now the room owner.', newOwner:'{name} is now the room owner.',
+  cantScreen:'This device/browser cannot share the screen. Use a computer, or turn on the camera.',
+  cantCam:'The camera only works on secure pages (https). Open the site\'s https address.',
   startFail:'Could not start: {e}',
-  noSysAudio:'Note: Mobile devices stream screen video without internal system audio.',
-  camNoAudio:'Camera running without audio.',
+  noSysAudio:'No computer sound: in the browser window, choose "Entire screen" or a "Tab" and tick "Share audio".',
+  camNoAudio:'No audio permission: the camera continues without sound.',
+  qualityHigh:'High quality needs a strong computer and upload speed. If it stutters, lower it.',
   audOn:'with audio', audNone:'no audio',
-  sharing1:'Streaming to 1 peer', sharingN:'Streaming to {n} peers',
-  sharingReady:'Stream ready, waiting for peers',
-  loadingImg:'Loading video...\nTap to play if paused.',
-  tapToPlay:'Tap to enable audio/video'
+  sharing1:'Your screen is being shared with 1 person', sharingN:'Your screen is being shared with {n} people',
+  sharingReady:'Your screen is ready, nobody is watching yet',
+  loadingImg:'Loading the picture...\nIf it stays black, click here.', pausedImg:'Video paused by the browser.\nClick here to play.'
 },
 'pt-PT': {
-  title:'Partilhe o ecrã e câmara, no PC e Telemóvel.',
-  joinIntro:'Sem registo e com ligação direta P2P. Quem colocar o mesmo nome entra na sala.',
-  httpsWarn:'Atenção: A partilha de ecrã e câmara exige página segura (HTTPS) no telemóvel.',
-  lblName:'O seu nome', phName:'Ex.: Ana', lblRoom:'Nome da sala', phRoom:'Ex.: amigos',
-  lblPass:'Palavra-passe (opcional)', phPass:'Deixe vazio para sala aberta', btnJoin:'Entrar',
-  joinNote:'Ligação direta encriptada. Quem cria a sala define a palavra-passe.',
-  fillFields:'Preencha o seu nome e sala.',
-  eSecure:'A palavra-passe exige HTTPS.',
-  libFail:'Falha ao carregar biblioteca WebRTC.',
-  roomLbl:'Sala:', copyLink:'Copiar ligação', linkCopied:'Ligação copiada!', copyPrompt:'Copie a ligação:',
-  participants:'Participantes', emptyNone:'Ninguém a transmitir', emptyHidden:'Transmissões ocultas',
-  btnScreen:'Partilhar ecrã', btnScreenRe:'Reiniciar ecrã', btnScreenNA:'Ecrã indisponível',
-  btnCam:'Ligar câmara', btnCamRe:'Reiniciar câmara', btnFlip:'Inverter', lblCam:'Câmara:',
-  btnStop:'Parar', lblFps:'Fluidez:', lblRes:'Resolução:',
-  btnLeave:'Sair', lblVol:'Volume Geral:', volTile:'Volume desta transmissão',
-  settingsTitle:'Definições de Áudio e Vídeo',
-  you:'você', owner:'Dono', kick:'Expulsar', ban:'Banir', makeOwner:'Tornar Dono',
-  hideScreen:'Ocultar', showScreen:'Mostrar', soundOn:'Ativar som', soundOff:'Silenciar',
-  confirmKick:'Expulsar {name}?', confirmBan:'Banir {name}?', confirmOwner:'Tornar {name} dono?',
+  title:'Partilhe o ecrã, sem complicações.',
+  joinIntro:'Introduza o seu nome e o nome de uma sala. Quem escrever o mesmo nome de sala entra consigo.',
+  lblName:'O seu nome', phName:'Ex.: Ana', lblRoom:'Nome da sala', phRoom:'Ex.: malta-do-jogo',
+  lblPass:'Palavra-passe da sala (opcional)', phPass:'Deixe vazio para sala aberta', btnJoin:'Entrar na sala',
+  joinNote:'Quem cria a sala define a palavra-passe e torna-se o dono. Quem entrar depois tem de escrever a mesma palavra-passe.',
+  fillFields:'Preencha o seu nome e o nome da sala.',
+  eSecure:'A palavra-passe da sala só funciona em páginas seguras (https). Abra o endereço https do site ou deixe o campo vazio.',
+  libFail:'Não foi possível carregar a biblioteca de ligação. Verifique a sua internet ou os bloqueadores de anúncios e tente novamente.',
+  roomLbl:'Sala:', copyLink:'Copiar ligação da sala', linkCopied:'Ligação copiada!', copyPrompt:'Copie a ligação da sala:',
+  participants:'Participantes', emptyNone:'Ninguém está a partilhar ainda', emptyHidden:'Todos os ecrãs estão ocultos',
+  btnScreen:'Partilhar ecrã', btnScreenRe:'Reiniciar ecrã', btnScreenNA:'Ecrã indisponível neste dispositivo',
+  btnCam:'Ligar câmara', btnCamRe:'Reiniciar câmara', lblCam:'Câmara:', camFront:'Frontal', camBack:'Traseira',
+  btnStop:'Parar', lblFps:'Fluidez:', lblRes:'Resolução:', res720:'720p (leve)', res1080:'1080p (Full HD)', res1440:'1440p (2K)', res2160:'2160p (4K)',
+  btnLeave:'Sair da sala', lblVol:'Volume:', volTile:'Volume desta transmissão',
+  you:'você', owner:'Dono da sala', kick:'Expulsar', ban:'Banir', makeOwner:'Passar posse',
+  hideScreen:'Ocultar ecrã', showScreen:'Mostrar ecrã', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
+  confirmKick:'Expulsar {name} da sala? A pessoa poderá entrar novamente.',
+  confirmBan:'Banir {name}? A pessoa não poderá voltar a entrar enquanto a sala existir.',
+  confirmOwner:'Passar a posse da sala para {name}? Perderá os poderes de dono.',
   badgeCam:'● câmara', badgeScreen:'● ecrã', tagCam:'câmara', tagScreen:'ecrã', noAudio:'sem áudio',
-  searching:'A procurar...', created:'Sala criada. A aguardar...',
-  connFail:'Falha na ligação direta P2P. Experimente Wi-Fi.',
-  oldVersion:'{name} está noutra versão.',
-  statusLine:'Estado: {srv} · Vaga {slot} · Ligados: {n}', srvOk:'Ligado', srvOff:'Desligado', srvWait:'A ligar...',
-  serverDown:'Servidor indisponível. A tentar novamente...', reconnecting:'A religar...', errConn:'Erro: {e}',
-  eName:'Nome já em uso nesta sala.', eRequired:'Sala com palavra-passe.', eOpen:'Sala sem palavra-passe.',
-  eFull:'Sala cheia (máx {n}).', eWrong:'Palavra-passe errada.', eBanned:'Foi banido.', eKicked:'Foi expulso.',
-  youOwner:'Agora é o dono da sala.', newOwner:'{name} é o novo dono.',
-  cantScreen:'Para partilhar o ecrã no telemóvel, use o Chrome com ligação HTTPS.',
-  cantCam:'Câmara indisponível.',
+  searching:'A procurar a sala...', created:'Sala criada. A aguardar outras pessoas...',
+  connFail:'Não foi possível ligar a um participante: a rede bloqueou a ligação direta (comum em 4G/5G e redes de empresas ou escolas). Tente outra rede, como Wi-Fi.',
+  oldVersion:'O site de {name} está noutra versão (v{ver}). Peça para recarregar a página (Ctrl+F5) e faça o mesmo no seu dispositivo.',
+  statusLine:'Servidor: {srv} · vaga {slot} · ligados: {n}', srvOk:'ok', srvOff:'sem ligação', srvWait:'a ligar',
+  serverDown:'Servidor de ligação indisponível. A tentar novamente...', reconnecting:'A religar à sala...', errConn:'Erro de ligação: {e}',
+  eName:'Já existe alguém com esse nome nesta sala. Escolha outro nome (ou aguarde alguns segundos se acabou de recarregar a página).',
+  eRequired:'Esta sala exige palavra-passe. Escreva a palavra-passe para entrar.', eOpen:'Esta sala não usa palavra-passe. Deixe o campo vazio.',
+  eFull:'Esta sala está cheia (máximo de {n} pessoas).', eWrong:'Palavra-passe incorreta.',
+  eBanned:'Foi banido desta sala pelo dono.', eKicked:'Foi expulso da sala pelo dono.',
+  youOwner:'Agora é o dono da sala.', newOwner:'{name} é agora o dono da sala.',
+  cantScreen:'Este dispositivo/navegador não permite partilhar o ecrã. Use um computador, ou ligue a câmara.',
+  cantCam:'A câmara só funciona em páginas seguras (https). Abra o endereço https do site.',
   startFail:'Não foi possível iniciar: {e}',
-  noSysAudio:'Nota: No telemóvel o ecrã é transmitido sem som de sistema.',
-  camNoAudio:'Câmara sem áudio.',
+  noSysAudio:'Sem o som do computador: na janela do navegador, escolha "Ecrã inteiro" ou um "Separador" e marque "Partilhar áudio".',
+  camNoAudio:'Sem permissão de áudio: a câmara continua sem som.',
+  qualityHigh:'Qualidade alta: exige um computador e uma internet (envio) fortes. Se encravar, reduza.',
   audOn:'com áudio', audNone:'sem áudio',
-  sharing1:'A transmitir para 1 pessoa', sharingN:'A transmitir para {n} pessoas',
-  sharingReady:'Transmissão pronta',
-  loadingImg:'A carregar...\nToque para reproduzir.',
-  tapToPlay:'Toque para ativar áudio/vídeo'
+  sharing1:'O seu ecrã está a ser transmitido para 1 pessoa', sharingN:'O seu ecrã está a ser transmitido para {n} pessoas',
+  sharingReady:'O seu ecrã está pronto, ainda ninguém a ver',
+  loadingImg:'A carregar a imagem...\nSe continuar preto, clique aqui.', pausedImg:'Vídeo pausado pelo navegador.\nClique aqui para reproduzir.'
 }
 };
 
@@ -860,7 +460,9 @@ function detectLang() {
 }
 let lang = detectLang();
 function T(k, v) {
-  let s = (I18N[lang] && I18N[lang][k]) || (I18N['pt-BR'][k]) || k;
+  let s = (I18N[lang] && I18N[lang][k]);
+  if (s == null) s = I18N['pt-BR'][k];
+  if (s == null) s = k;
   if (v) for (const x in v) s = s.split('{' + x + '}').join(v[x]);
   return s;
 }
@@ -880,9 +482,10 @@ function applyLang() {
   $('lang').value = lang;
   if (curMsg.k) $('msg').textContent = T(curMsg.k, curMsg.v);
   if (curErr.k) $('joinErr').textContent = T(curErr.k, curErr.v);
-  updateButtons();
-  tiles.forEach(t => updateTileTexts(t));
-  render();
+  if (typeof updateButtons === 'function') updateButtons();
+  if (typeof tiles !== 'undefined') tiles.forEach(t => { updateTileTexts(t); });
+  if (typeof lastSig !== 'undefined') lastSig = '';
+  if (typeof render === 'function') render();
 }
 $('lang').onchange = () => {
   lang = $('lang').value;
@@ -890,9 +493,8 @@ $('lang').onchange = () => {
   applyLang();
 };
 
-/* =========================================================
-   CARREGAMENTO SOB DEMANDA DO PEERJS COM FALLBACKS
-   ========================================================= */
+/* ---------- Carregamento sob demanda do PeerJS ---------- */
+const SRI = {};
 let peerLoad = null;
 function loadPeer() {
   if (window.Peer) return Promise.resolve(true);
@@ -908,7 +510,9 @@ function loadPeer() {
       if (window.Peer) return resolve(true);
       if (i >= urls.length) { peerLoad = null; return resolve(false); }
       const s = document.createElement('script');
-      s.src = urls[i++];
+      const u = urls[i++];
+      s.src = u;
+      if (SRI[u]) { s.integrity = SRI[u]; s.crossOrigin = 'anonymous'; }
       s.onload = () => (window.Peer ? resolve(true) : next());
       s.onerror = next;
       document.head.appendChild(s);
@@ -918,39 +522,27 @@ function loadPeer() {
   return peerLoad;
 }
 $('join').addEventListener('focusin', () => loadPeer(), { once: true });
-window.addEventListener('load', () => setTimeout(loadPeer, 1200));
 
-/* =========================================================
-   REDE WEBRTC E CONFIGURAÇÃO OTIMIZADA
-   ========================================================= */
-const APP_VERSION = '7.0';
-const PEER_OPTS = {
-  config: {
-    sdpSemantics: 'unified-plan',
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:global.stun.twilio.com:3478' },
-      { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' },
-      { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
-    ]
-  }
-};
+/* =====================  REDE E OTIMIZAÇÕES  ===================== */
+const APP_VERSION = '6.1';
+const CUSTOM_TURN = [];
+const PEER_OPTS = { config: { sdpSemantics: 'unified-plan', iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:global.stun.twilio.com:3478' },
+  { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' },
+  { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp', 'turns:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
+].concat(CUSTOM_TURN) } };
 
 const IS_CHROMIUM = /Chrome\/|Chromium\/|Edg\//.test(navigator.userAgent) && !/CriOS|FxiOS|iPhone|iPad|iPod/.test(navigator.userAgent);
 const kill = p => { try { p._dead = true; p.destroy(); } catch (e) {} };
 
-/* =========================================================
-   ESTADO DA SALA
-   ========================================================= */
+/* =====================  ESTADO  ===================== */
 let peer = null;
 let myName, baseId, roomKey = null, leaving = false;
 let myId = null, mySlot = -1, joinedAt = 0, probeTimer = 0, searchTimer = 0, heirTimer = 0, statusTimer = 0, kickTimer = 0, ownerWindow = 0;
 let myStream = null, myKind = null;
-let currentFacingMode = 'user'; // 'user' ou 'environment'
 const MAX_SLOTS = 12;
-
 const conns = new Map();
 const spare = new Map();
 const dialing = new Map();
@@ -966,31 +558,25 @@ const hidden = new Set();
 
 const rnd = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now();
 const clientId = (() => {
-  try {
-    let v = localStorage.getItem('sala-cid');
-    if (!v) { v = rnd(); localStorage.setItem('sala-cid', v); }
-    return v;
-  } catch (e) { return rnd(); }
+  try { let v = localStorage.getItem('sala-cid'); if (!v) { v = rnd(); localStorage.setItem('sala-cid', v); } return v; }
+  catch (e) { return rnd(); }
 })();
 
-const slug = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+const slug = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
   .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'sala';
 const slotOf = id => { const m = /_(\d+)$/.exec(id || ''); return m ? +m[1] : 999; };
 const norm = s => String(s || '').trim().toLowerCase();
 const myAge = () => performance.now() - joinedAt;
 const isOwner = () => !!myId && own.id === myId;
 
-/* =========================================================
-   ENTRADA E CRIPTOGRAFIA DE SALA
-   ========================================================= */
+/* =====================  ENTRADA NA SALA  ===================== */
 const TE = new TextEncoder();
 const toHex = buf => [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
 const rndHex = n => toHex(crypto.getRandomValues(new Uint8Array(n)));
-
 async function deriveRoomKey(room, pass) {
   if (!pass) return null;
   const base = await crypto.subtle.importKey('raw', TE.encode(pass), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: TE.encode('sala-v7|' + room), iterations: 150000 }, base, 256);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: TE.encode('sala-v6|' + room), iterations: 210000 }, base, 256);
   return crypto.subtle.importKey('raw', bits, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
 }
 async function makeProof(nonce, id) {
@@ -1022,11 +608,11 @@ $('btnJoin').onclick = async () => {
     key = await deriveRoomKey(rs, pass);
   } catch (e) { $('btnJoin').disabled = false; setJoinErr('eSecure'); return; }
   myName = name;
-  baseId = 'ss4-' + rs;
+  baseId = 'ss3-' + rs;
   roomKey = key;
   $('btnJoin').disabled = false;
   $('roomName').textContent = room;
-  $('joinContainer').classList.add('hidden');
+  $('join').classList.add('hidden');
   $('room').classList.remove('hidden');
   start();
 };
@@ -1068,14 +654,13 @@ function claimSlot(i) {
     myId = id; mySlot = i;
     msgK('searching');
     probe();
-    setTimeout(probe, 1000);
-    setTimeout(probe, 2500);
+    setTimeout(probe, 1000); setTimeout(probe, 3000);
     const tick = () => {
       probeTimer = setTimeout(() => {
         probe();
         if (isOwner()) broadcast({ t: 'owner', id: own.id, epoch: own.epoch });
         if (me === peer && !leaving) tick();
-      }, 7000 + Math.random() * 3000);
+      }, 5000 + Math.random() * 3000);
     };
     tick();
     updateStatus();
@@ -1084,10 +669,9 @@ function claimSlot(i) {
         if (!own.id) claimOwner(false);
         if (msgKey() === 'searching') msgK('created');
       }
-    }, 2800);
+    }, 3000);
     render();
   });
-
   me.on('connection', c => {
     if (me !== peer) return;
     if (!isRoomPeer(c.peer)) { try { c.close(); } catch (e) {} return; }
@@ -1116,7 +700,6 @@ function claimSlot(i) {
     }
     msgK('errConn', { e: e.type });
   });
-
   me.on('disconnected', () => { if (me === peer && !me.destroyed && !leaving) { try { me.reconnect(); } catch (e) {} } });
   me.on('close', () => { if (me === peer && !me._dead && !leaving) { msgK('reconnecting'); setTimeout(() => { if (!leaving) start(); }, 500); } });
 }
@@ -1124,13 +707,7 @@ function claimSlot(i) {
 function wake() {
   if (leaving || !peer) return;
   try { if (peer.disconnected && !peer.destroyed) peer.reconnect(); } catch (e) {}
-  // Garante que vídeos continuem tocando após troca de abas no mobile
-  tiles.forEach(t => {
-    if (t.video && t.video.paused && !hidden.has(t.id)) {
-      t.video.play().catch(() => {});
-    }
-  });
-  setTimeout(probe, 500);
+  setTimeout(probe, 400);
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
 window.addEventListener('online', wake);
@@ -1140,17 +717,15 @@ function updateStatus() {
   const upd = () => {
     const n = [...connIds()].filter(verifiedConn).length;
     const srv = !peer ? 'srvWait' : (peer.open && !peer.disconnected) ? 'srvOk' : peer.open ? 'srvOff' : 'srvWait';
-    const text = T('statusLine', { srv: T(srv), slot: mySlot + 1, n });
-    $('statusMobile').textContent = text;
+    $('status').textContent = T('statusLine', { srv: T(srv), slot: mySlot + 1, n, ver: APP_VERSION });
   };
-  upd();
-  statusTimer = setInterval(upd, 3000);
+  upd(); statusTimer = setInterval(upd, 2000);
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const ignoreUntil = new Map();
 const canDial = id => !!id && !!peer && peer.open && id !== myId && !dialing.has(id)
-  && !allConns(id).some(x => x.open && (x.verified || Date.now() - (x.openedAt || 0) < 2000))
+  && !allConns(id).some(x => x.open && (x.verified || Date.now() - (x.openedAt || 0) < 1500))
   && (ignoreUntil.get(id) || 0) <= Date.now();
 
 let probing = false;
@@ -1165,7 +740,7 @@ async function probe() {
       if (!canDial(id)) continue;
       dial(id);
       const t0 = Date.now();
-      while (dialing.has(id) && !leaving && Date.now() - t0 < 1200) await sleep(70);
+      while (dialing.has(id) && !leaving && Date.now() - t0 < 1500) await sleep(80);
     }
   } finally { probing = false; }
 }
@@ -1175,23 +750,20 @@ function dial(id) {
   const c = peer.connect(id, { reliable: true });
   dialing.set(id, c);
   setupConn(c, true);
-
-  // Timeout ajustado para 10s para acomodar handshakes móveis (4G/5G/CGNAT)
+  // OTIMIZAÇÃO: reduzido de 20s para 6s para desistir rápido de conexões mortas
   setTimeout(() => {
     if (dialing.get(id) !== c) return;
     dialing.delete(id);
-    const pc = c.peerConnection;
-    const st = pc ? pc.iceConnectionState : 'new';
-    if (st === 'connected' || st === 'completed') return;
+    const st = c.peerConnection ? c.peerConnection.iceConnectionState : 'new';
     try { c.close(); } catch (e) {}
-    if (st === 'new') { ignoreUntil.set(id, Date.now() + 12000); return; }
+    if (st === 'new') { ignoreUntil.set(id, Date.now() + 15000); return; }
     ignoreUntil.set(id, Date.now() + 4000);
-  }, 10000);
+    msgK('connFail');
+    setTimeout(() => { if (msgKey() === 'connFail') msg(''); }, 8000);
+  }, 6000);
 }
 
-/* =========================================================
-   CONEXÕES E HANDSHAKE
-   ========================================================= */
+/* =====================  CONEXÕES E HANDSHAKE  ===================== */
 const MAX_PER_PEER = 3;
 const DENIABLE = ['name', 'required', 'open', 'banned', 'wrong'];
 const addSpare = (id, c) => { let x = spare.get(id); if (!x) spare.set(id, x = new Set()); x.add(c); };
@@ -1220,11 +792,12 @@ function setupConn(c, outbound) {
     const cur = conns.get(id);
     if (!cur || cur === c || !cur.open) conns.set(id, c); else addSpare(id, c);
     c.openedAt = Date.now();
-    c.vt = setTimeout(() => { if (!c.verified) { try { c.close(); } catch (e) {} } }, 8000);
-
+    c.vt = setTimeout(() => { if (!c.verified) { try { c.close(); } catch (e) {} } }, 6000);
+    
+    // OTIMIZAÇÃO: pings encurtados para (800ms, 2s, 4s) acelerando a resposta
     const ping = () => { if (c.open && !c.verified) { try { c.send({ t: 'ch', n: c.myNonce }); } catch (e) {} } };
     ping();
-    c.rt = [setTimeout(ping, 600), setTimeout(ping, 1800), setTimeout(ping, 3500)];
+    c.rt = [setTimeout(ping, 800), setTimeout(ping, 2000), setTimeout(ping, 4000)];
   });
   c.on('data', d => { c.q = (c.q || Promise.resolve()).then(() => onData(c, d)).catch(e => console.warn(e)); });
   const gone = () => {
@@ -1319,6 +892,11 @@ async function onHello(c, d) {
     return;
   }
 
+  const ver = cleanStr(d.ver, 8);
+  if (ver !== APP_VERSION) {
+    msgK('oldVersion', { name, ver: ver || '?' });
+    setTimeout(() => { if (msgKey() === 'oldVersion') msg(''); }, 10000);
+  }
   c.verified = true; c.theyOlder = theyAreOlder;
   clearTimeout(c.vt);
   if (!people.has(id)) {
@@ -1369,9 +947,7 @@ function drop(id) {
   render();
 }
 
-/* =========================================================
-   CONTROLE DO DONO DA SALA
-   ========================================================= */
+/* =====================  DONO DA SALA  ===================== */
 function mergeOwner(o, sender) {
   if (!o || typeof o.id !== 'string' || o.id.length > 80 || !Number.isSafeInteger(o.epoch) || o.epoch < 0 || o.epoch > 1e6) return;
   if (o.id !== myId && !people.has(o.id)) return;
@@ -1441,16 +1017,14 @@ function kickPerson(id, ban) {
   setTimeout(() => { allConns(id).forEach(x => { try { x.close(); } catch (e) {} }); }, 300);
 }
 
-/* =========================================================
-   RECEBER VÍDEO
-   ========================================================= */
+/* =====================  RECEBER VÍDEO  ===================== */
 function onCall(call) {
   if (!isRoomPeer(call.peer)) { try { call.close(); } catch (e) {} return; }
   if (verifiedConn(call.peer)) { answerCall(call); return; }
   pendingCalls.set(call.peer, call);
   setTimeout(() => {
     if (pendingCalls.get(call.peer) === call) { pendingCalls.delete(call.peer); try { call.close(); } catch (e) {} }
-  }, 8000);
+  }, 6000);
 }
 function answerCall(call) {
   call.answer(undefined, { sdpTransform: tuneSdp });
@@ -1458,23 +1032,15 @@ function answerCall(call) {
   call.on('close', () => { const t = tiles.get(call.peer); if (t && t.call === call) removeTile(call.peer); });
 }
 
-/* =========================================================
-   QUALIDADE E TAXA DE BITS (OTIMIZADA PARA CELULAR E REDE MÓVEL)
-   ========================================================= */
-const DIMS = { 720: [1280, 720], 1080: [1920, 1080] };
+/* =====================  QUALIDADE DE VÍDEO  ===================== */
+const DIMS = { 720: [1280, 720], 1080: [1920, 1080], 1440: [2560, 1440], 2160: [3840, 2160] };
 function qualitySettings() {
-  const fps = +(isMobile ? $('fpsMob').value : $('fps').value);
-  const res = +(isMobile ? $('resMob').value : $('res').value);
+  const fps = +$('fps').value;
+  const res = +$('res').value;
   const [w, h] = DIMS[res] || DIMS[720];
-
-  // Bitrates realistas para não sobrecarregar processador e 4G móvel
-  // Mobile: max 2.5 Mbps para 720p / 4 Mbps para 1080p
-  // PC: max 5 Mbps para 720p / 8 Mbps para 1080p
-  const maxBps = isMobile
-    ? (res === 720 ? 2500000 : 4000000)
-    : (res === 720 ? 4500000 : 8000000);
-
-  return { fps, res, w, h, base: maxBps };
+  const bpp = fps <= 30 ? 0.07 : fps <= 60 ? 0.06 : 0.035;
+  const base = Math.min(40e6, Math.max(1.5e6, w * h * fps * bpp));
+  return { fps, res, w, h, base };
 }
 
 function tuneSdp(sdp) {
@@ -1488,9 +1054,7 @@ function tuneSdp(sdp) {
       m = l.match(/^a=fmtp:(\d+) /);
       if (m) withFmtp.add(m[1]);
     });
-    // Limite saudável de bitrate no SDP para evitar congelamento no mobile
-    const maxKbps = isMobile ? '3500' : '8000';
-    const extra = `x-google-start-bitrate=1200;x-google-min-bitrate=400;x-google-max-bitrate=${maxKbps}`;
+    const extra = 'x-google-start-bitrate=2500;x-google-min-bitrate=600;x-google-max-bitrate=40000';
     const out = [];
     lines.forEach(l => {
       let m = l.match(/^a=fmtp:(\d+) (.*)$/);
@@ -1507,8 +1071,7 @@ function applyQuality() {
   if (!myStream) return;
   const q = qualitySettings();
   const n = Math.max(1, calls.size);
-  const per = Math.round(Math.max(600000, Math.min(q.base, (q.base * 1.4) / n)));
-
+  const per = Math.round(Math.max(1.2e6, Math.min(q.base, q.base * 1.6 / n)));
   calls.forEach(c => {
     const pc = c.peerConnection; if (!pc) return;
     pc.getSenders().forEach(s => {
@@ -1518,21 +1081,21 @@ function applyQuality() {
       const e = p.encodings[0];
       e.maxBitrate = per;
       e.maxFramerate = q.fps;
-      p.degradationPreference = (myKind === 'screen') ? 'maintain-resolution' : 'maintain-framerate';
+      const w = (s.track.getSettings && s.track.getSettings().width) || q.w;
+      e.scaleResolutionDownBy = Math.max(1, w / q.w);
+      p.degradationPreference = (myKind === 'screen' && q.fps <= 30) ? 'maintain-resolution'
+        : (q.fps >= 60 ? 'maintain-framerate' : 'balanced');
       s.setParameters(p).catch(() => {});
     });
   });
 }
-
 let qTimers = [];
 function scheduleQuality() {
   qTimers.forEach(clearTimeout);
-  qTimers = [setTimeout(applyQuality, 800), setTimeout(applyQuality, 2500)];
+  qTimers = [setTimeout(applyQuality, 1000), setTimeout(applyQuality, 3000)];
 }
 
-/* =========================================================
-   TRANSMISSÃO DE TELA E CÂMERA (RESILIENTE PARA CELULAR)
-   ========================================================= */
+/* =====================  TRANSMISSÃO E ÁUDIO  ===================== */
 const canShareScreen = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
 const canUseCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 
@@ -1562,191 +1125,80 @@ function callPeer(id) {
   scheduleQuality();
 }
 
-// CAPTURA DE TELA TOTALMENTE RESILIENTE PARA CELULARES E PCS
-async function getScreenStream(q) {
-  if (!canShareScreen) throw new Error(T('cantScreen'));
-
-  // No celular (Android/iOS): getDisplayMedia NÃO aceita áudio de sistema
-  // Se passar parâmetros de áudio no celular, ele lança NotSupportedError ou OverconstrainedError imediatamente!
-  if (isMobile) {
-    try {
-      return await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          frameRate: { ideal: Math.min(q.fps, 30), max: 30 },
-          width: { ideal: Math.min(q.w, 1280) }
-        }
-      });
-    } catch (err) {
-      // Fallback mínimo universal para celular
-      return await navigator.mediaDevices.getDisplayMedia({ video: true });
-    }
-  }
-
-  // Desktop (PC): tenta com áudio do sistema primeiro
-  try {
-    return await navigator.mediaDevices.getDisplayMedia({
-      video: { cursor: 'always', frameRate: { ideal: q.fps, max: q.fps }, width: { ideal: q.w }, height: { ideal: q.h } },
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      systemAudio: 'include'
-    });
-  } catch (e1) {
-    try {
-      return await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: q.fps, max: q.fps }, width: { ideal: q.w }, height: { ideal: q.h } },
-        audio: true
-      });
-    } catch (e2) {
-      // Fallback sem áudio
-      return await navigator.mediaDevices.getDisplayMedia({ video: true });
-    }
-  }
-}
-
-// CAPTURA DE CÂMERA COM CANCELAMENTO DE ECO E FLIP
-async function getCameraStream(q, facing) {
-  if (!canUseCamera) throw new Error(T('cantCam'));
-
-  const videoConstraints = {
-    facingMode: { ideal: facing },
-    frameRate: { ideal: q.fps, max: q.fps },
-    width: { ideal: q.w },
-    height: { ideal: q.h }
-  };
-
-  const audioConstraints = {
-    echoCancellation: true,
-    noiseSuppression: true,
-    autoGainControl: true
-  };
-
-  try {
-    return await navigator.mediaDevices.getUserMedia({
-      video: videoConstraints,
-      audio: audioConstraints
-    });
-  } catch (err) {
-    // Tenta sem áudio se o microfone for negado
-    return await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
-  }
-}
+if (!canShareScreen) $('btnScreen').disabled = true;
+$('facing').onchange = () => { if (myKind === 'cam') share('cam'); };
 
 async function share(kind) {
   if (kind === 'screen' && !canShareScreen) { msgK('cantScreen'); return; }
   if (kind === 'cam' && !canUseCamera) { msgK('cantCam'); return; }
   if (myStream) stopShare();
-
   const q = qualitySettings();
-  let stream;
+  const frameRate = { ideal: q.fps, max: q.fps };
+  let stream, camAudioFailed = false;
   try {
     if (kind === 'screen') {
-      stream = await getScreenStream(q);
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always', frameRate, width: { ideal: q.w, max: q.w }, height: { ideal: q.h, max: q.h } },
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, restrictOwnAudio: true },
+        systemAudio: 'include'
+      });
     } else {
-      stream = await getCameraStream(q, currentFacingMode);
+      const video = { frameRate, width: { ideal: q.w }, height: { ideal: q.h }, facingMode: { ideal: $('facing').value } };
+      try { stream = await navigator.mediaDevices.getUserMedia({ video, audio: true }); }
+      catch (e) { camAudioFailed = true; stream = await navigator.mediaDevices.getUserMedia({ video }); }
     }
-  } catch (e) {
-    if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') {
-      msgK('startFail', { e: e.message || e.name });
-    }
-    return;
-  }
-
+  } catch (e) { msgK('startFail', { e: e.message }); return; }
   myStream = stream;
   myKind = kind;
   hasAudio = stream.getAudioTracks().length > 0;
-
-  if (kind === 'screen' && !hasAudio && isMobile) {
-    msgK('noSysAudio');
-    setTimeout(() => { if (msgKey() === 'noSysAudio') msg(''); }, 5000);
-  } else {
-    msg('');
-  }
+  if (kind === 'screen' && !hasAudio) msgK('noSysAudio');
+  else if (kind === 'cam' && !hasAudio && camAudioFailed) msgK('camNoAudio');
+  else msg('');
+  setTimeout(() => { if (['camNoAudio', 'noSysAudio'].includes(msgKey())) msg(''); }, 6000);
 
   const vt = stream.getVideoTracks()[0];
-  if (vt) {
-    vt.contentHint = (kind === 'screen') ? 'detail' : 'motion';
-    vt.onended = () => stopShare();
-  }
-
+  vt.contentHint = kind === 'screen' ? (q.fps >= 60 ? 'motion' : 'detail') : 'motion';
+  vt.onended = () => stopShare();
   showTile('me', myStream, null, true);
   connIds().forEach(id => { if (verifiedConn(id)) callPeer(id); });
   broadcast({ t: 'sharing', on: true, kind });
   updateLocalNote();
-  updateButtons();
-  render();
-}
-
-// Inverter Câmera (Frontal / Traseira)
-async function flipCamera() {
-  if (myKind !== 'cam') return;
-  currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
-  const q = qualitySettings();
-  try {
-    const newStream = await getCameraStream(q, currentFacingMode);
-    const newVt = newStream.getVideoTracks()[0];
-    const oldVt = myStream ? myStream.getVideoTracks()[0] : null;
-
-    if (oldVt) {
-      oldVt.stop();
-      myStream.removeTrack(oldVt);
-    }
-    myStream.addTrack(newVt);
-    newVt.onended = () => stopShare();
-
-    // Atualiza remetentes WebRTC sem derrubar chamada
-    calls.forEach(c => {
-      const pc = c.peerConnection;
-      if (!pc) return;
-      pc.getSenders().forEach(s => {
-        if (s.track && s.track.kind === 'video') {
-          s.replaceTrack(newVt).catch(() => {});
-        }
-      });
-    });
-
-    const t = tiles.get('me');
-    if (t && t.video) t.video.srcObject = myStream;
-  } catch (e) {
-    share('cam');
-  }
+  updateButtons(); render();
 }
 
 function stopShare() {
   if (!myStream) return;
   const s = myStream;
-  myStream = null;
-  myKind = null;
+  myStream = null; myKind = null;
   s.getTracks().forEach(t => { t.onended = null; t.stop(); });
   hasAudio = false;
-  const list = [...calls.values()];
-  calls.clear();
-  list.forEach(c => c.close());
+  const list = [...calls.values()]; calls.clear(); list.forEach(c => c.close());
   removeTile('me');
   broadcast({ t: 'sharing', on: false });
-  updateButtons();
-  render();
+  updateButtons(); render();
 }
 
+let warnTimer;
 async function qualityChanged() {
-  if (!myStream) return;
   const q = qualitySettings();
-  const vt = myStream.getVideoTracks()[0];
-  if (vt && vt.applyConstraints) {
-    try {
-      await vt.applyConstraints({
-        frameRate: { ideal: q.fps, max: q.fps },
-        width: { ideal: q.w },
-        height: { ideal: q.h }
-      });
-    } catch (e) {}
+  if (q.res >= 1440 || q.fps > 60) {
+    msgK('qualityHigh');
+    clearTimeout(warnTimer); warnTimer = setTimeout(() => { if (msgKey() === 'qualityHigh') msg(''); }, 5000);
   }
+  if (!myStream) return;
+  const vt = myStream.getVideoTracks()[0];
+  try {
+    await vt.applyConstraints({
+      frameRate: { ideal: q.fps, max: q.fps },
+      width: { ideal: q.w, max: q.w }, height: { ideal: q.h, max: q.h }
+    });
+  } catch (e) {}
+  vt.contentHint = myKind === 'screen' ? (q.fps >= 60 ? 'motion' : 'detail') : 'motion';
   applyQuality();
   setTimeout(updateLocalNote, 500);
 }
-
-$('fps').onchange = () => { $('fpsMob').value = $('fps').value; qualityChanged(); };
-$('res').onchange = () => { $('resMob').value = $('res').value; qualityChanged(); };
-$('fpsMob').onchange = () => { $('fps').value = $('fpsMob').value; qualityChanged(); };
-$('resMob').onchange = () => { $('res').value = $('resMob').value; qualityChanged(); };
+$('fps').onchange = qualityChanged;
+$('res').onchange = qualityChanged;
 
 $('btnLink').onclick = async () => {
   const link = location.href.split('#')[0] + '#' + encodeURIComponent($('roomName').textContent);
@@ -1754,271 +1206,146 @@ $('btnLink').onclick = async () => {
   catch (e) { prompt(T('copyPrompt'), link); }
   setTimeout(() => { if (msgKey() === 'linkCopied') msg(''); }, 2500);
 };
-
 $('btnScreen').onclick = () => share('screen');
 $('btnCam').onclick = () => share('cam');
-$('btnFlipCam').onclick = flipCamera;
 $('btnStop').onclick = stopShare;
 
 function leaveRoom() {
   stopShare();
   leaving = true;
-  closeAll();
-  resetState();
+  closeAll(); resetState();
   msg('');
   $('room').classList.add('hidden');
-  $('joinContainer').classList.remove('hidden');
+  $('join').classList.remove('hidden');
 }
 $('btnLeave').onclick = leaveRoom;
 window.addEventListener('beforeunload', () => { leaving = true; closeAll(); });
 
 function updateButtons() {
   $('btnStop').disabled = !myStream;
-  const screenTxt = $('btnScreen').querySelector('.txt');
-  if (screenTxt) {
-    screenTxt.textContent = !canShareScreen ? T('btnScreenNA') : myKind === 'screen' ? T('btnScreenRe') : T('btnScreen');
-  }
-  $('btnScreen').classList.toggle('active-btn', myKind === 'screen');
-
-  const camTxt = $('btnCam').querySelector('.txt');
-  if (camTxt) {
-    camTxt.textContent = myKind === 'cam' ? T('btnCamRe') : T('btnCam');
-  }
-  $('btnCam').classList.toggle('active-btn', myKind === 'cam');
-
-  // Mostra botão de inverter câmera apenas quando a câmera estiver ativa
-  $('btnFlipCam').classList.toggle('hidden', myKind !== 'cam');
+  $('btnScreen').textContent = !canShareScreen ? T('btnScreenNA') : myKind === 'screen' ? T('btnScreenRe') : T('btnScreen');
+  $('btnCam').textContent = myKind === 'cam' ? T('btnCamRe') : T('btnCam');
 }
 
-/* =========================================================
-   INTERFACE, ÁUDIO E EXIBIÇÃO DE VÍDEOS
-   ========================================================= */
+/* =====================  INTERFACE  ===================== */
 let masterVol = (() => {
-  try {
-    const v = parseFloat(localStorage.getItem('sala-vol'));
-    return isNaN(v) ? 1 : Math.min(1, Math.max(0, v));
-  } catch (e) { return 1; }
+  try { const v = parseFloat(localStorage.getItem('sala-vol')); return isNaN(v) ? 1 : Math.min(1, Math.max(0, v)); }
+  catch (e) { return 1; }
 })();
-
 function applyVolume(t) {
-  try {
-    if (t.video) {
-      t.video.volume = Math.min(1, Math.max(0, masterVol * (t.vol == null ? 1 : t.vol)));
-    }
-  } catch (e) {}
+  try { t.video.volume = Math.min(1, Math.max(0, masterVol * (t.vol == null ? 1 : t.vol))); } catch (e) {}
 }
-
-const updateMasterVol = (val) => {
-  masterVol = val / 100;
-  $('vol').value = val;
-  $('volMob').value = val;
+$('vol').value = Math.round(masterVol * 100);
+$('vol').oninput = () => {
+  masterVol = $('vol').value / 100;
   try { localStorage.setItem('sala-vol', String(masterVol)); } catch (e) {}
   tiles.forEach(t => { if (!t.local) applyVolume(t); });
 };
-$('vol').oninput = () => updateMasterVol($('vol').value);
-$('volMob').oninput = () => updateMasterVol($('volMob').value);
-$('vol').value = Math.round(masterVol * 100);
-$('volMob').value = Math.round(masterVol * 100);
-
-// Gaveta de Participantes
-$('btnTogglePeople').onclick = () => $('asidePeople').classList.toggle('open');
-$('btnClosePeople').onclick = () => $('asidePeople').classList.remove('open');
-
-// Modal de Configurações Mobile
-$('btnSettings').onclick = () => $('settingsModal').classList.remove('hidden');
-$('btnCloseSettings').onclick = () => $('settingsModal').classList.add('hidden');
-$('settingsModal').onclick = e => { if (e.target === $('settingsModal')) $('settingsModal').classList.add('hidden'); };
 
 function updateSoundBtn(t) {
   if (!t.snd) return;
-  t.snd.textContent = t.video.muted ? '🔇' : '🔊';
-  t.snd.title = t.video.muted ? T('soundOn') : T('soundOff');
+  t.snd.textContent = t.video.muted ? '🔇 ' + T('soundOn') : '🔊 ' + T('soundOff');
 }
 function updateTileTexts(t) {
-  if (t.hbtn) t.hbtn.title = T('hideScreen');
+  if (t.hbtn) t.hbtn.textContent = '🙈 ' + T('hideBtn');
   if (t.vslider) t.vslider.title = T('volTile');
   updateSoundBtn(t);
 }
 
-// Reprodução remota à prova de bloqueio de autoplay no mobile
 function startRemotePlayback(t) {
   const v = t.video;
   v.muted = false;
-  const p = v.play();
-  if (p && p.catch) {
-    p.catch(() => {
-      // Bloqueado pelo navegador móvel: reproduz mudo e mostra aviso para tocar
-      v.muted = true;
-      v.play().catch(() => {});
-      if (t.note) {
-        t.note.textContent = T('tapToPlay');
-        t.note.classList.add('interactive');
-        t.note.classList.remove('hidden');
-      }
-    });
-  }
+  const pr = v.play();
+  if (pr && pr.catch) pr.catch(() => {
+    v.muted = true;
+    v.play().catch(() => {});
+  });
 }
 
 function showTile(id, stream, call, isLocal) {
   let t = tiles.get(id);
   if (!t) {
-    const el = document.createElement('div');
-    el.className = 'tile';
-
-    const video = document.createElement('video');
-    video.autoplay = true;
-    video.playsInline = true;
-    video.setAttribute('playsinline', 'true');
-    video.setAttribute('webkit-playsinline', 'true');
-
-    const note = document.createElement('div');
-    note.className = 'tile-note hidden';
-
-    const ctrl = document.createElement('div');
-    ctrl.className = 'tile-controls';
-
-    const ctrlTop = document.createElement('div');
-    ctrlTop.className = 'tile-ctrl-top';
-
-    const label = document.createElement('div');
-    label.className = 'tile-label';
-
-    const ctrlBot = document.createElement('div');
-    ctrlBot.className = 'tile-ctrl-bot';
-
+    const el = document.createElement('div'); el.className = 'tile';
+    const video = document.createElement('video'); video.autoplay = true; video.playsInline = true;
+    const label = document.createElement('div'); label.className = 'label';
     el.append(video);
-    el.append(note);
-    el.append(ctrl);
-    ctrl.append(ctrlTop);
-    ctrl.append(ctrlBot);
-    ctrlBot.append(label);
-
-    t = {
-      id, el, video, label, note, ctrl,
-      call: null, stream: null, snd: null, hbtn: null, fbtn: null,
-      noPreview: false, timer: 0, fps: 0, res: '', lastFrames: 0, lastT: 0,
-      created: performance.now(), userMuted: false, local: !!isLocal, vol: 1, vslider: null
-    };
-
+    t = { el, video, label, call: null, stream: null, note: null, snd: null, hbtn: null, noPreview: false, timer: 0, fps: 0, res: '', lastFrames: 0, lastT: 0, created: performance.now(), userMuted: false, local: !!isLocal, vol: 1, vslider: null };
     if (isLocal && myKind === 'screen') {
       t.noPreview = true;
-      note.classList.remove('hidden');
+      t.note = document.createElement('div'); t.note.className = 'note';
+      el.append(t.note);
     }
-
+    el.append(label);
     if (!isLocal) {
-      // Botão Mudo/Áudio
-      t.snd = document.createElement('button');
-      t.snd.className = 'tbtn';
-      t.snd.textContent = '🔊';
+      t.note = document.createElement('div'); t.note.className = 'note hidden';
+      t.note.style.pointerEvents = 'none';
+      el.append(t.note);
+      el.onclick = () => { t.video.play().catch(() => {}); };
+      t.snd = document.createElement('button'); t.snd.className = 'tbtn snd';
       t.snd.onclick = e => {
         e.stopPropagation();
-        t.video.muted = !t.video.muted;
-        t.userMuted = t.video.muted;
+        t.video.muted = !t.video.muted; t.userMuted = t.video.muted;
         if (!t.video.muted) t.video.play().catch(() => {});
         updateSoundBtn(t);
       };
-      ctrlTop.append(t.snd);
-
-      // Botão Ocultar
-      t.hbtn = document.createElement('button');
-      t.hbtn.className = 'tbtn';
-      t.hbtn.textContent = '🙈';
+      video.addEventListener('volumechange', () => updateSoundBtn(t));
+      el.append(t.snd);
+      t.hbtn = document.createElement('button'); t.hbtn.className = 'tbtn hide';
       t.hbtn.onclick = e => { e.stopPropagation(); toggleHide(id); };
-      ctrlTop.append(t.hbtn);
-
-      // Botão Tela Cheia no Tile
-      t.fbtn = document.createElement('button');
-      t.fbtn.className = 'tbtn';
-      t.fbtn.textContent = '⛶';
-      t.fbtn.title = 'Tela cheia';
-      t.fbtn.onclick = e => {
-        e.stopPropagation();
-        if (document.fullscreenElement) document.exitFullscreen();
-        else el.requestFullscreen().catch(() => { if (video.webkitEnterFullscreen) video.webkitEnterFullscreen(); });
-      };
-      ctrlTop.append(t.fbtn);
-
-      // Volume individual
-      t.vslider = document.createElement('input');
-      t.vslider.type = 'range';
-      t.vslider.className = 'tvol';
+      el.append(t.hbtn);
+      t.vslider = document.createElement('input'); t.vslider.type = 'range'; t.vslider.className = 'tvol';
       t.vslider.min = 0; t.vslider.max = 100; t.vslider.value = 100;
       t.vslider.oninput = () => { t.vol = t.vslider.value / 100; applyVolume(t); };
       t.vslider.onclick = e => e.stopPropagation();
-      ctrlBot.append(t.vslider);
-
-      // Toque para desmutar ou reproduzir
-      el.onclick = () => {
-        if (t.video.paused) t.video.play().catch(() => {});
-        if (t.video.muted && !t.userMuted) {
-          t.video.muted = false;
-          updateSoundBtn(t);
-        }
-        note.classList.add('hidden');
-      };
-
+      t.vslider.ondblclick = e => e.stopPropagation();
+      el.append(t.vslider);
       applyVolume(t);
     }
-
-    // Controle de toque no mobile para mostrar/ocultar barra de controle do tile
+    el.ondblclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen(); };
     {
-      let tmr = 0;
-      const showUi = () => {
-        el.classList.add('ui');
-        clearTimeout(tmr);
-        tmr = setTimeout(() => el.classList.remove('ui'), 3500);
-      };
-      el.addEventListener('pointerdown', showUi);
+      let tmr = 0, down = false;
+      const busy = () => down || el.querySelector('.tbtn:hover, .tvol:hover');
+      const hideUi = () => { if (busy()) { tmr = setTimeout(hideUi, 1000); return; } el.classList.remove('ui'); };
+      const showUi = () => { el.classList.add('ui'); clearTimeout(tmr); tmr = setTimeout(hideUi, 2500); };
       el.addEventListener('pointermove', showUi);
+      el.addEventListener('pointerdown', () => { down = true; showUi(); });
+      el.addEventListener('pointerup', () => { down = false; showUi(); });
+      el.addEventListener('pointercancel', () => { down = false; });
+      el.addEventListener('pointerleave', () => { if (!down) { clearTimeout(tmr); el.classList.remove('ui'); } });
     }
-
     if (hidden.has(id)) el.classList.add('hidden');
     $('grid').append(el);
     tiles.set(id, t);
     updateTileTexts(t);
-
     if (!isLocal) {
       t.lastT = performance.now();
       t.timer = setInterval(() => {
-        if (document.hidden) return;
-        const v = t.video;
-        const q = v.getVideoPlaybackQuality && v.getVideoPlaybackQuality();
+        if (document.hidden) { t.lastT = performance.now(); return; }
+        const v = t.video, q = v.getVideoPlaybackQuality && v.getVideoPlaybackQuality();
         const now = performance.now();
-        if (q) {
-          t.fps = Math.round((q.totalVideoFrames - t.lastFrames) * 1000 / (now - t.lastT));
-          t.lastFrames = q.totalVideoFrames;
-        }
+        if (q) { t.fps = Math.round((q.totalVideoFrames - t.lastFrames) * 1000 / (now - t.lastT)); t.lastFrames = q.totalVideoFrames; }
         t.lastT = now;
         t.res = v.videoWidth ? v.videoWidth + '×' + v.videoHeight : '';
-        if (t.note && !t.note.classList.contains('interactive')) {
+        if (t.note) {
           const stuck = !v.videoWidth || v.paused;
-          const waited = now - t.created > 3500;
-          t.note.textContent = T('loadingImg');
+          const waited = now - t.created > 3000;
+          t.note.textContent = v.paused && v.videoWidth ? T('pausedImg') : T('loadingImg');
           t.note.classList.toggle('hidden', !(stuck && waited));
+          if (v.paused && v.videoWidth && !hidden.has(id)) v.play().catch(() => {});
         }
-      }, 3000);
+        render();
+      }, 2000);
     }
   }
-
   t.stream = stream;
   if (!t.noPreview && t.video.srcObject !== stream) {
     t.video.srcObject = stream;
-    if (isLocal) {
-      t.video.muted = true;
-      t.video.play().catch(() => {});
-    } else {
-      if (t.userMuted) {
-        t.video.muted = true;
-        t.video.play().catch(() => {});
-      } else {
-        startRemotePlayback(t);
-      }
-    }
+    if (isLocal) { t.video.muted = true; t.video.play().catch(() => {}); }
+    else { if (t.userMuted) { t.video.muted = true; t.video.play().catch(() => {}); } else startRemotePlayback(t); }
   }
   t.call = call;
   render();
 }
-
 function removeTile(id) {
   const t = tiles.get(id);
   if (t) { destroyTile(t); tiles.delete(id); }
@@ -2042,16 +1369,13 @@ window.addEventListener('resize', render);
 
 let lastSig = '';
 function renderPeople() {
-  const total = people.size + 1;
-  $('count').textContent = total;
-  $('count2').textContent = total;
-
+  $('count').textContent = people.size + 1;
   const list = [...people].map(([id, p]) => [id, p.name, p.sharing ? 1 : 0, p.kind || '']);
   const sig = JSON.stringify([lang, own.id, myId, myName, !!myStream, myKind, [...hidden], list, isOwner()]);
   if (sig === lastSig) return;
   lastSig = sig;
 
-  const ul = $('peopleList'); ul.textContent = '';
+  const ul = $('people'); ul.textContent = '';
   const mkBtn = (txt, cls, fn) => { const b = document.createElement('button'); b.textContent = txt; if (cls) b.className = cls; b.onclick = fn; return b; };
   const row = (id, name, sharing, kind, you) => {
     const li = document.createElement('li');
@@ -2059,6 +1383,7 @@ function renderPeople() {
     const n = document.createElement('span'); n.className = 'nm';
     const crown = id && own.id === id;
     n.textContent = (crown ? '👑 ' : '') + name + (you ? ' (' + T('you') + ')' : '');
+    if (crown) n.title = T('owner');
     top.append(n);
     if (sharing) {
       const b = document.createElement('span'); b.className = 'badge';
@@ -2090,42 +1415,25 @@ function doRender() {
     const name = me ? myName + ' (' + T('you') + ')' : (people.get(id) || {}).name || '...';
     const kind = me ? myKind : (people.get(id) || {}).kind;
     let text = name + ' — ' + (kind === 'cam' ? T('tagCam') : T('tagScreen'));
-    if (me) {
-      text += ' · ' + T(audioKey());
-    } else {
+    if (me) text += ' · ' + T(audioKey());
+    else {
       if (t.res) text += ' · ' + t.res;
-      if (t.fps) text += ' · ' + t.fps + 'fps';
+      if (t.fps) text += ' · ' + t.fps + ' fps';
+      if (t.stream && t.stream.getAudioTracks().length === 0) text += ' · ' + T('noAudio');
     }
     if (t.label.textContent !== text) t.label.textContent = text;
   });
 
-  const visibleTiles = [...tiles.keys()].filter(id => !hidden.has(id)).length;
-  $('empty').classList.toggle('hidden', visibleTiles > 0);
-  $('emptyTxt').textContent = tiles.size > 0 ? T('emptyHidden') : T('emptyNone');
-
-  // Ajuste inteligente do Grid para Mobile e Desktop
-  const grid = $('grid');
-  if (visibleTiles === 0) {
-    grid.style.gridTemplateColumns = '1fr';
-    grid.style.gridTemplateRows = '1fr';
-  } else if (visibleTiles === 1) {
-    grid.style.gridTemplateColumns = '1fr';
-    grid.style.gridTemplateRows = '1fr';
-  } else if (visibleTiles === 2) {
-    if (window.innerWidth <= 768 && window.innerHeight > window.innerWidth) {
-      // Mobile em modo retrato: empilhado
-      grid.style.gridTemplateColumns = '1fr';
-      grid.style.gridTemplateRows = 'repeat(2, minmax(0, 1fr))';
-    } else {
-      grid.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
-      grid.style.gridTemplateRows = '1fr';
-    }
-  } else {
-    const cols = (window.innerWidth <= 768 && window.innerHeight > window.innerWidth) ? 1 : Math.ceil(Math.sqrt(visibleTiles));
-    const rows = Math.ceil(visibleTiles / cols);
-    grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-    grid.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+  const n = [...tiles.keys()].filter(id => !hidden.has(id)).length;
+  $('empty').classList.toggle('hidden', n > 0);
+  $('empty').textContent = tiles.size > 0 ? T('emptyHidden') : T('emptyNone');
+  let cols = 1, rows = 1;
+  if (n > 0) {
+    cols = window.matchMedia('(max-width:800px)').matches ? 1 : Math.ceil(Math.sqrt(n));
+    rows = Math.ceil(n / cols);
   }
+  $('grid').style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
+  $('grid').style.gridTemplateRows = 'repeat(' + rows + ', minmax(0, 1fr))';
 }
 
 applyLang();
