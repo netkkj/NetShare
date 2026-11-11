@@ -29,7 +29,6 @@
   #join label { display:grid; gap:4px; font-size:.9rem; }
   #joinErr { margin:0; color:#ff8a80; font-size:.9rem; font-weight:600; }
 
-  /* A sala ocupa exatamente a janela: nada de rolagem, as telas se ajustam ao espaço */
   #room { height:100vh; height:100dvh; overflow:hidden; display:grid; grid-template-columns:minmax(0,1fr) 260px; grid-template-rows:auto minmax(0,1fr) auto; gap:10px; padding:10px; }
   header { grid-column:1/-1; display:flex; justify-content:flex-start; align-items:center; gap:12px; flex-wrap:wrap; padding-right:230px; min-height:40px; }
   header h2 { margin:0; font-size:1.05rem; }
@@ -42,7 +41,6 @@
   .tbtn.hide { right:8px; top:8px; }
   .tvol { position:absolute; left:8px; top:12px; width:90px; padding:0; background:transparent; border:0; opacity:.85; }
   .label { position:absolute; left:8px; bottom:8px; background:rgba(0,0,0,.65); color:#fff; padding:4px 10px; border-radius:8px; font-size:.8rem; font-weight:600; max-width:calc(100% - 150px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  /* Controles sobre o vídeo (ocultar, som, volume, legenda): só aparecem com o mouse em cima e se movendo, ou ao tocar */
   .tile .tbtn, .tile .tvol, .tile .label { transition:opacity .15s; }
   .tile:not(.ui) .tbtn, .tile:not(.ui) .tvol, .tile:not(.ui) .label { opacity:0; pointer-events:none; }
   #empty { color:var(--mut); display:grid; place-items:center; text-align:center; padding:12px; border:2px dashed #343942; border-radius:12px; }
@@ -73,7 +71,7 @@
   <option value="pt-PT">Português (Portugal)</option>
 </select>
 
-<a id="gh" href="https://github.com/netspya" target="_blank" rel="noopener" title="github.com/netspya" aria-label="GitHub netspya">
+<a id="gh" href="https://github.com/netkkj" target="_blank" rel="noopener" title="https://github.com/netkkj" aria-label="GitHub netkkj">
   <svg viewBox="0 0 16 16" width="22" height="22" fill="currentColor" aria-hidden="true">
     <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
   </svg>
@@ -288,7 +286,6 @@ function T(k, v) {
   return s;
 }
 
-// mensagens do topo e erro da tela de entrada guardam a chave para traduzir ao trocar de idioma
 let curMsg = { k: null, v: null };
 function msg(text) { curMsg = { k: null, v: null }; $('msg').textContent = text || ''; }
 function msgK(k, v) { curMsg = { k, v }; $('msg').textContent = T(k, v); }
@@ -315,10 +312,7 @@ $('lang').onchange = () => {
   applyLang();
 };
 
-/* ---------- Carregamento sob demanda do PeerJS (só quando você entra numa sala) ---------- */
-// Hashes SRI opcionais (url -> 'sha384-...'). Gere com:
-//   curl -s URL | openssl dgst -sha384 -binary | openssl base64 -A
-// Se uma url estiver aqui, o navegador só executa o script se o conteúdo bater com o hash.
+/* ---------- Carregamento sob demanda do PeerJS ---------- */
 const SRI = {};
 let peerLoad = null;
 function loadPeer() {
@@ -346,15 +340,10 @@ function loadPeer() {
   });
   return peerLoad;
 }
-// Começa a baixar assim que a pessoa clica em qualquer campo (ganha tempo sem gastar à toa)
 $('join').addEventListener('focusin', () => loadPeer(), { once: true });
 
-/* =====================  REDE (celular x computador)  =====================
-   Celulares em 4G/5G ficam atrás de redes que bloqueiam a conexão direta; nesses casos o
-   vídeo passa por um servidor de retransmissão (TURN). Se tiver um servidor TURN seu,
-   coloque-o em CUSTOM_TURN. Exemplo:
-   const CUSTOM_TURN = [{ urls: 'turn:meu-servidor.com:3478', username: 'usuario', credential: 'senha' }];  */
-const APP_VERSION = '6';
+/* =====================  REDE E OTIMIZAÇÕES  ===================== */
+const APP_VERSION = '6.1';
 const CUSTOM_TURN = [];
 const PEER_OPTS = { config: { sdpSemantics: 'unified-plan', iceServers: [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -363,29 +352,28 @@ const PEER_OPTS = { config: { sdpSemantics: 'unified-plan', iceServers: [
   { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' },
   { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp', 'turns:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
 ].concat(CUSTOM_TURN) } };
-// Ajustes de SDP "x-google-*" só existem no Chrome/Edge/Brave; Safari e Firefox (inclusive no iPhone) ficam sem mexer.
+
 const IS_CHROMIUM = /Chrome\/|Chromium\/|Edg\//.test(navigator.userAgent) && !/CriOS|FxiOS|iPhone|iPad|iPod/.test(navigator.userAgent);
 const kill = p => { try { p._dead = true; p.destroy(); } catch (e) {} };
 
 /* =====================  ESTADO  ===================== */
-let peer = null;          // sua conexão com o servidor de encontro (id = sala + número da vaga)
+let peer = null;
 let myName, baseId, roomKey = null, leaving = false;
 let myId = null, mySlot = -1, joinedAt = 0, probeTimer = 0, searchTimer = 0, heirTimer = 0, statusTimer = 0, kickTimer = 0, ownerWindow = 0;
 let myStream = null, myKind = null;
-const MAX_SLOTS = 12;      // máximo de pessoas por sala
-const conns = new Map();        // id -> DataConnection escolhida
-const spare = new Map();        // id -> conexões extras com a mesma pessoa (nenhuma é fechada de propósito)
-const dialing = new Map();      // id -> DataConnection ainda abrindo
-const calls = new Map();        // id -> MediaConnection (saída)
-const pendingCalls = new Map(); // id -> chamada recebida aguardando validação
-const people = new Map();       // id -> {name, sharing, kind, cid, since, slot}
-const tiles = new Map();        // id -> tile
+const MAX_SLOTS = 12;
+const conns = new Map();
+const spare = new Map();
+const dialing = new Map();
+const calls = new Map();
+const pendingCalls = new Map();
+const people = new Map();
+const tiles = new Map();
 
-// Dono da sala, banidos e telas ocultas: tudo só existe enquanto a sala tem gente
 let own = { id: null, epoch: 0 };
-const bans = new Set();         // identificadores de aparelho banidos
-const bansName = new Set();     // nomes banidos
-const hidden = new Set();       // ids cujas telas eu escondi
+const bans = new Set();
+const bansName = new Set();
+const hidden = new Set();
 
 const rnd = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now();
 const clientId = (() => {
@@ -401,8 +389,6 @@ const myAge = () => performance.now() - joinedAt;
 const isOwner = () => !!myId && own.id === myId;
 
 /* =====================  ENTRADA NA SALA  ===================== */
-/* A senha nunca sai do aparelho, nem o hash dela: ela vira uma chave (PBKDF2, lenta de propósito para
-   dificultar tentativa-e-erro) e cada pessoa só envia uma prova HMAC de um desafio aleatório da outra ponta. */
 const TE = new TextEncoder();
 const toHex = buf => [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
 const rndHex = n => toHex(crypto.getRandomValues(new Uint8Array(n)));
@@ -416,7 +402,6 @@ async function makeProof(nonce, id) {
   return toHex(await crypto.subtle.sign('HMAC', roomKey, TE.encode(nonce + '|' + id)));
 }
 
-// Tudo que chega de outras pessoas é tratado como não confiável: tipo, tamanho e caracteres são validados
 const cleanStr = (s, n) => (typeof s === 'string' ? s : '').replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, '').trim().slice(0, n);
 const cleanName = s => cleanStr(s, 24);
 const cleanNum = (x, lo, hi) => { x = +x; return isFinite(x) ? Math.min(hi, Math.max(lo, x)) : lo; };
@@ -468,10 +453,6 @@ function closeAll() {
   try { p && p.destroy(); } catch (e) {}
 }
 
-/* ---------- Encontrar a sala ----------
-   Cada pessoa ocupa uma "vaga" fixa da sala (ss3-nome_0, _1, _2...).
-   Para achar os outros, basta chamar todas as vagas: não existe servidor "dono" da sala,
-   então duas pessoas nunca acabam em salas separadas. */
 function start() {
   closeAll(); resetState();
   leaving = false;
@@ -492,24 +473,22 @@ function claimSlot(i) {
     myId = id; mySlot = i;
     msgK('searching');
     probe();
-    setTimeout(probe, 2500); setTimeout(probe, 6000);
-    // intervalo com variação aleatória: duas pessoas varrendo exatamente no mesmo ritmo poderiam travar uma à outra
+    setTimeout(probe, 1000); setTimeout(probe, 3000);
     const tick = () => {
       probeTimer = setTimeout(() => {
         probe();
         if (isOwner()) broadcast({ t: 'owner', id: own.id, epoch: own.epoch });
         if (me === peer && !leaving) tick();
-      }, 8000 + Math.random() * 6000);
+      }, 5000 + Math.random() * 3000);
     };
     tick();
     updateStatus();
     searchTimer = setTimeout(() => {
       if (!people.size) {
-        // sozinho na sala: você é o primeiro, então vira o dono
         if (!own.id) claimOwner(false);
         if (msgKey() === 'searching') msgK('created');
       }
-    }, 5000);
+    }, 3000);
     render();
   });
   me.on('connection', c => {
@@ -524,7 +503,7 @@ function claimSlot(i) {
     if (e.type === 'unavailable-id') {
       kill(me);
       if (!opened) claimSlot(i + 1);
-      else { msgK('reconnecting'); setTimeout(() => { if (!leaving) start(); }, 500); }
+      else { msgK('reconnecting'); setTimeout(() => { if (!leaving) start(); }, 300); }
       return;
     }
     if (e.type === 'peer-unavailable') {
@@ -535,20 +514,19 @@ function claimSlot(i) {
     if (!opened && ['network', 'server-error', 'socket-error', 'socket-closed'].includes(e.type)) {
       msgK('serverDown');
       kill(me);
-      setTimeout(() => claimSlot(i), 3000);
+      setTimeout(() => claimSlot(i), 2000);
       return;
     }
     msgK('errConn', { e: e.type });
   });
   me.on('disconnected', () => { if (me === peer && !me.destroyed && !leaving) { try { me.reconnect(); } catch (e) {} } });
-  me.on('close', () => { if (me === peer && !me._dead && !leaving) { msgK('reconnecting'); setTimeout(() => { if (!leaving) start(); }, 800); } });
+  me.on('close', () => { if (me === peer && !me._dead && !leaving) { msgK('reconnecting'); setTimeout(() => { if (!leaving) start(); }, 500); } });
 }
 
-// Celular volta do bloqueio de tela / troca de rede: religa ao servidor e procura as pessoas de novo
 function wake() {
   if (leaving || !peer) return;
   try { if (peer.disconnected && !peer.destroyed) peer.reconnect(); } catch (e) {}
-  setTimeout(probe, 800);
+  setTimeout(probe, 400);
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
 window.addEventListener('online', wake);
@@ -564,14 +542,11 @@ function updateStatus() {
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const ignoreUntil = new Map();   // vagas que não responderam (fantasmas) ficam em espera
-// uma conexão aberta só impede nova ligação se já foi validada ou ainda está no aperto de mão (primeiros 2,5 s)
+const ignoreUntil = new Map();
 const canDial = id => !!id && !!peer && peer.open && id !== myId && !dialing.has(id)
-  && !allConns(id).some(x => x.open && (x.verified || Date.now() - (x.openedAt || 0) < 2500))
+  && !allConns(id).some(x => x.open && (x.verified || Date.now() - (x.openedAt || 0) < 1500))
   && (ignoreUntil.get(id) || 0) <= Date.now();
 
-// Chama as vagas da sala UMA DE CADA VEZ. Abrir as 11 conexões WebRTC de uma vez (cada uma com STUN/TURN)
-// sufoca celulares em 4G/5G e fazia a conexão de verdade falhar quando a sala já existia.
 let probing = false;
 async function probe() {
   if (probing) return;
@@ -584,7 +559,7 @@ async function probe() {
       if (!canDial(id)) continue;
       dial(id);
       const t0 = Date.now();
-      while (dialing.has(id) && !leaving && Date.now() - t0 < 3000) await sleep(150);
+      while (dialing.has(id) && !leaving && Date.now() - t0 < 1500) await sleep(80);
     }
   } finally { probing = false; }
 }
@@ -594,29 +569,20 @@ function dial(id) {
   const c = peer.connect(id, { reliable: true });
   dialing.set(id, c);
   setupConn(c, true);
+  // OTIMIZAÇÃO: reduzido de 20s para 6s para desistir rápido de conexões mortas
   setTimeout(() => {
     if (dialing.get(id) !== c) return;
     dialing.delete(id);
-    // "new" = ninguém respondeu (vaga fantasma de alguém que saiu): silêncio e tenta de novo mais tarde.
-    // Qualquer outro estado = a pessoa respondeu mas a rede não deixou fechar a conexão.
     const st = c.peerConnection ? c.peerConnection.iceConnectionState : 'new';
     try { c.close(); } catch (e) {}
-    if (st === 'new') { ignoreUntil.set(id, Date.now() + 30000); return; }
-    ignoreUntil.set(id, Date.now() + 6000);
+    if (st === 'new') { ignoreUntil.set(id, Date.now() + 15000); return; }
+    ignoreUntil.set(id, Date.now() + 4000);
     msgK('connFail');
-    setTimeout(() => { if (msgKey() === 'connFail') msg(''); }, 12000);
-  }, 20000);
+    setTimeout(() => { if (msgKey() === 'connFail') msg(''); }, 8000);
+  }, 6000);
 }
 
-/* =====================  CONEXÕES ENTRE PARTICIPANTES  =====================
-   Protocolo (v6):
-   1. ao abrir a conexão, cada ponta manda um desafio aleatório ("ch");
-   2. ao receber o desafio da outra, responde com "hello": identidade + prova HMAC da senha;
-   3. quem validou o hello do outro manda "state" (dono e banidos). Quem não passou na validação não recebe nada.
-   Quando as duas pessoas se chamam ao mesmo tempo existem DUAS conexões de dados entre elas. Antes, cada ponta
-   fechava uma delas por um critério de "ranking"; se uma das conexões abria só pela metade (comum com celular
-   em 4G/5G), as pontas fechavam a conexão que funcionava e as duas nunca se encontravam. Agora nenhuma conexão
-   é fechada de propósito: a primeira que for validada vira a principal e a outra fica de reserva. */
+/* =====================  CONEXÕES E HANDSHAKE  ===================== */
 const MAX_PER_PEER = 3;
 const DENIABLE = ['name', 'required', 'open', 'banned', 'wrong'];
 const addSpare = (id, c) => { let x = spare.get(id); if (!x) spare.set(id, x = new Set()); x.add(c); };
@@ -628,16 +594,12 @@ const isRoomPeer = id => {
   const r = id.slice(baseId.length + 1);
   return /^\d{1,2}$/.test(r) && +r < MAX_SLOTS;
 };
-// motivo da recusa do ponto de vista de quem está entrando (roomHas = a sala tem senha, joinerHas = quem entra digitou senha)
 const joinReason = (roomHas, joinerHas) => !joinerHas ? 'required' : !roomHas ? 'open' : 'wrong';
 
-// "Aceito" = alguém que me validou (só quem validou o meu hello me manda o "state").
 const hasAccepted = () => [...connIds()].some(id => allConns(id).some(x => x.open && x.accepted));
-// Uma recusa (denied, senha divergente) nunca derruba na hora: só vale se, passados 3 s, ninguém me aceitou.
-// Assim um estranho não consegue te expulsar mandando "denied" ou um hello falso.
 function softKick(reason) {
   if (kickTimer || leaving) return;
-  kickTimer = setTimeout(() => { kickTimer = 0; if (!leaving && !hasAccepted()) kickOut(reason); }, 3000);
+  kickTimer = setTimeout(() => { kickTimer = 0; if (!leaving && !hasAccepted()) kickOut(reason); }, 2000);
 }
 
 function setupConn(c, outbound) {
@@ -649,13 +611,13 @@ function setupConn(c, outbound) {
     const cur = conns.get(id);
     if (!cur || cur === c || !cur.open) conns.set(id, c); else addSpare(id, c);
     c.openedAt = Date.now();
-    // quem não completar o aperto de mão em 10 s é desconectado; o desafio é repetido enquanto isso
-    c.vt = setTimeout(() => { if (!c.verified) { try { c.close(); } catch (e) {} } }, 10000);
+    c.vt = setTimeout(() => { if (!c.verified) { try { c.close(); } catch (e) {} } }, 6000);
+    
+    // OTIMIZAÇÃO: pings encurtados para (800ms, 2s, 4s) acelerando a resposta
     const ping = () => { if (c.open && !c.verified) { try { c.send({ t: 'ch', n: c.myNonce }); } catch (e) {} } };
     ping();
-    c.rt = [setTimeout(ping, 1500), setTimeout(ping, 4000), setTimeout(ping, 7000)];
+    c.rt = [setTimeout(ping, 800), setTimeout(ping, 2000), setTimeout(ping, 4000)];
   });
-  // as mensagens de uma mesma conexão são tratadas em fila (a validação do hello é assíncrona)
   c.on('data', d => { c.q = (c.q || Promise.resolve()).then(() => onData(c, d)).catch(e => console.warn(e)); });
   const gone = () => {
     clearTimeout(c.vt); (c.rt || []).forEach(clearTimeout);
@@ -663,7 +625,7 @@ function setupConn(c, outbound) {
     const x = spare.get(id); if (x) { x.delete(c); if (!x.size) spare.delete(id); }
     if (conns.get(id) !== c) return;
     const alt = allConns(id).find(y => y !== c && y.open && y.verified);
-    if (alt) { conns.set(id, alt); return; }   // a conexão de reserva assume, sem derrubar ninguém
+    if (alt) { conns.set(id, alt); return; }
     drop(id);
   };
   c.on('close', gone);
@@ -688,13 +650,12 @@ async function onData(c, d) {
   if (d.t === 'ch') {
     if (typeof d.n !== 'string' || d.n.length < 8 || d.n.length > 64) return;
     if (!c.theirNonce) c.theirNonce = d.n;
-    if (c.theirNonce === d.n) await sendHello(c);   // desafio repetido = o hello pode ter se perdido: manda de novo
+    if (c.theirNonce === d.n) await sendHello(c);
     return;
   }
   if (d.t === 'hello') return onHello(c, d);
-  // recusa nunca derruba na hora: só vale se, passados 3 s, ninguém mais te aceitou (ver softKick)
   if (d.t === 'denied') { softKick(DENIABLE.includes(d.reason) ? d.reason : 'wrong'); return; }
-  if (!c.verified) return;                       // nada além daqui é aceito de quem não foi validado
+  if (!c.verified) return;
   if (d.t === 'state') return onState(c, d);
   if (d.t === 'sharing') {
     const p = people.get(id);
@@ -718,15 +679,13 @@ async function onData(c, d) {
   }
 }
 
-// Valida banimento, senha e nome de quem acabou de conectar. Em conflito de senha/nome
-// vale a pessoa que está na sala há mais tempo; a outra é recusada.
 async function onHello(c, d) {
   if (c.helloDone) return;
   c.helloDone = true;
   const id = c.peer;
   const refuse = reason => {
     try { c.send({ t: 'denied', reason }); } catch (e) {}
-    setTimeout(() => { try { c.close(); } catch (e) {} }, 500);
+    setTimeout(() => { try { c.close(); } catch (e) {} }, 300);
   };
   const name = cleanName(d.name), cid = cleanStr(d.cid, 64);
   if (!name || !cid) { try { c.close(); } catch (e) {} return; }
@@ -743,8 +702,8 @@ async function onHello(c, d) {
   const theirs = cleanNum(d.age, 0, 1e12);
   const theyAreOlder = theirs > mine || (theirs === mine && slotOf(id) < mySlot);
   if (!authOk) {
-    if (theyAreOlder) softKick(joinReason(theirHas, myHas));   // eu sou quem está entrando
-    else refuse(joinReason(myHas, theirHas));                  // quem está entrando é ele
+    if (theyAreOlder) softKick(joinReason(theirHas, myHas));
+    else refuse(joinReason(myHas, theirHas));
     return;
   }
   if (norm(name) === norm(myName)) {
@@ -755,7 +714,7 @@ async function onHello(c, d) {
   const ver = cleanStr(d.ver, 8);
   if (ver !== APP_VERSION) {
     msgK('oldVersion', { name, ver: ver || '?' });
-    setTimeout(() => { if (msgKey() === 'oldVersion') msg(''); }, 15000);
+    setTimeout(() => { if (msgKey() === 'oldVersion') msg(''); }, 10000);
   }
   c.verified = true; c.theyOlder = theyAreOlder;
   clearTimeout(c.vt);
@@ -763,7 +722,6 @@ async function onHello(c, d) {
     people.set(id, { name, sharing: !!d.sharing, kind: d.sharing && (d.kind === 'cam' || d.kind === 'screen') ? d.kind : null,
                      cid, slot: cleanNum(d.slot, 0, MAX_SLOTS), since: performance.now() - theirs });
   }
-  // a primeira conexão validada vira a principal; a outra fica de reserva
   const cur = conns.get(id);
   if (cur !== c && !(cur && cur.open && cur.verified)) {
     if (cur) addSpare(id, cur);
@@ -785,13 +743,11 @@ function onState(c, d) {
   c.accepted = true;
   const o = d.own;
   if (o && typeof o.id === 'string') mergeOwner({ id: o.id, epoch: o.epoch }, 'hello');
-  // a lista de banidos só vale vinda do dono (qualquer um poderia mandar a sua id para te expulsar)
   if (c.peer === own.id) {
     const b = cleanList(d.bans, 200, 64), n = cleanList(d.bn, 200, 24).map(norm);
     if (b.includes(clientId) || n.includes(norm(myName))) { kickOut('banned'); return; }
     b.forEach(x => bans.add(x)); n.forEach(x => bansName.add(x));
   }
-  // ninguém é dono ainda: o mais antigo assume
   if (!own.id && c.theyOlder === false) claimOwner(false);
 }
 
@@ -813,10 +769,8 @@ function drop(id) {
 /* =====================  DONO DA SALA  ===================== */
 function mergeOwner(o, sender) {
   if (!o || typeof o.id !== 'string' || o.id.length > 80 || !Number.isSafeInteger(o.epoch) || o.epoch < 0 || o.epoch > 1e6) return;
-  if (o.id !== myId && !people.has(o.id)) return;          // o dono tem de ser alguém validado
+  if (o.id !== myId && !people.has(o.id)) return;
   if (sender !== 'hello') {
-    // pedido ao vivo: só do próprio candidato ou do dono atual, e só quando o dono atual passou a posse,
-    // a vaga está vazia ou é uma disputa logo depois de o dono sair
     if (sender !== o.id && sender !== own.id) return;
     const viaOwner = sender === own.id;
     const contest = o.epoch === own.epoch && performance.now() < ownerWindow;
@@ -836,7 +790,7 @@ function ownerChanged(prev, announce) {
   if (announce && prev !== own.id) {
     if (own.id === myId) msgK('youOwner');
     else if (people.get(own.id) && prev) msgK('newOwner', { name: people.get(own.id).name });
-    setTimeout(() => { if (['youOwner', 'newOwner'].includes(msgKey())) msg(''); }, 6000);
+    setTimeout(() => { if (['youOwner', 'newOwner'].includes(msgKey())) msg(''); }, 4000);
   }
   render();
 }
@@ -847,10 +801,9 @@ function claimOwner(announce) {
   broadcast({ t: 'owner', id: own.id, epoch: own.epoch });
   ownerChanged(prev, announce);
 }
-// o dono saiu: o participante mais antigo assume (se houver empate/divergência, a menor vaga)
 function ownerLeft() {
   own = { id: null, epoch: own.epoch };
-  ownerWindow = performance.now() + 8000;
+  ownerWindow = performance.now() + 5000;
   clearTimeout(heirTimer);
   if (!myId) return;
   const cands = [{ id: myId, since: joinedAt, slot: mySlot }];
@@ -861,7 +814,7 @@ function ownerLeft() {
     if (own.id || leaving || !peer) return;
     const lowest = [...cands].filter(c => c.id === myId || people.has(c.id)).sort((a, b) => a.slot - b.slot)[0];
     if (lowest && lowest.id === myId) claimOwner(true);
-  }, 2500);
+  }, 1500);
 }
 function transferOwner(id) {
   if (!isOwner()) return;
@@ -880,17 +833,17 @@ function kickPerson(id, ban) {
     broadcast({ t: 'ban', cid: p.cid, nm: norm(p.name) });
   }
   try { c.send({ t: 'kicked', ban: !!ban }); } catch (e) {}
-  setTimeout(() => { allConns(id).forEach(x => { try { x.close(); } catch (e) {} }); }, 400);
+  setTimeout(() => { allConns(id).forEach(x => { try { x.close(); } catch (e) {} }); }, 300);
 }
 
-/* =====================  RECEBER VÍDEO (só de quem já foi validado)  ===================== */
+/* =====================  RECEBER VÍDEO  ===================== */
 function onCall(call) {
   if (!isRoomPeer(call.peer)) { try { call.close(); } catch (e) {} return; }
   if (verifiedConn(call.peer)) { answerCall(call); return; }
   pendingCalls.set(call.peer, call);
   setTimeout(() => {
     if (pendingCalls.get(call.peer) === call) { pendingCalls.delete(call.peer); try { call.close(); } catch (e) {} }
-  }, 10000);
+  }, 6000);
 }
 function answerCall(call) {
   call.answer(undefined, { sdpTransform: tuneSdp });
@@ -904,13 +857,11 @@ function qualitySettings() {
   const fps = +$('fps').value;
   const res = +$('res').value;
   const [w, h] = DIMS[res] || DIMS[720];
-  // bits por pixel diminuem quando o FPS sobe (quadros vizinhos são muito parecidos)
   const bpp = fps <= 30 ? 0.07 : fps <= 60 ? 0.06 : 0.035;
   const base = Math.min(40e6, Math.max(1.5e6, w * h * fps * bpp));
   return { fps, res, w, h, base };
 }
 
-// Faz o codificador começar já em boa qualidade (sem a fase "borrada" inicial).
 function tuneSdp(sdp) {
   if (!IS_CHROMIUM) return sdp;
   try {
@@ -939,7 +890,6 @@ function applyQuality() {
   if (!myStream) return;
   const q = qualitySettings();
   const n = Math.max(1, calls.size);
-  // a sua internet é dividida entre quem está assistindo
   const per = Math.round(Math.max(1.2e6, Math.min(q.base, q.base * 1.6 / n)));
   calls.forEach(c => {
     const pc = c.peerConnection; if (!pc) return;
@@ -961,15 +911,14 @@ function applyQuality() {
 let qTimers = [];
 function scheduleQuality() {
   qTimers.forEach(clearTimeout);
-  qTimers = [setTimeout(applyQuality, 1500), setTimeout(applyQuality, 4500)];
+  qTimers = [setTimeout(applyQuality, 1000), setTimeout(applyQuality, 3000)];
 }
 
 /* =====================  TRANSMISSÃO E ÁUDIO  ===================== */
-// Celulares (Android e iPhone) não permitem compartilhar tela pelo navegador: é uma limitação deles.
 const canShareScreen = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
 const canUseCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 
-let hasAudio = false;      // a transmissão atual tem faixa de áudio?
+let hasAudio = false;
 function audioKey() { return hasAudio ? 'audOn' : 'audNone'; }
 
 function updateLocalNote() {
@@ -1009,7 +958,6 @@ async function share(kind) {
     if (kind === 'screen') {
       stream = await navigator.mediaDevices.getDisplayMedia({
         video: { cursor: 'always', frameRate, width: { ideal: q.w, max: q.w }, height: { ideal: q.h, max: q.h } },
-        // restrictOwnAudio: no Chrome/Edge/Brave tira do áudio do sistema o som tocado por esta própria página (evita eco)
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, restrictOwnAudio: true },
         systemAudio: 'include'
       });
@@ -1025,7 +973,7 @@ async function share(kind) {
   if (kind === 'screen' && !hasAudio) msgK('noSysAudio');
   else if (kind === 'cam' && !hasAudio && camAudioFailed) msgK('camNoAudio');
   else msg('');
-  setTimeout(() => { if (['camNoAudio', 'noSysAudio'].includes(msgKey())) msg(''); }, 9000);
+  setTimeout(() => { if (['camNoAudio', 'noSysAudio'].includes(msgKey())) msg(''); }, 6000);
 
   const vt = stream.getVideoTracks()[0];
   vt.contentHint = kind === 'screen' ? (q.fps >= 60 ? 'motion' : 'detail') : 'motion';
@@ -1054,7 +1002,7 @@ async function qualityChanged() {
   const q = qualitySettings();
   if (q.res >= 1440 || q.fps > 60) {
     msgK('qualityHigh');
-    clearTimeout(warnTimer); warnTimer = setTimeout(() => { if (msgKey() === 'qualityHigh') msg(''); }, 7000);
+    clearTimeout(warnTimer); warnTimer = setTimeout(() => { if (msgKey() === 'qualityHigh') msg(''); }, 5000);
   }
   if (!myStream) return;
   const vt = myStream.getVideoTracks()[0];
@@ -1066,7 +1014,7 @@ async function qualityChanged() {
   } catch (e) {}
   vt.contentHint = myKind === 'screen' ? (q.fps >= 60 ? 'motion' : 'detail') : 'motion';
   applyQuality();
-  setTimeout(updateLocalNote, 800);
+  setTimeout(updateLocalNote, 500);
 }
 $('fps').onchange = qualityChanged;
 $('res').onchange = qualityChanged;
@@ -1128,7 +1076,6 @@ function startRemotePlayback(t) {
   v.muted = false;
   const pr = v.play();
   if (pr && pr.catch) pr.catch(() => {
-    // reprodução com som bloqueada: toca sem som para a imagem aparecer e deixa o botão de som visível
     v.muted = true;
     v.play().catch(() => {});
   });
@@ -1142,7 +1089,6 @@ function showTile(id, stream, call, isLocal) {
     const label = document.createElement('div'); label.className = 'label';
     el.append(video);
     t = { el, video, label, call: null, stream: null, note: null, snd: null, hbtn: null, noPreview: false, timer: 0, fps: 0, res: '', lastFrames: 0, lastT: 0, created: performance.now(), userMuted: false, local: !!isLocal, vol: 1, vslider: null };
-    // Ver a própria tela dentro da própria tela gera um "espelho infinito" e pesa; mostramos um aviso.
     if (isLocal && myKind === 'screen') {
       t.noPreview = true;
       t.note = document.createElement('div'); t.note.className = 'note';
@@ -1150,12 +1096,10 @@ function showTile(id, stream, call, isLocal) {
     }
     el.append(label);
     if (!isLocal) {
-      // Aviso se a imagem demorar a aparecer (tela preta): clicar na tela força a reprodução
       t.note = document.createElement('div'); t.note.className = 'note hidden';
       t.note.style.pointerEvents = 'none';
       el.append(t.note);
       el.onclick = () => { t.video.play().catch(() => {}); };
-      // botão de som (alterna silenciar / ativar)
       t.snd = document.createElement('button'); t.snd.className = 'tbtn snd';
       t.snd.onclick = e => {
         e.stopPropagation();
@@ -1165,11 +1109,9 @@ function showTile(id, stream, call, isLocal) {
       };
       video.addEventListener('volumechange', () => updateSoundBtn(t));
       el.append(t.snd);
-      // botão de ocultar a tela dessa pessoa
       t.hbtn = document.createElement('button'); t.hbtn.className = 'tbtn hide';
       t.hbtn.onclick = e => { e.stopPropagation(); toggleHide(id); };
       el.append(t.hbtn);
-      // volume desta transmissão (vale junto com o volume geral da barra de baixo)
       t.vslider = document.createElement('input'); t.vslider.type = 'range'; t.vslider.className = 'tvol';
       t.vslider.min = 0; t.vslider.max = 100; t.vslider.value = 100;
       t.vslider.oninput = () => { t.vol = t.vslider.value / 100; applyVolume(t); };
@@ -1179,7 +1121,6 @@ function showTile(id, stream, call, isLocal) {
       applyVolume(t);
     }
     el.ondblclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen(); };
-    // controles aparecem com o mouse se movendo sobre o quadro (ou toque) e somem após 2,5 s parado ou ao sair
     {
       let tmr = 0, down = false;
       const busy = () => down || el.querySelector('.tbtn:hover, .tvol:hover');
@@ -1195,7 +1136,6 @@ function showTile(id, stream, call, isLocal) {
     $('grid').append(el);
     tiles.set(id, t);
     updateTileTexts(t);
-    // Medidor leve do que está chegando (a cada 2 s, só com a aba visível)
     if (!isLocal) {
       t.lastT = performance.now();
       t.timer = setInterval(() => {
@@ -1207,7 +1147,7 @@ function showTile(id, stream, call, isLocal) {
         t.res = v.videoWidth ? v.videoWidth + '×' + v.videoHeight : '';
         if (t.note) {
           const stuck = !v.videoWidth || v.paused;
-          const waited = now - t.created > 4000;
+          const waited = now - t.created > 3000;
           t.note.textContent = v.paused && v.videoWidth ? T('pausedImg') : T('loadingImg');
           t.note.classList.toggle('hidden', !(stuck && waited));
           if (v.paused && v.videoWidth && !hidden.has(id)) v.play().catch(() => {});
@@ -1238,7 +1178,6 @@ function toggleHide(id) {
   render();
 }
 
-// Agrupa várias atualizações num único redesenho
 let renderQueued = false;
 function render() {
   if (renderQueued) return;
@@ -1304,7 +1243,6 @@ function doRender() {
     if (t.label.textContent !== text) t.label.textContent = text;
   });
 
-  // As telas visíveis dividem o espaço disponível sem estourar a janela
   const n = [...tiles.keys()].filter(id => !hidden.has(id)).length;
   $('empty').classList.toggle('hidden', n > 0);
   $('empty').textContent = tiles.size > 0 ? T('emptyHidden') : T('emptyNone');
