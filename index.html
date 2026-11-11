@@ -4,66 +4,224 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>Sala de Compartilhamento</title>
+<title>NetShare — Compartilhamento simples e seguro</title>
 <style>
-  :root { --bg:#14161a; --card:#1e2127; --fg:#e8eaed; --mut:#9aa0a6; --acc:#5b8def; --ok:#3ecf8e; --bad:#e5534b; }
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+
+  :root {
+    --bg: #070b18;
+    --bg-soft: #0b1124;
+    --card: rgba(17, 25, 49, .78);
+    --card-solid: #111931;
+    --surface: rgba(255, 255, 255, .055);
+    --surface-hover: rgba(255, 255, 255, .09);
+    --fg: #f7f9ff;
+    --mut: #9da8c2;
+    --line: rgba(255, 255, 255, .105);
+    --acc: #6c7cff;
+    --acc-2: #8f6cff;
+    --cyan: #49d9ff;
+    --ok: #43d9a3;
+    --bad: #ff667d;
+    --warning: #ffd166;
+    --shadow: 0 30px 80px rgba(0, 0, 0, .42);
+  }
+
   * { box-sizing: border-box; }
-  html,body { height:100%; }
-  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--fg); }
-  button, input, select { font:inherit; }
-  button { background:var(--acc); color:#fff; border:0; border-radius:8px; padding:10px 14px; cursor:pointer; }
-  button.sec { background:#343942; }
-  button.bad { background:var(--bad); }
-  button:disabled { opacity:.4; cursor:not-allowed; }
-  input, select { background:#14161a; color:var(--fg); border:1px solid #343942; border-radius:8px; padding:10px; }
-  select { padding:8px; }
-  .hidden { display:none !important; }
-  .mut { color:var(--mut); font-size:.85rem; }
+  html, body { min-height: 100%; }
+  html {
+    background:
+      radial-gradient(circle at 18% 12%, rgba(108, 124, 255, .18) 0, rgba(108, 124, 255, .08) 22rem, transparent 42rem),
+      radial-gradient(circle at 88% 84%, rgba(73, 217, 255, .12) 0, rgba(73, 217, 255, .05) 20rem, transparent 40rem),
+      var(--bg);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+  body {
+    margin: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: transparent;
+    color: var(--fg);
+    overflow: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: .18;
+    background-image:
+      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
 
-  #gh { position:fixed; top:12px; right:12px; z-index:10; width:40px; height:40px; display:grid; place-items:center; border-radius:50%; background:var(--card); color:var(--fg); border:1px solid #343942; transition:transform .15s, background .15s, color .15s; }
-  #gh:hover { background:var(--fg); color:var(--bg); transform:scale(1.08); }
-  #lang { position:fixed; top:12px; right:60px; z-index:10; height:40px; max-width:170px; padding:0 10px; border-radius:20px; background:var(--card); }
+  button, input, select { font: inherit; }
+  button, a, input, select { -webkit-tap-highlight-color: transparent; }
+  button {
+    min-height: 44px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 12px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, var(--acc), var(--acc-2));
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    cursor: pointer;
+    box-shadow: 0 10px 25px rgba(108,124,255,.22), inset 0 1px rgba(255,255,255,.18);
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease, opacity .2s ease;
+  }
+  button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(108,124,255,.3), inset 0 1px rgba(255,255,255,.2); }
+  button:active:not(:disabled) { transform: translateY(0) scale(.98); }
+  button.sec { background: var(--surface); box-shadow: none; color: #dce3f7; }
+  button.sec:hover:not(:disabled) { background: var(--surface-hover); border-color: rgba(255,255,255,.2); box-shadow: none; }
+  button.bad { background: rgba(255,102,125,.12); border-color: rgba(255,102,125,.25); color: #ff9bad; box-shadow: none; }
+  button:disabled { opacity: .38; cursor: not-allowed; box-shadow: none; }
+  input, select {
+    width: 100%;
+    min-height: 48px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 11px 13px;
+    outline: none;
+    background: rgba(5, 9, 22, .65);
+    color: var(--fg);
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+  }
+  input::placeholder { color: #66718c; }
+  input:hover, select:hover { border-color: rgba(255,255,255,.2); }
+  input:focus, select:focus { border-color: var(--acc); background: rgba(8,13,30,.9); box-shadow: 0 0 0 4px rgba(108,124,255,.13); }
+  select { cursor: pointer; }
+  option { background: #111931; color: var(--fg); }
+  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+  .hidden { display: none !important; }
+  .mut { color: var(--mut); font-size: .84rem; line-height: 1.55; }
 
-  #join { max-width:420px; margin:max(10vh,70px) auto; background:var(--card); padding:24px; border-radius:14px; display:grid; gap:12px; }
-  #join h1 { margin:0; font-size:1.4rem; }
-  #join label { display:grid; gap:4px; font-size:.9rem; }
-  #joinErr { margin:0; color:#ff8a80; font-size:.9rem; font-weight:600; }
+  .ambient { display: none; }
 
-  #room { height:100vh; height:100dvh; overflow:hidden; display:grid; grid-template-columns:minmax(0,1fr) 260px; grid-template-rows:auto minmax(0,1fr) auto; gap:10px; padding:10px; }
-  header { grid-column:1/-1; display:flex; justify-content:flex-start; align-items:center; gap:12px; flex-wrap:wrap; padding-right:230px; min-height:40px; }
-  header h2 { margin:0; font-size:1.05rem; }
-  #grid { display:grid; gap:8px; min-height:0; min-width:0; overflow:hidden; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr); }
-  .tile { position:relative; background:#000; border-radius:12px; overflow:hidden; min-height:0; min-width:0; }
-  .tile video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; }
-  .note { position:absolute; inset:0; display:grid; place-items:center; color:var(--mut); font-size:.9rem; text-align:center; padding:12px; white-space:pre-line; }
-  .tbtn { position:absolute; padding:5px 9px; font-size:.78rem; border-radius:8px; background:rgba(0,0,0,.65); }
-  .tbtn.snd { right:8px; bottom:8px; }
-  .tbtn.hide { right:8px; top:8px; }
-  .tvol { position:absolute; left:8px; top:12px; width:90px; padding:0; background:transparent; border:0; opacity:.85; }
-  .label { position:absolute; left:8px; bottom:8px; background:rgba(0,0,0,.65); color:#fff; padding:4px 10px; border-radius:8px; font-size:.8rem; font-weight:600; max-width:calc(100% - 150px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .tile .tbtn, .tile .tvol, .tile .label { transition:opacity .15s; }
-  .tile:not(.ui) .tbtn, .tile:not(.ui) .tvol, .tile:not(.ui) .label { opacity:0; pointer-events:none; }
-  #empty { color:var(--mut); display:grid; place-items:center; text-align:center; padding:12px; border:2px dashed #343942; border-radius:12px; }
-  aside { background:var(--card); border-radius:12px; padding:12px; overflow:auto; min-height:0; }
-  aside h3 { margin:0 0 8px; font-size:.95rem; }
-  #people { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
-  #people li { padding:8px 10px; background:#14161a; border-radius:8px; font-size:.9rem; }
-  .prow { display:flex; justify-content:space-between; gap:8px; align-items:center; }
-  .prow .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .acts { display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; }
-  .acts button { padding:4px 8px; font-size:.72rem; border-radius:6px; }
-  .badge { color:var(--ok); font-size:.8rem; white-space:nowrap; }
-  #controls { grid-column:1/-1; display:flex; gap:8px; flex-wrap:wrap; align-items:center; background:var(--card); padding:8px 10px; border-radius:12px; }
-  #controls .sp { flex:1; }
-  #msg { color:#f0b429; font-size:.85rem; }
-  @media (max-width:800px) {
-    #room { grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr) auto auto; padding-top:56px; }
-    header { padding-right:0; }
-    aside { max-height:140px; }
+  .brand { display: flex; align-items: center; gap: 11px; font: 800 1.14rem/1 'Manrope', sans-serif; letter-spacing: -.04em; }
+  .brand-mark { position: relative; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: linear-gradient(135deg, var(--acc), var(--cyan)); box-shadow: 0 9px 24px rgba(79,132,255,.34); }
+  .brand-mark svg { width: 19px; height: 19px; }
+  .brand-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 4px rgba(67,217,163,.12); }
+  .eyebrow { display: flex; align-items: center; gap: 8px; color: #b6c0db; font-size: .76rem; text-transform: uppercase; letter-spacing: .12em; font-weight: 700; }
+
+  #gh, #lang { position: fixed; top: 22px; z-index: 20; border: 1px solid var(--line); background: rgba(12,18,37,.7); backdrop-filter: blur(16px); box-shadow: 0 10px 30px rgba(0,0,0,.2); }
+  #gh { right: 24px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 13px; color: #dfe5f6; transition: transform .2s, background .2s, color .2s; }
+  #gh:hover { background: #fff; color: #0b1020; transform: translateY(-2px); }
+  #lang {
+    right: 78px;
+    width: 205px;
+    max-width: calc(100vw - 102px);
+    min-height: 44px;
+    padding: 0 36px 0 13px;
+    border-radius: 13px;
+    font-size: .88rem;
+    text-overflow: ellipsis;
+  }
+
+  #join {
+    position: relative;
+    width: min(92vw, 480px);
+    margin: 36px auto 0;
+    padding: clamp(25px, 5vw, 38px);
+    display: grid;
+    gap: 16px;
+    border: 1px solid var(--line);
+    border-radius: 26px;
+    background: linear-gradient(145deg, rgba(21,31,60,.88), rgba(10,16,35,.82));
+    box-shadow: var(--shadow), inset 0 1px rgba(255,255,255,.08);
+    backdrop-filter: blur(22px);
+    animation: enter .65s cubic-bezier(.2,.8,.2,1) both;
+  }
+  #join::before { content: ''; position: absolute; inset: -1px; padding: 1px; border-radius: inherit; background: linear-gradient(135deg, rgba(132,145,255,.42), transparent 42%, rgba(73,217,255,.2)); pointer-events: none; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+  #join .brand { margin-bottom: 10px; }
+  #join h1 { margin: 4px 0 0; max-width: 390px; font: 800 clamp(1.75rem, 6vw, 2.5rem)/1.08 'Manrope', sans-serif; letter-spacing: -.055em; }
+  #join > p { margin: 0; }
+  #join label { display: grid; gap: 7px; color: #c8d0e5; font-size: .84rem; font-weight: 600; }
+  #join label:first-of-type { margin-top: 6px; }
+  #btnJoin { width: 100%; margin-top: 4px; min-height: 52px; }
+  #joinErr { margin: 0; min-height: 0; color: #ff9bad; font-size: .85rem; font-weight: 700; }
+  #joinErr:empty { display: none; }
+  .privacy-note { display: flex; gap: 9px; align-items: flex-start; padding: 11px 12px; border-radius: 12px; background: rgba(67,217,163,.055); border: 1px solid rgba(67,217,163,.1); }
+  .privacy-note svg { flex: 0 0 auto; margin-top: 2px; color: var(--ok); }
+
+  #room { width: 100vw; height: 100vh; height: 100dvh; overflow: hidden; display: grid; grid-template-columns: minmax(0,1fr) 280px; grid-template-rows: auto minmax(0,1fr) auto; gap: 12px; padding: 16px; background: transparent; }
+  #room header { grid-column: 1/-1; min-height: 58px; display: flex; justify-content: flex-start; align-items: center; gap: 12px; padding: 7px 220px 7px 8px; flex-wrap: wrap; }
+  #room header .brand { margin-right: 10px; }
+  #room header h2 { margin: 0; padding: 9px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); font-size: .9rem; font-weight: 600; }
+  #msg { color: var(--warning); font-size: .84rem; }
+  #status { opacity: .82; }
+  #btnLink { min-height: 38px; padding: 7px 12px; }
+  #grid { display: grid; gap: 10px; min-height: 0; min-width: 0; overflow: hidden; grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr); }
+  .tile { position: relative; min-height: 0; min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: #02040a; box-shadow: 0 18px 45px rgba(0,0,0,.28); animation: enter .35s ease both; }
+  .tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #02040a; }
+  .note { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mut); font-size: .9rem; text-align: center; padding: 12px; white-space: pre-line; }
+  .tbtn { position: absolute; min-height: 34px; padding: 5px 10px; font-size: .76rem; border-radius: 9px; background: rgba(7,11,24,.78); box-shadow: none; backdrop-filter: blur(10px); }
+  .tbtn.snd { right: 10px; bottom: 10px; }
+  .tbtn.hide { right: 10px; top: 10px; }
+  .tvol { position: absolute; left: 10px; top: 15px; width: 95px; min-height: 0; padding: 0; border: 0; background: transparent; opacity: .85; }
+  .label { position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 160px); padding: 6px 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 9px; background: rgba(7,11,24,.78); color: #fff; font-size: .78rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; backdrop-filter: blur(10px); }
+  .tile .tbtn, .tile .tvol, .tile .label { transition: opacity .18s; }
+  .tile:not(.ui) .tbtn, .tile:not(.ui) .tvol, .tile:not(.ui) .label { opacity: 0; pointer-events: none; }
+  #empty { position: relative; display: grid; place-items: center; text-align: center; padding: 60px 20px 20px; border: 1px dashed rgba(139,151,186,.28); border-radius: 18px; color: var(--mut); background: radial-gradient(circle at center, rgba(108,124,255,.07), transparent 48%), rgba(255,255,255,.018); }
+  #empty::before { content: ''; position: absolute; width: 64px; height: 64px; top: calc(50% - 70px); border: 1px solid rgba(108,124,255,.22); border-radius: 20px; background: rgba(108,124,255,.08); }
+
+  aside { min-height: 0; overflow: auto; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); box-shadow: 0 18px 45px rgba(0,0,0,.18); backdrop-filter: blur(16px); }
+  aside h3 { margin: 2px 0 14px; font: 700 .92rem 'Manrope', sans-serif; }
+  #people { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  #people li { padding: 10px 11px; border: 1px solid rgba(255,255,255,.06); border-radius: 11px; background: rgba(4,8,20,.38); font-size: .86rem; }
+  .prow { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .prow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .acts { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+  .acts button { min-height: 29px; padding: 4px 8px; border-radius: 7px; font-size: .7rem; }
+  .badge { color: var(--ok); font-size: .74rem; white-space: nowrap; }
+
+  #controls { grid-column: 1/-1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px; border: 1px solid var(--line); border-radius: 16px; background: rgba(17,25,49,.84); box-shadow: 0 15px 40px rgba(0,0,0,.22); backdrop-filter: blur(18px); }
+  #controls .sp { flex: 1; }
+  #controls label { display: flex; gap: 7px; align-items: center; padding-left: 5px; }
+  #controls select { width: auto; min-height: 38px; padding: 7px 32px 7px 10px; border-radius: 9px; font-size: .78rem; }
+  #controls input[type='range'] { min-height: 0; accent-color: var(--acc); box-shadow: none; }
+  #controls button { min-height: 40px; padding: 8px 13px; font-size: .82rem; }
+
+  @keyframes enter { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+  @keyframes drift { to { transform: translate3d(3rem, 2rem, 0) scale(1.08); } }
+
+  @media (max-width: 860px) {
+    #gh, #lang { top: 12px; }
+    #gh { right: 12px; }
+    #lang { right: 64px; width: 195px; max-width: calc(100vw - 88px); }
+    #join { margin-top: 48px; }
+    #room { grid-template-columns: minmax(0,1fr); grid-template-rows: auto minmax(0,1fr) auto auto; padding: 66px 10px 10px; }
+    #room header { padding: 4px; }
+    #room header .brand { width: 100%; }
+    aside { max-height: 145px; }
+    #controls { max-height: 180px; overflow-y: auto; }
+  }
+  @media (max-width: 520px) {
+    #join { width: calc(100% - 24px); padding: 24px 20px; border-radius: 22px; }
+    #join h1 { font-size: 1.85rem; }
+    #join > .mut:last-of-type { font-size: .78rem; }
+    #room header h2 { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #controls label { width: calc(50% - 5px); justify-content: space-between; }
+    #controls label select { min-width: 0; max-width: 105px; }
+    #controls label:has(#vol) { width: 100%; }
+    #btnLeave { width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
   }
 </style>
 </head>
 <body>
+<div class="ambient" aria-hidden="true"><span class="orb one"></span><span class="orb two"></span></div>
 
 <select id="lang" aria-label="Idioma / Language">
   <option value="pt-BR">Português (Brasil)</option>
@@ -78,6 +236,11 @@
 </a>
 
 <section id="join">
+  <div class="brand" aria-label="NetShare">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="12" r="2.5" fill="white"/><circle cx="18" cy="6" r="2.5" fill="white"/><circle cx="18" cy="18" r="2.5" fill="white"/><path d="M8.2 10.9 15.7 7M8.2 13.1l7.5 3.9" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></span>
+    <span>NetShare</span><span class="brand-dot" aria-hidden="true"></span>
+  </div>
+  <div class="eyebrow"><span>Conexão direta</span><span>•</span><span>Sem cadastro</span></div>
   <h1 data-i18n="title"></h1>
   <p class="mut" data-i18n="joinIntro"></p>
   <label><span data-i18n="lblName"></span> <input id="inName" maxlength="24" data-i18n-ph="phName" autocomplete="off"></label>
@@ -85,12 +248,15 @@
   <label><span data-i18n="lblPass"></span> <input id="inPass" type="password" maxlength="64" autocomplete="off" data-i18n-ph="phPass"></label>
   <p id="joinErr"></p>
   <button id="btnJoin" data-i18n="btnJoin"></button>
-  <p class="mut" data-i18n="joinNote"></p>
-  <p class="mut" id="verTxt" style="text-align:center;margin:0"></p>
+  <p class="mut privacy-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 5 6v5c0 4.7 2.9 8.3 7 10 4.1-1.7 7-5.3 7-10V6l-7-3Z" stroke="currentColor" stroke-width="2"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="joinNote"></span></p>
 </section>
 
 <section id="room" class="hidden">
   <header>
+    <div class="brand" aria-label="NetShare">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="12" r="2.5" fill="white"/><circle cx="18" cy="6" r="2.5" fill="white"/><circle cx="18" cy="18" r="2.5" fill="white"/><path d="M8.2 10.9 15.7 7M8.2 13.1l7.5 3.9" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></span>
+      <span>NetShare</span>
+    </div>
     <h2><span data-i18n="roomLbl"></span> <span id="roomName"></span></h2>
     <span id="msg"></span>
     <span id="status" class="mut"></span>
@@ -145,7 +311,7 @@ const $ = id => document.getElementById(id);
 /* =====================  IDIOMAS  ===================== */
 const I18N = {
 'pt-BR': {
-  title:'Sala de Compartilhamento',
+  title:'Compartilhe sua tela, sem complicação.',
   joinIntro:'Entre com seu nome e o nome de uma sala. Quem digitar o mesmo nome de sala entra junto com você.',
   lblName:'Seu nome', phName:'Ex.: Ana', lblRoom:'Nome da sala', phRoom:'Ex.: galera-do-jogo',
   lblPass:'Senha da sala (opcional)', phPass:'Deixe vazio para sala aberta', btnJoin:'Entrar na sala',
@@ -168,7 +334,7 @@ const I18N = {
   searching:'Procurando a sala...', created:'Sala criada. Aguardando outras pessoas...',
   connFail:'Não foi possível conectar com um participante: a rede bloqueou a conexão direta (comum em 4G/5G e em redes de empresa ou escola). Tente outra rede, como Wi-Fi.',
   oldVersion:'O site de {name} está em outra versão (v{ver}). Peça para recarregar a página (Ctrl+F5) e faça o mesmo no seu aparelho.',
-  statusLine:'Servidor: {srv} · vaga {slot} · conectados: {n} · v{ver}', srvOk:'ok', srvOff:'sem conexão', srvWait:'conectando',
+  statusLine:'Servidor: {srv} · vaga {slot} · conectados: {n}', srvOk:'ok', srvOff:'sem conexão', srvWait:'conectando',
   serverDown:'Servidor de conexão indisponível. Tentando de novo...', reconnecting:'Reconectando à sala...', errConn:'Erro de conexão: {e}',
   eName:'Já existe alguém com esse nome nesta sala. Escolha outro nome (ou aguarde alguns segundos se você acabou de recarregar a página).',
   eRequired:'Esta sala exige senha. Digite a senha para entrar.', eOpen:'Esta sala não usa senha. Deixe o campo de senha vazio.',
@@ -187,7 +353,7 @@ const I18N = {
   loadingImg:'Carregando a imagem...\nSe continuar preto, clique aqui.', pausedImg:'Vídeo pausado pelo navegador.\nClique aqui para reproduzir.'
 },
 'en': {
-  title:'Sharing Room',
+  title:'Share your screen, effortlessly.',
   joinIntro:'Enter your name and a room name. Anyone who types the same room name joins you.',
   lblName:'Your name', phName:'e.g. Alex', lblRoom:'Room name', phRoom:'e.g. gaming-crew',
   lblPass:'Room password (optional)', phPass:'Leave empty for an open room', btnJoin:'Join room',
@@ -210,7 +376,7 @@ const I18N = {
   searching:'Looking for the room...', created:'Room created. Waiting for other people...',
   connFail:'Could not connect to a participant: the network blocked the direct connection (common on 4G/5G and company or school networks). Try another network, such as Wi-Fi.',
   oldVersion:'{name}\'s site is on a different version (v{ver}). Ask them to reload the page (Ctrl+F5) and do the same on your device.',
-  statusLine:'Server: {srv} · slot {slot} · connected: {n} · v{ver}', srvOk:'ok', srvOff:'offline', srvWait:'connecting',
+  statusLine:'Server: {srv} · slot {slot} · connected: {n}', srvOk:'ok', srvOff:'offline', srvWait:'connecting',
   serverDown:'Connection server unavailable. Trying again...', reconnecting:'Reconnecting to the room...', errConn:'Connection error: {e}',
   eName:'Someone with that name is already in this room. Choose another name (or wait a few seconds if you just reloaded the page).',
   eRequired:'This room requires a password. Type the password to join.', eOpen:'This room has no password. Leave the password field empty.',
@@ -229,7 +395,7 @@ const I18N = {
   loadingImg:'Loading the picture...\nIf it stays black, click here.', pausedImg:'Video paused by the browser.\nClick here to play.'
 },
 'pt-PT': {
-  title:'Sala de Partilha',
+  title:'Partilhe o ecrã, sem complicações.',
   joinIntro:'Introduza o seu nome e o nome de uma sala. Quem escrever o mesmo nome de sala entra consigo.',
   lblName:'O seu nome', phName:'Ex.: Ana', lblRoom:'Nome da sala', phRoom:'Ex.: malta-do-jogo',
   lblPass:'Palavra-passe da sala (opcional)', phPass:'Deixe vazio para sala aberta', btnJoin:'Entrar na sala',
@@ -252,7 +418,7 @@ const I18N = {
   searching:'A procurar a sala...', created:'Sala criada. A aguardar outras pessoas...',
   connFail:'Não foi possível ligar a um participante: a rede bloqueou a ligação direta (comum em 4G/5G e redes de empresas ou escolas). Tente outra rede, como Wi-Fi.',
   oldVersion:'O site de {name} está noutra versão (v{ver}). Peça para recarregar a página (Ctrl+F5) e faça o mesmo no seu dispositivo.',
-  statusLine:'Servidor: {srv} · vaga {slot} · ligados: {n} · v{ver}', srvOk:'ok', srvOff:'sem ligação', srvWait:'a ligar',
+  statusLine:'Servidor: {srv} · vaga {slot} · ligados: {n}', srvOk:'ok', srvOff:'sem ligação', srvWait:'a ligar',
   serverDown:'Servidor de ligação indisponível. A tentar novamente...', reconnecting:'A religar à sala...', errConn:'Erro de ligação: {e}',
   eName:'Já existe alguém com esse nome nesta sala. Escolha outro nome (ou aguarde alguns segundos se acabou de recarregar a página).',
   eRequired:'Esta sala exige palavra-passe. Escreva a palavra-passe para entrar.', eOpen:'Esta sala não usa palavra-passe. Deixe o campo vazio.',
@@ -295,7 +461,7 @@ function setJoinErr(k, v) { curErr = { k, v }; $('joinErr').textContent = k ? T(
 
 function applyLang() {
   document.documentElement.lang = lang;
-  document.title = T('title');
+  document.title = 'NetShare — ' + T('title');
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = T(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = T(el.dataset.i18nPh); });
   $('lang').value = lang;
@@ -1255,7 +1421,6 @@ function doRender() {
   $('grid').style.gridTemplateRows = 'repeat(' + rows + ', minmax(0, 1fr))';
 }
 
-$('verTxt').textContent = 'v' + APP_VERSION;
 applyLang();
 </script>
 </body>
