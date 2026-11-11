@@ -1,0 +1,1324 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Sala de Compartilhamento</title>
+<style>
+  :root { --bg:#14161a; --card:#1e2127; --fg:#e8eaed; --mut:#9aa0a6; --acc:#5b8def; --ok:#3ecf8e; --bad:#e5534b; }
+  * { box-sizing: border-box; }
+  html,body { height:100%; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+  button, input, select { font:inherit; }
+  button { background:var(--acc); color:#fff; border:0; border-radius:8px; padding:10px 14px; cursor:pointer; }
+  button.sec { background:#343942; }
+  button.bad { background:var(--bad); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  input, select { background:#14161a; color:var(--fg); border:1px solid #343942; border-radius:8px; padding:10px; }
+  select { padding:8px; }
+  .hidden { display:none !important; }
+  .mut { color:var(--mut); font-size:.85rem; }
+
+  #gh { position:fixed; top:12px; right:12px; z-index:10; width:40px; height:40px; display:grid; place-items:center; border-radius:50%; background:var(--card); color:var(--fg); border:1px solid #343942; transition:transform .15s, background .15s, color .15s; }
+  #gh:hover { background:var(--fg); color:var(--bg); transform:scale(1.08); }
+  #lang { position:fixed; top:12px; right:60px; z-index:10; height:40px; max-width:170px; padding:0 10px; border-radius:20px; background:var(--card); }
+
+  #join { max-width:420px; margin:max(10vh,70px) auto; background:var(--card); padding:24px; border-radius:14px; display:grid; gap:12px; }
+  #join h1 { margin:0; font-size:1.4rem; }
+  #join label { display:grid; gap:4px; font-size:.9rem; }
+  #joinErr { margin:0; color:#ff8a80; font-size:.9rem; font-weight:600; }
+
+  /* A sala ocupa exatamente a janela: nada de rolagem, as telas se ajustam ao espaço */
+  #room { height:100vh; height:100dvh; overflow:hidden; display:grid; grid-template-columns:minmax(0,1fr) 260px; grid-template-rows:auto minmax(0,1fr) auto; gap:10px; padding:10px; }
+  header { grid-column:1/-1; display:flex; justify-content:flex-start; align-items:center; gap:12px; flex-wrap:wrap; padding-right:230px; min-height:40px; }
+  header h2 { margin:0; font-size:1.05rem; }
+  #grid { display:grid; gap:8px; min-height:0; min-width:0; overflow:hidden; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr); }
+  .tile { position:relative; background:#000; border-radius:12px; overflow:hidden; min-height:0; min-width:0; }
+  .tile video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; }
+  .note { position:absolute; inset:0; display:grid; place-items:center; color:var(--mut); font-size:.9rem; text-align:center; padding:12px; white-space:pre-line; }
+  .tbtn { position:absolute; padding:5px 9px; font-size:.78rem; border-radius:8px; background:rgba(0,0,0,.65); }
+  .tbtn.snd { right:8px; bottom:8px; }
+  .tbtn.hide { right:8px; top:8px; }
+  .tvol { position:absolute; left:8px; top:12px; width:90px; padding:0; background:transparent; border:0; opacity:.85; }
+  .label { position:absolute; left:8px; bottom:8px; background:rgba(0,0,0,.65); color:#fff; padding:4px 10px; border-radius:8px; font-size:.8rem; font-weight:600; max-width:calc(100% - 150px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* Controles sobre o vídeo (ocultar, som, volume, legenda): só aparecem com o mouse em cima e se movendo, ou ao tocar */
+  .tile .tbtn, .tile .tvol, .tile .label { transition:opacity .15s; }
+  .tile:not(.ui) .tbtn, .tile:not(.ui) .tvol, .tile:not(.ui) .label { opacity:0; pointer-events:none; }
+  #empty { color:var(--mut); display:grid; place-items:center; text-align:center; padding:12px; border:2px dashed #343942; border-radius:12px; }
+  aside { background:var(--card); border-radius:12px; padding:12px; overflow:auto; min-height:0; }
+  aside h3 { margin:0 0 8px; font-size:.95rem; }
+  #people { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+  #people li { padding:8px 10px; background:#14161a; border-radius:8px; font-size:.9rem; }
+  .prow { display:flex; justify-content:space-between; gap:8px; align-items:center; }
+  .prow .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .acts { display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; }
+  .acts button { padding:4px 8px; font-size:.72rem; border-radius:6px; }
+  .badge { color:var(--ok); font-size:.8rem; white-space:nowrap; }
+  #controls { grid-column:1/-1; display:flex; gap:8px; flex-wrap:wrap; align-items:center; background:var(--card); padding:8px 10px; border-radius:12px; }
+  #controls .sp { flex:1; }
+  #msg { color:#f0b429; font-size:.85rem; }
+  @media (max-width:800px) {
+    #room { grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr) auto auto; padding-top:56px; }
+    header { padding-right:0; }
+    aside { max-height:140px; }
+  }
+</style>
+</head>
+<body>
+
+<select id="lang" aria-label="Idioma / Language">
+  <option value="pt-BR">Português (Brasil)</option>
+  <option value="en">English</option>
+  <option value="pt-PT">Português (Portugal)</option>
+</select>
+
+<a id="gh" href="https://github.com/netspya" target="_blank" rel="noopener" title="github.com/netspya" aria-label="GitHub netspya">
+  <svg viewBox="0 0 16 16" width="22" height="22" fill="currentColor" aria-hidden="true">
+    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+  </svg>
+</a>
+
+<section id="join">
+  <h1 data-i18n="title"></h1>
+  <p class="mut" data-i18n="joinIntro"></p>
+  <label><span data-i18n="lblName"></span> <input id="inName" maxlength="24" data-i18n-ph="phName" autocomplete="off"></label>
+  <label><span data-i18n="lblRoom"></span> <input id="inRoom" maxlength="32" data-i18n-ph="phRoom" autocomplete="off"></label>
+  <label><span data-i18n="lblPass"></span> <input id="inPass" type="password" maxlength="64" autocomplete="off" data-i18n-ph="phPass"></label>
+  <p id="joinErr"></p>
+  <button id="btnJoin" data-i18n="btnJoin"></button>
+  <p class="mut" data-i18n="joinNote"></p>
+  <p class="mut" id="verTxt" style="text-align:center;margin:0"></p>
+</section>
+
+<section id="room" class="hidden">
+  <header>
+    <h2><span data-i18n="roomLbl"></span> <span id="roomName"></span></h2>
+    <span id="msg"></span>
+    <span id="status" class="mut"></span>
+    <button id="btnLink" class="sec" data-i18n="copyLink"></button>
+  </header>
+
+  <div id="grid">
+    <div id="empty"></div>
+  </div>
+
+  <aside>
+    <h3><span data-i18n="participants"></span> (<span id="count">1</span>)</h3>
+    <ul id="people"></ul>
+  </aside>
+
+  <div id="controls">
+    <button id="btnScreen"></button>
+    <button id="btnCam" class="sec"></button>
+    <label class="mut"><span data-i18n="lblCam"></span>
+      <select id="facing">
+        <option value="user" data-i18n="camFront" selected></option>
+        <option value="environment" data-i18n="camBack"></option>
+      </select>
+    </label>
+    <button id="btnStop" class="bad" disabled data-i18n="btnStop"></button>
+    <label class="mut"><span data-i18n="lblFps"></span>
+      <select id="fps">
+        <option value="30" selected>30 FPS</option>
+        <option value="60">60 FPS</option>
+        <option value="120">120 FPS</option>
+        <option value="144">144 FPS</option>
+        <option value="240">240 FPS</option>
+      </select>
+    </label>
+    <label class="mut"><span data-i18n="lblRes"></span>
+      <select id="res">
+        <option value="720" data-i18n="res720" selected></option>
+        <option value="1080" data-i18n="res1080"></option>
+        <option value="1440" data-i18n="res1440"></option>
+        <option value="2160" data-i18n="res2160"></option>
+      </select>
+    </label>
+    <label class="mut"><span data-i18n="lblVol"></span> <input id="vol" type="range" min="0" max="100" value="100" style="width:90px;padding:0;vertical-align:middle"></label>
+    <span class="sp"></span>
+    <button id="btnLeave" class="sec" data-i18n="btnLeave"></button>
+  </div>
+</section>
+
+<script>
+const $ = id => document.getElementById(id);
+
+/* =====================  IDIOMAS  ===================== */
+const I18N = {
+'pt-BR': {
+  title:'Sala de Compartilhamento',
+  joinIntro:'Entre com seu nome e o nome de uma sala. Quem digitar o mesmo nome de sala entra junto com você.',
+  lblName:'Seu nome', phName:'Ex.: Ana', lblRoom:'Nome da sala', phRoom:'Ex.: galera-do-jogo',
+  lblPass:'Senha da sala (opcional)', phPass:'Deixe vazio para sala aberta', btnJoin:'Entrar na sala',
+  joinNote:'Quem cria a sala define a senha e vira o dono. Quem entrar depois precisa digitar a mesma senha.',
+  fillFields:'Preencha seu nome e o nome da sala.',
+  eSecure:'Senha de sala só funciona em página segura (https). Abra o endereço https do site ou deixe a senha vazia.',
+  libFail:'Não foi possível carregar a biblioteca de conexão. Verifique sua internet ou bloqueadores de anúncio e tente de novo.',
+  roomLbl:'Sala:', copyLink:'Copiar link da sala', linkCopied:'Link copiado!', copyPrompt:'Copie o link da sala:',
+  participants:'Participantes', emptyNone:'Ninguém está compartilhando ainda', emptyHidden:'Todas as telas estão ocultas',
+  btnScreen:'Compartilhar tela', btnScreenRe:'Reiniciar tela', btnScreenNA:'Tela indisponível neste aparelho',
+  btnCam:'Ligar câmera', btnCamRe:'Reiniciar câmera', lblCam:'Câmera:', camFront:'Frontal', camBack:'Traseira',
+  btnStop:'Parar', lblFps:'Fluidez:', lblRes:'Resolução:', res720:'720p (leve)', res1080:'1080p (Full HD)', res1440:'1440p (2K)', res2160:'2160p (4K)',
+  btnLeave:'Sair da sala', lblVol:'Volume:', volTile:'Volume desta transmissão',
+  you:'você', owner:'Dono da sala', kick:'Expulsar', ban:'Banir', makeOwner:'Passar posse',
+  hideScreen:'Ocultar tela', showScreen:'Mostrar tela', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
+  confirmKick:'Expulsar {name} da sala? A pessoa poderá entrar de novo.',
+  confirmBan:'Banir {name}? A pessoa não poderá mais entrar enquanto a sala existir.',
+  confirmOwner:'Passar a posse da sala para {name}? Você perderá os poderes de dono.',
+  badgeCam:'● câmera', badgeScreen:'● tela', tagCam:'câmera', tagScreen:'tela', noAudio:'sem áudio',
+  searching:'Procurando a sala...', created:'Sala criada. Aguardando outras pessoas...',
+  connFail:'Não foi possível conectar com um participante: a rede bloqueou a conexão direta (comum em 4G/5G e em redes de empresa ou escola). Tente outra rede, como Wi-Fi.',
+  oldVersion:'O site de {name} está em outra versão (v{ver}). Peça para recarregar a página (Ctrl+F5) e faça o mesmo no seu aparelho.',
+  statusLine:'Servidor: {srv} · vaga {slot} · conectados: {n} · v{ver}', srvOk:'ok', srvOff:'sem conexão', srvWait:'conectando',
+  serverDown:'Servidor de conexão indisponível. Tentando de novo...', reconnecting:'Reconectando à sala...', errConn:'Erro de conexão: {e}',
+  eName:'Já existe alguém com esse nome nesta sala. Escolha outro nome (ou aguarde alguns segundos se você acabou de recarregar a página).',
+  eRequired:'Esta sala exige senha. Digite a senha para entrar.', eOpen:'Esta sala não usa senha. Deixe o campo de senha vazio.',
+  eFull:'Esta sala está cheia (máximo de {n} pessoas).', eWrong:'Senha incorreta.',
+  eBanned:'Você foi banido desta sala pelo dono.', eKicked:'Você foi expulso da sala pelo dono.',
+  youOwner:'Você agora é o dono da sala.', newOwner:'{name} agora é o dono da sala.',
+  cantScreen:'Este aparelho/navegador não permite compartilhar a tela. Use um computador, ou ligue a câmera.',
+  cantCam:'A câmera só funciona em páginas seguras (https). Abra o endereço https do site.',
+  startFail:'Não foi possível iniciar: {e}',
+  noSysAudio:'Sem o som do computador: na janela do navegador, escolha "Tela inteira" ou uma "Aba" e marque "Compartilhar áudio".',
+  camNoAudio:'Sem permissão de áudio: a câmera segue sem som.',
+  qualityHigh:'Qualidade alta: exige computador e internet (envio) fortes. Se travar, reduza.',
+  audOn:'com áudio', audNone:'sem áudio',
+  sharing1:'Sua tela está sendo transmitida para 1 pessoa', sharingN:'Sua tela está sendo transmitida para {n} pessoas',
+  sharingReady:'Sua tela está pronta, ninguém assistindo ainda',
+  loadingImg:'Carregando a imagem...\nSe continuar preto, clique aqui.', pausedImg:'Vídeo pausado pelo navegador.\nClique aqui para reproduzir.'
+},
+'en': {
+  title:'Sharing Room',
+  joinIntro:'Enter your name and a room name. Anyone who types the same room name joins you.',
+  lblName:'Your name', phName:'e.g. Alex', lblRoom:'Room name', phRoom:'e.g. gaming-crew',
+  lblPass:'Room password (optional)', phPass:'Leave empty for an open room', btnJoin:'Join room',
+  joinNote:'Whoever creates the room sets the password and becomes the owner. Others must type the same password.',
+  fillFields:'Fill in your name and the room name.',
+  eSecure:'Room passwords only work on secure pages (https). Open the site\'s https address or leave the password empty.',
+  libFail:'Could not load the connection library. Check your internet or ad blockers and try again.',
+  roomLbl:'Room:', copyLink:'Copy room link', linkCopied:'Link copied!', copyPrompt:'Copy the room link:',
+  participants:'Participants', emptyNone:'Nobody is sharing yet', emptyHidden:'All screens are hidden',
+  btnScreen:'Share screen', btnScreenRe:'Restart screen', btnScreenNA:'Screen sharing unavailable on this device',
+  btnCam:'Turn on camera', btnCamRe:'Restart camera', lblCam:'Camera:', camFront:'Front', camBack:'Rear',
+  btnStop:'Stop', lblFps:'Smoothness:', lblRes:'Resolution:', res720:'720p (light)', res1080:'1080p (Full HD)', res1440:'1440p (2K)', res2160:'2160p (4K)',
+  btnLeave:'Leave room', lblVol:'Volume:', volTile:'Volume of this stream',
+  you:'you', owner:'Room owner', kick:'Kick', ban:'Ban', makeOwner:'Make owner',
+  hideScreen:'Hide screen', showScreen:'Show screen', hideBtn:'Hide', soundOn:'Turn sound on', soundOff:'Mute',
+  confirmKick:'Kick {name} from the room? They will be able to join again.',
+  confirmBan:'Ban {name}? They will not be able to join again while the room exists.',
+  confirmOwner:'Make {name} the room owner? You will lose the owner powers.',
+  badgeCam:'● camera', badgeScreen:'● screen', tagCam:'camera', tagScreen:'screen', noAudio:'no audio',
+  searching:'Looking for the room...', created:'Room created. Waiting for other people...',
+  connFail:'Could not connect to a participant: the network blocked the direct connection (common on 4G/5G and company or school networks). Try another network, such as Wi-Fi.',
+  oldVersion:'{name}\'s site is on a different version (v{ver}). Ask them to reload the page (Ctrl+F5) and do the same on your device.',
+  statusLine:'Server: {srv} · slot {slot} · connected: {n} · v{ver}', srvOk:'ok', srvOff:'offline', srvWait:'connecting',
+  serverDown:'Connection server unavailable. Trying again...', reconnecting:'Reconnecting to the room...', errConn:'Connection error: {e}',
+  eName:'Someone with that name is already in this room. Choose another name (or wait a few seconds if you just reloaded the page).',
+  eRequired:'This room requires a password. Type the password to join.', eOpen:'This room has no password. Leave the password field empty.',
+  eFull:'This room is full (max {n} people).', eWrong:'Wrong password.',
+  eBanned:'You were banned from this room by the owner.', eKicked:'You were kicked from the room by the owner.',
+  youOwner:'You are now the room owner.', newOwner:'{name} is now the room owner.',
+  cantScreen:'This device/browser cannot share the screen. Use a computer, or turn on the camera.',
+  cantCam:'The camera only works on secure pages (https). Open the site\'s https address.',
+  startFail:'Could not start: {e}',
+  noSysAudio:'No computer sound: in the browser window, choose "Entire screen" or a "Tab" and tick "Share audio".',
+  camNoAudio:'No audio permission: the camera continues without sound.',
+  qualityHigh:'High quality needs a strong computer and upload speed. If it stutters, lower it.',
+  audOn:'with audio', audNone:'no audio',
+  sharing1:'Your screen is being shared with 1 person', sharingN:'Your screen is being shared with {n} people',
+  sharingReady:'Your screen is ready, nobody is watching yet',
+  loadingImg:'Loading the picture...\nIf it stays black, click here.', pausedImg:'Video paused by the browser.\nClick here to play.'
+},
+'pt-PT': {
+  title:'Sala de Partilha',
+  joinIntro:'Introduza o seu nome e o nome de uma sala. Quem escrever o mesmo nome de sala entra consigo.',
+  lblName:'O seu nome', phName:'Ex.: Ana', lblRoom:'Nome da sala', phRoom:'Ex.: malta-do-jogo',
+  lblPass:'Palavra-passe da sala (opcional)', phPass:'Deixe vazio para sala aberta', btnJoin:'Entrar na sala',
+  joinNote:'Quem cria a sala define a palavra-passe e torna-se o dono. Quem entrar depois tem de escrever a mesma palavra-passe.',
+  fillFields:'Preencha o seu nome e o nome da sala.',
+  eSecure:'A palavra-passe da sala só funciona em páginas seguras (https). Abra o endereço https do site ou deixe o campo vazio.',
+  libFail:'Não foi possível carregar a biblioteca de ligação. Verifique a sua internet ou os bloqueadores de anúncios e tente novamente.',
+  roomLbl:'Sala:', copyLink:'Copiar ligação da sala', linkCopied:'Ligação copiada!', copyPrompt:'Copie a ligação da sala:',
+  participants:'Participantes', emptyNone:'Ninguém está a partilhar ainda', emptyHidden:'Todos os ecrãs estão ocultos',
+  btnScreen:'Partilhar ecrã', btnScreenRe:'Reiniciar ecrã', btnScreenNA:'Ecrã indisponível neste dispositivo',
+  btnCam:'Ligar câmara', btnCamRe:'Reiniciar câmara', lblCam:'Câmara:', camFront:'Frontal', camBack:'Traseira',
+  btnStop:'Parar', lblFps:'Fluidez:', lblRes:'Resolução:', res720:'720p (leve)', res1080:'1080p (Full HD)', res1440:'1440p (2K)', res2160:'2160p (4K)',
+  btnLeave:'Sair da sala', lblVol:'Volume:', volTile:'Volume desta transmissão',
+  you:'você', owner:'Dono da sala', kick:'Expulsar', ban:'Banir', makeOwner:'Passar posse',
+  hideScreen:'Ocultar ecrã', showScreen:'Mostrar ecrã', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
+  confirmKick:'Expulsar {name} da sala? A pessoa poderá entrar novamente.',
+  confirmBan:'Banir {name}? A pessoa não poderá voltar a entrar enquanto a sala existir.',
+  confirmOwner:'Passar a posse da sala para {name}? Perderá os poderes de dono.',
+  badgeCam:'● câmara', badgeScreen:'● ecrã', tagCam:'câmara', tagScreen:'ecrã', noAudio:'sem áudio',
+  searching:'A procurar a sala...', created:'Sala criada. A aguardar outras pessoas...',
+  connFail:'Não foi possível ligar a um participante: a rede bloqueou a ligação direta (comum em 4G/5G e redes de empresas ou escolas). Tente outra rede, como Wi-Fi.',
+  oldVersion:'O site de {name} está noutra versão (v{ver}). Peça para recarregar a página (Ctrl+F5) e faça o mesmo no seu dispositivo.',
+  statusLine:'Servidor: {srv} · vaga {slot} · ligados: {n} · v{ver}', srvOk:'ok', srvOff:'sem ligação', srvWait:'a ligar',
+  serverDown:'Servidor de ligação indisponível. A tentar novamente...', reconnecting:'A religar à sala...', errConn:'Erro de ligação: {e}',
+  eName:'Já existe alguém com esse nome nesta sala. Escolha outro nome (ou aguarde alguns segundos se acabou de recarregar a página).',
+  eRequired:'Esta sala exige palavra-passe. Escreva a palavra-passe para entrar.', eOpen:'Esta sala não usa palavra-passe. Deixe o campo vazio.',
+  eFull:'Esta sala está cheia (máximo de {n} pessoas).', eWrong:'Palavra-passe incorreta.',
+  eBanned:'Foi banido desta sala pelo dono.', eKicked:'Foi expulso da sala pelo dono.',
+  youOwner:'Agora é o dono da sala.', newOwner:'{name} é agora o dono da sala.',
+  cantScreen:'Este dispositivo/navegador não permite partilhar o ecrã. Use um computador, ou ligue a câmara.',
+  cantCam:'A câmara só funciona em páginas seguras (https). Abra o endereço https do site.',
+  startFail:'Não foi possível iniciar: {e}',
+  noSysAudio:'Sem o som do computador: na janela do navegador, escolha "Ecrã inteiro" ou um "Separador" e marque "Partilhar áudio".',
+  camNoAudio:'Sem permissão de áudio: a câmara continua sem som.',
+  qualityHigh:'Qualidade alta: exige um computador e uma internet (envio) fortes. Se encravar, reduza.',
+  audOn:'com áudio', audNone:'sem áudio',
+  sharing1:'O seu ecrã está a ser transmitido para 1 pessoa', sharingN:'O seu ecrã está a ser transmitido para {n} pessoas',
+  sharingReady:'O seu ecrã está pronto, ainda ninguém a ver',
+  loadingImg:'A carregar a imagem...\nSe continuar preto, clique aqui.', pausedImg:'Vídeo pausado pelo navegador.\nClique aqui para reproduzir.'
+}
+};
+
+function detectLang() {
+  try { const s = localStorage.getItem('sala-lang'); if (s && I18N[s]) return s; } catch (e) {}
+  const n = (navigator.language || '').toLowerCase();
+  return n.startsWith('pt-pt') ? 'pt-PT' : n.startsWith('pt') ? 'pt-BR' : 'en';
+}
+let lang = detectLang();
+function T(k, v) {
+  let s = (I18N[lang] && I18N[lang][k]);
+  if (s == null) s = I18N['pt-BR'][k];
+  if (s == null) s = k;
+  if (v) for (const x in v) s = s.split('{' + x + '}').join(v[x]);
+  return s;
+}
+
+// mensagens do topo e erro da tela de entrada guardam a chave para traduzir ao trocar de idioma
+let curMsg = { k: null, v: null };
+function msg(text) { curMsg = { k: null, v: null }; $('msg').textContent = text || ''; }
+function msgK(k, v) { curMsg = { k, v }; $('msg').textContent = T(k, v); }
+const msgKey = () => curMsg.k;
+let curErr = { k: null, v: null };
+function setJoinErr(k, v) { curErr = { k, v }; $('joinErr').textContent = k ? T(k, v) : ''; }
+
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.title = T('title');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = T(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = T(el.dataset.i18nPh); });
+  $('lang').value = lang;
+  if (curMsg.k) $('msg').textContent = T(curMsg.k, curMsg.v);
+  if (curErr.k) $('joinErr').textContent = T(curErr.k, curErr.v);
+  if (typeof updateButtons === 'function') updateButtons();
+  if (typeof tiles !== 'undefined') tiles.forEach(t => { updateTileTexts(t); });
+  if (typeof lastSig !== 'undefined') lastSig = '';
+  if (typeof render === 'function') render();
+}
+$('lang').onchange = () => {
+  lang = $('lang').value;
+  try { localStorage.setItem('sala-lang', lang); } catch (e) {}
+  applyLang();
+};
+
+/* ---------- Carregamento sob demanda do PeerJS (só quando você entra numa sala) ---------- */
+// Hashes SRI opcionais (url -> 'sha384-...'). Gere com:
+//   curl -s URL | openssl dgst -sha384 -binary | openssl base64 -A
+// Se uma url estiver aqui, o navegador só executa o script se o conteúdo bater com o hash.
+const SRI = {};
+let peerLoad = null;
+function loadPeer() {
+  if (window.Peer) return Promise.resolve(true);
+  if (peerLoad) return peerLoad;
+  peerLoad = new Promise(resolve => {
+    const urls = [
+      'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
+      'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js'
+    ];
+    let i = 0;
+    const next = () => {
+      if (window.Peer) return resolve(true);
+      if (i >= urls.length) { peerLoad = null; return resolve(false); }
+      const s = document.createElement('script');
+      const u = urls[i++];
+      s.src = u;
+      if (SRI[u]) { s.integrity = SRI[u]; s.crossOrigin = 'anonymous'; }
+      s.onload = () => (window.Peer ? resolve(true) : next());
+      s.onerror = next;
+      document.head.appendChild(s);
+    };
+    next();
+  });
+  return peerLoad;
+}
+// Começa a baixar assim que a pessoa clica em qualquer campo (ganha tempo sem gastar à toa)
+$('join').addEventListener('focusin', () => loadPeer(), { once: true });
+
+/* =====================  REDE (celular x computador)  =====================
+   Celulares em 4G/5G ficam atrás de redes que bloqueiam a conexão direta; nesses casos o
+   vídeo passa por um servidor de retransmissão (TURN). Se tiver um servidor TURN seu,
+   coloque-o em CUSTOM_TURN. Exemplo:
+   const CUSTOM_TURN = [{ urls: 'turn:meu-servidor.com:3478', username: 'usuario', credential: 'senha' }];  */
+const APP_VERSION = '6';
+const CUSTOM_TURN = [];
+const PEER_OPTS = { config: { sdpSemantics: 'unified-plan', iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:global.stun.twilio.com:3478' },
+  { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' },
+  { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp', 'turns:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
+].concat(CUSTOM_TURN) } };
+// Ajustes de SDP "x-google-*" só existem no Chrome/Edge/Brave; Safari e Firefox (inclusive no iPhone) ficam sem mexer.
+const IS_CHROMIUM = /Chrome\/|Chromium\/|Edg\//.test(navigator.userAgent) && !/CriOS|FxiOS|iPhone|iPad|iPod/.test(navigator.userAgent);
+const kill = p => { try { p._dead = true; p.destroy(); } catch (e) {} };
+
+/* =====================  ESTADO  ===================== */
+let peer = null;          // sua conexão com o servidor de encontro (id = sala + número da vaga)
+let myName, baseId, roomKey = null, leaving = false;
+let myId = null, mySlot = -1, joinedAt = 0, probeTimer = 0, searchTimer = 0, heirTimer = 0, statusTimer = 0, kickTimer = 0, ownerWindow = 0;
+let myStream = null, myKind = null;
+const MAX_SLOTS = 12;      // máximo de pessoas por sala
+const conns = new Map();        // id -> DataConnection escolhida
+const spare = new Map();        // id -> conexões extras com a mesma pessoa (nenhuma é fechada de propósito)
+const dialing = new Map();      // id -> DataConnection ainda abrindo
+const calls = new Map();        // id -> MediaConnection (saída)
+const pendingCalls = new Map(); // id -> chamada recebida aguardando validação
+const people = new Map();       // id -> {name, sharing, kind, cid, since, slot}
+const tiles = new Map();        // id -> tile
+
+// Dono da sala, banidos e telas ocultas: tudo só existe enquanto a sala tem gente
+let own = { id: null, epoch: 0 };
+const bans = new Set();         // identificadores de aparelho banidos
+const bansName = new Set();     // nomes banidos
+const hidden = new Set();       // ids cujas telas eu escondi
+
+const rnd = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now();
+const clientId = (() => {
+  try { let v = localStorage.getItem('sala-cid'); if (!v) { v = rnd(); localStorage.setItem('sala-cid', v); } return v; }
+  catch (e) { return rnd(); }
+})();
+
+const slug = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'sala';
+const slotOf = id => { const m = /_(\d+)$/.exec(id || ''); return m ? +m[1] : 999; };
+const norm = s => String(s || '').trim().toLowerCase();
+const myAge = () => performance.now() - joinedAt;
+const isOwner = () => !!myId && own.id === myId;
+
+/* =====================  ENTRADA NA SALA  ===================== */
+/* A senha nunca sai do aparelho, nem o hash dela: ela vira uma chave (PBKDF2, lenta de propósito para
+   dificultar tentativa-e-erro) e cada pessoa só envia uma prova HMAC de um desafio aleatório da outra ponta. */
+const TE = new TextEncoder();
+const toHex = buf => [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
+const rndHex = n => toHex(crypto.getRandomValues(new Uint8Array(n)));
+async function deriveRoomKey(room, pass) {
+  if (!pass) return null;
+  const base = await crypto.subtle.importKey('raw', TE.encode(pass), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: TE.encode('sala-v6|' + room), iterations: 210000 }, base, 256);
+  return crypto.subtle.importKey('raw', bits, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+}
+async function makeProof(nonce, id) {
+  return toHex(await crypto.subtle.sign('HMAC', roomKey, TE.encode(nonce + '|' + id)));
+}
+
+// Tudo que chega de outras pessoas é tratado como não confiável: tipo, tamanho e caracteres são validados
+const cleanStr = (s, n) => (typeof s === 'string' ? s : '').replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, '').trim().slice(0, n);
+const cleanName = s => cleanStr(s, 24);
+const cleanNum = (x, lo, hi) => { x = +x; return isFinite(x) ? Math.min(hi, Math.max(lo, x)) : lo; };
+const cleanList = (a, n, len) => Array.isArray(a) ? a.slice(0, n).map(x => cleanStr(x, len)).filter(Boolean) : [];
+
+$('inRoom').value = (() => { try { return decodeURIComponent(location.hash.slice(1) || '').slice(0, 32); } catch (e) { return ''; } })();
+['inName', 'inRoom', 'inPass'].forEach(id =>
+  $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('btnJoin').click(); }));
+
+$('btnJoin').onclick = async () => {
+  const name = cleanName($('inName').value);
+  const room = $('inRoom').value.trim();
+  setJoinErr(null);
+  if (!name || !room) { setJoinErr('fillFields'); return; }
+  $('btnJoin').disabled = true;
+  const ok = await loadPeer();
+  if (!ok) { $('btnJoin').disabled = false; setJoinErr('libFail'); return; }
+  const rs = slug(room);
+  const pass = $('inPass').value;
+  let key = null;
+  try {
+    if (pass && !(window.crypto && crypto.subtle)) throw new Error('insecure');
+    key = await deriveRoomKey(rs, pass);
+  } catch (e) { $('btnJoin').disabled = false; setJoinErr('eSecure'); return; }
+  myName = name;
+  baseId = 'ss3-' + rs;
+  roomKey = key;
+  $('btnJoin').disabled = false;
+  $('roomName').textContent = room;
+  $('join').classList.add('hidden');
+  $('room').classList.remove('hidden');
+  start();
+};
+
+function destroyTile(t) {
+  clearInterval(t.timer);
+  try { t.video.srcObject = null; } catch (e) {}
+  t.el.remove();
+}
+function resetState() {
+  ignoreUntil.clear(); conns.clear(); spare.clear(); dialing.clear(); calls.clear(); pendingCalls.clear(); people.clear();
+  tiles.forEach(destroyTile); tiles.clear();
+  own = { id: null, epoch: 0 }; bans.clear(); bansName.clear(); hidden.clear();
+  clearTimeout(heirTimer); clearTimeout(kickTimer); kickTimer = 0; ownerWindow = 0;
+}
+function closeAll() {
+  clearInterval(probeTimer); clearTimeout(probeTimer); clearInterval(statusTimer); clearTimeout(searchTimer); clearTimeout(heirTimer); clearTimeout(kickTimer); kickTimer = 0;
+  const p = peer; peer = null; myId = null; mySlot = -1;
+  try { p && p.destroy(); } catch (e) {}
+}
+
+/* ---------- Encontrar a sala ----------
+   Cada pessoa ocupa uma "vaga" fixa da sala (ss3-nome_0, _1, _2...).
+   Para achar os outros, basta chamar todas as vagas: não existe servidor "dono" da sala,
+   então duas pessoas nunca acabam em salas separadas. */
+function start() {
+  closeAll(); resetState();
+  leaving = false;
+  joinedAt = performance.now();
+  claimSlot(0);
+}
+
+function claimSlot(i) {
+  if (leaving) return;
+  if (i >= MAX_SLOTS) { kickOut('full'); return; }
+  let opened = false;
+  const me = new Peer(baseId + '_' + i, PEER_OPTS);
+  peer = me;
+
+  me.on('open', id => {
+    if (me !== peer) return;
+    opened = true;
+    myId = id; mySlot = i;
+    msgK('searching');
+    probe();
+    setTimeout(probe, 2500); setTimeout(probe, 6000);
+    // intervalo com variação aleatória: duas pessoas varrendo exatamente no mesmo ritmo poderiam travar uma à outra
+    const tick = () => {
+      probeTimer = setTimeout(() => {
+        probe();
+        if (isOwner()) broadcast({ t: 'owner', id: own.id, epoch: own.epoch });
+        if (me === peer && !leaving) tick();
+      }, 8000 + Math.random() * 6000);
+    };
+    tick();
+    updateStatus();
+    searchTimer = setTimeout(() => {
+      if (!people.size) {
+        // sozinho na sala: você é o primeiro, então vira o dono
+        if (!own.id) claimOwner(false);
+        if (msgKey() === 'searching') msgK('created');
+      }
+    }, 5000);
+    render();
+  });
+  me.on('connection', c => {
+    if (me !== peer) return;
+    if (!isRoomPeer(c.peer)) { try { c.close(); } catch (e) {} return; }
+    setupConn(c, false);
+  });
+  me.on('call', call => { if (me === peer) onCall(call); });
+
+  me.on('error', e => {
+    if (me !== peer) return;
+    if (e.type === 'unavailable-id') {
+      kill(me);
+      if (!opened) claimSlot(i + 1);
+      else { msgK('reconnecting'); setTimeout(() => { if (!leaving) start(); }, 500); }
+      return;
+    }
+    if (e.type === 'peer-unavailable') {
+      const m = /peer (\S+)$/.exec(String(e.message || ''));
+      if (m) { const c = dialing.get(m[1]); dialing.delete(m[1]); if (c) { try { c.close(); } catch (_) {} } }
+      return;
+    }
+    if (!opened && ['network', 'server-error', 'socket-error', 'socket-closed'].includes(e.type)) {
+      msgK('serverDown');
+      kill(me);
+      setTimeout(() => claimSlot(i), 3000);
+      return;
+    }
+    msgK('errConn', { e: e.type });
+  });
+  me.on('disconnected', () => { if (me === peer && !me.destroyed && !leaving) { try { me.reconnect(); } catch (e) {} } });
+  me.on('close', () => { if (me === peer && !me._dead && !leaving) { msgK('reconnecting'); setTimeout(() => { if (!leaving) start(); }, 800); } });
+}
+
+// Celular volta do bloqueio de tela / troca de rede: religa ao servidor e procura as pessoas de novo
+function wake() {
+  if (leaving || !peer) return;
+  try { if (peer.disconnected && !peer.destroyed) peer.reconnect(); } catch (e) {}
+  setTimeout(probe, 800);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+window.addEventListener('online', wake);
+
+function updateStatus() {
+  clearInterval(statusTimer);
+  const upd = () => {
+    const n = [...connIds()].filter(verifiedConn).length;
+    const srv = !peer ? 'srvWait' : (peer.open && !peer.disconnected) ? 'srvOk' : peer.open ? 'srvOff' : 'srvWait';
+    $('status').textContent = T('statusLine', { srv: T(srv), slot: mySlot + 1, n, ver: APP_VERSION });
+  };
+  upd(); statusTimer = setInterval(upd, 2000);
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const ignoreUntil = new Map();   // vagas que não responderam (fantasmas) ficam em espera
+// uma conexão aberta só impede nova ligação se já foi validada ou ainda está no aperto de mão (primeiros 2,5 s)
+const canDial = id => !!id && !!peer && peer.open && id !== myId && !dialing.has(id)
+  && !allConns(id).some(x => x.open && (x.verified || Date.now() - (x.openedAt || 0) < 2500))
+  && (ignoreUntil.get(id) || 0) <= Date.now();
+
+// Chama as vagas da sala UMA DE CADA VEZ. Abrir as 11 conexões WebRTC de uma vez (cada uma com STUN/TURN)
+// sufoca celulares em 4G/5G e fazia a conexão de verdade falhar quando a sala já existia.
+let probing = false;
+async function probe() {
+  if (probing) return;
+  probing = true;
+  try {
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      if (leaving || !peer || !peer.open || mySlot < 0) break;
+      if (i === mySlot) continue;
+      const id = baseId + '_' + i;
+      if (!canDial(id)) continue;
+      dial(id);
+      const t0 = Date.now();
+      while (dialing.has(id) && !leaving && Date.now() - t0 < 3000) await sleep(150);
+    }
+  } finally { probing = false; }
+}
+
+function dial(id) {
+  if (!canDial(id)) return;
+  const c = peer.connect(id, { reliable: true });
+  dialing.set(id, c);
+  setupConn(c, true);
+  setTimeout(() => {
+    if (dialing.get(id) !== c) return;
+    dialing.delete(id);
+    // "new" = ninguém respondeu (vaga fantasma de alguém que saiu): silêncio e tenta de novo mais tarde.
+    // Qualquer outro estado = a pessoa respondeu mas a rede não deixou fechar a conexão.
+    const st = c.peerConnection ? c.peerConnection.iceConnectionState : 'new';
+    try { c.close(); } catch (e) {}
+    if (st === 'new') { ignoreUntil.set(id, Date.now() + 30000); return; }
+    ignoreUntil.set(id, Date.now() + 6000);
+    msgK('connFail');
+    setTimeout(() => { if (msgKey() === 'connFail') msg(''); }, 12000);
+  }, 20000);
+}
+
+/* =====================  CONEXÕES ENTRE PARTICIPANTES  =====================
+   Protocolo (v6):
+   1. ao abrir a conexão, cada ponta manda um desafio aleatório ("ch");
+   2. ao receber o desafio da outra, responde com "hello": identidade + prova HMAC da senha;
+   3. quem validou o hello do outro manda "state" (dono e banidos). Quem não passou na validação não recebe nada.
+   Quando as duas pessoas se chamam ao mesmo tempo existem DUAS conexões de dados entre elas. Antes, cada ponta
+   fechava uma delas por um critério de "ranking"; se uma das conexões abria só pela metade (comum com celular
+   em 4G/5G), as pontas fechavam a conexão que funcionava e as duas nunca se encontravam. Agora nenhuma conexão
+   é fechada de propósito: a primeira que for validada vira a principal e a outra fica de reserva. */
+const MAX_PER_PEER = 3;
+const DENIABLE = ['name', 'required', 'open', 'banned', 'wrong'];
+const addSpare = (id, c) => { let x = spare.get(id); if (!x) spare.set(id, x = new Set()); x.add(c); };
+const allConns = id => { const l = []; const p = conns.get(id); if (p) l.push(p); const x = spare.get(id); if (x) x.forEach(y => { if (y !== p) l.push(y); }); return l; };
+const verifiedConn = id => allConns(id).find(x => x.open && x.verified) || null;
+const connIds = () => new Set([...conns.keys(), ...spare.keys()]);
+const isRoomPeer = id => {
+  if (typeof id !== 'string' || !baseId || !id.startsWith(baseId + '_')) return false;
+  const r = id.slice(baseId.length + 1);
+  return /^\d{1,2}$/.test(r) && +r < MAX_SLOTS;
+};
+// motivo da recusa do ponto de vista de quem está entrando (roomHas = a sala tem senha, joinerHas = quem entra digitou senha)
+const joinReason = (roomHas, joinerHas) => !joinerHas ? 'required' : !roomHas ? 'open' : 'wrong';
+
+// "Aceito" = alguém que me validou (só quem validou o meu hello me manda o "state").
+const hasAccepted = () => [...connIds()].some(id => allConns(id).some(x => x.open && x.accepted));
+// Uma recusa (denied, senha divergente) nunca derruba na hora: só vale se, passados 3 s, ninguém me aceitou.
+// Assim um estranho não consegue te expulsar mandando "denied" ou um hello falso.
+function softKick(reason) {
+  if (kickTimer || leaving) return;
+  kickTimer = setTimeout(() => { kickTimer = 0; if (!leaving && !hasAccepted()) kickOut(reason); }, 3000);
+}
+
+function setupConn(c, outbound) {
+  const id = c.peer;
+  c.myNonce = rndHex(16);
+  c.on('open', () => {
+    if (dialing.get(id) === c) dialing.delete(id);
+    if (allConns(id).filter(x => x !== c && x.open).length >= MAX_PER_PEER) { try { c.close(); } catch (e) {} return; }
+    const cur = conns.get(id);
+    if (!cur || cur === c || !cur.open) conns.set(id, c); else addSpare(id, c);
+    c.openedAt = Date.now();
+    // quem não completar o aperto de mão em 10 s é desconectado; o desafio é repetido enquanto isso
+    c.vt = setTimeout(() => { if (!c.verified) { try { c.close(); } catch (e) {} } }, 10000);
+    const ping = () => { if (c.open && !c.verified) { try { c.send({ t: 'ch', n: c.myNonce }); } catch (e) {} } };
+    ping();
+    c.rt = [setTimeout(ping, 1500), setTimeout(ping, 4000), setTimeout(ping, 7000)];
+  });
+  // as mensagens de uma mesma conexão são tratadas em fila (a validação do hello é assíncrona)
+  c.on('data', d => { c.q = (c.q || Promise.resolve()).then(() => onData(c, d)).catch(e => console.warn(e)); });
+  const gone = () => {
+    clearTimeout(c.vt); (c.rt || []).forEach(clearTimeout);
+    if (dialing.get(id) === c) dialing.delete(id);
+    const x = spare.get(id); if (x) { x.delete(c); if (!x.size) spare.delete(id); }
+    if (conns.get(id) !== c) return;
+    const alt = allConns(id).find(y => y !== c && y.open && y.verified);
+    if (alt) { conns.set(id, alt); return; }   // a conexão de reserva assume, sem derrubar ninguém
+    drop(id);
+  };
+  c.on('close', gone);
+  c.on('error', gone);
+}
+
+async function sendHello(c) {
+  if (!myId || !c.open) return;
+  if (c.sentAge == null) c.sentAge = myAge();
+  let proof = '';
+  try { if (roomKey) proof = await makeProof(c.theirNonce, myId); } catch (e) { return; }
+  if (!c.open || leaving) return;
+  try {
+    c.send({ t: 'hello', name: myName, sharing: !!myStream, kind: myKind, age: c.sentAge, hasPass: !!roomKey, proof,
+             slot: mySlot, ver: APP_VERSION, cid: clientId });
+  } catch (e) {}
+}
+
+async function onData(c, d) {
+  const id = c.peer;
+  if (!d || typeof d !== 'object' || typeof d.t !== 'string') return;
+  if (d.t === 'ch') {
+    if (typeof d.n !== 'string' || d.n.length < 8 || d.n.length > 64) return;
+    if (!c.theirNonce) c.theirNonce = d.n;
+    if (c.theirNonce === d.n) await sendHello(c);   // desafio repetido = o hello pode ter se perdido: manda de novo
+    return;
+  }
+  if (d.t === 'hello') return onHello(c, d);
+  // recusa nunca derruba na hora: só vale se, passados 3 s, ninguém mais te aceitou (ver softKick)
+  if (d.t === 'denied') { softKick(DENIABLE.includes(d.reason) ? d.reason : 'wrong'); return; }
+  if (!c.verified) return;                       // nada além daqui é aceito de quem não foi validado
+  if (d.t === 'state') return onState(c, d);
+  if (d.t === 'sharing') {
+    const p = people.get(id);
+    if (p) {
+      p.sharing = !!d.on;
+      p.kind = d.on && (d.kind === 'cam' || d.kind === 'screen') ? d.kind : null;
+      if (!d.on) hidden.delete(id);
+      render();
+    }
+  } else if (d.t === 'owner') {
+    mergeOwner({ id: d.id, epoch: d.epoch }, id);
+  } else if (d.t === 'ban') {
+    if (id === own.id) {
+      const cid = cleanStr(d.cid, 64), nm = norm(cleanStr(d.nm, 24));
+      if (cid) bans.add(cid);
+      if (nm) bansName.add(nm);
+      if ((cid && cid === clientId) || (nm && nm === norm(myName))) kickOut('banned');
+    }
+  } else if (d.t === 'kicked') {
+    if (id === own.id) kickOut(d.ban ? 'banned' : 'kicked');
+  }
+}
+
+// Valida banimento, senha e nome de quem acabou de conectar. Em conflito de senha/nome
+// vale a pessoa que está na sala há mais tempo; a outra é recusada.
+async function onHello(c, d) {
+  if (c.helloDone) return;
+  c.helloDone = true;
+  const id = c.peer;
+  const refuse = reason => {
+    try { c.send({ t: 'denied', reason }); } catch (e) {}
+    setTimeout(() => { try { c.close(); } catch (e) {} }, 500);
+  };
+  const name = cleanName(d.name), cid = cleanStr(d.cid, 64);
+  if (!name || !cid) { try { c.close(); } catch (e) {} return; }
+  if (bans.has(cid) || bansName.has(norm(name))) return refuse('banned');
+
+  const theirHas = !!d.hasPass, myHas = !!roomKey;
+  let authOk = theirHas === myHas;
+  if (authOk && myHas) {
+    try { authOk = typeof d.proof === 'string' && (await makeProof(c.myNonce, id)) === d.proof; } catch (e) { authOk = false; }
+  }
+  if (leaving || !c.open) return;
+
+  const mine = c.sentAge != null ? c.sentAge : myAge();
+  const theirs = cleanNum(d.age, 0, 1e12);
+  const theyAreOlder = theirs > mine || (theirs === mine && slotOf(id) < mySlot);
+  if (!authOk) {
+    if (theyAreOlder) softKick(joinReason(theirHas, myHas));   // eu sou quem está entrando
+    else refuse(joinReason(myHas, theirHas));                  // quem está entrando é ele
+    return;
+  }
+  if (norm(name) === norm(myName)) {
+    if (theyAreOlder) kickOut('name'); else refuse('name');
+    return;
+  }
+
+  const ver = cleanStr(d.ver, 8);
+  if (ver !== APP_VERSION) {
+    msgK('oldVersion', { name, ver: ver || '?' });
+    setTimeout(() => { if (msgKey() === 'oldVersion') msg(''); }, 15000);
+  }
+  c.verified = true; c.theyOlder = theyAreOlder;
+  clearTimeout(c.vt);
+  if (!people.has(id)) {
+    people.set(id, { name, sharing: !!d.sharing, kind: d.sharing && (d.kind === 'cam' || d.kind === 'screen') ? d.kind : null,
+                     cid, slot: cleanNum(d.slot, 0, MAX_SLOTS), since: performance.now() - theirs });
+  }
+  // a primeira conexão validada vira a principal; a outra fica de reserva
+  const cur = conns.get(id);
+  if (cur !== c && !(cur && cur.open && cur.verified)) {
+    if (cur) addSpare(id, cur);
+    const x = spare.get(id); if (x) x.delete(c);
+    conns.set(id, c);
+  }
+  sendState(c);
+  if (['searching', 'created'].includes(msgKey())) msg('');
+  const pc = pendingCalls.get(id);
+  if (pc) { pendingCalls.delete(id); answerCall(pc); }
+  if (myStream) callPeer(id);
+  render();
+}
+
+function sendState(c) {
+  try { c.send({ t: 'state', own: { id: own.id, epoch: own.epoch }, bans: [...bans].slice(0, 200), bn: [...bansName].slice(0, 200) }); } catch (e) {}
+}
+function onState(c, d) {
+  c.accepted = true;
+  const o = d.own;
+  if (o && typeof o.id === 'string') mergeOwner({ id: o.id, epoch: o.epoch }, 'hello');
+  // a lista de banidos só vale vinda do dono (qualquer um poderia mandar a sua id para te expulsar)
+  if (c.peer === own.id) {
+    const b = cleanList(d.bans, 200, 64), n = cleanList(d.bn, 200, 24).map(norm);
+    if (b.includes(clientId) || n.includes(norm(myName))) { kickOut('banned'); return; }
+    b.forEach(x => bans.add(x)); n.forEach(x => bansName.add(x));
+  }
+  // ninguém é dono ainda: o mais antigo assume
+  if (!own.id && c.theyOlder === false) claimOwner(false);
+}
+
+function kickOut(reason) {
+  const map = { name:'eName', required:'eRequired', open:'eOpen', full:'eFull', banned:'eBanned', kicked:'eKicked', wrong:'eWrong' };
+  leaveRoom();
+  setJoinErr(map[reason] || 'eWrong', { n: MAX_SLOTS });
+}
+
+function broadcast(m) { connIds().forEach(id => { const c = verifiedConn(id); if (c) { try { c.send(m); } catch (e) {} } }); }
+function drop(id) {
+  conns.delete(id); people.delete(id); pendingCalls.delete(id); hidden.delete(id);
+  const c = calls.get(id); if (c) c.close(); calls.delete(id);
+  removeTile(id);
+  if (own.id === id) ownerLeft();
+  render();
+}
+
+/* =====================  DONO DA SALA  ===================== */
+function mergeOwner(o, sender) {
+  if (!o || typeof o.id !== 'string' || o.id.length > 80 || !Number.isSafeInteger(o.epoch) || o.epoch < 0 || o.epoch > 1e6) return;
+  if (o.id !== myId && !people.has(o.id)) return;          // o dono tem de ser alguém validado
+  if (sender !== 'hello') {
+    // pedido ao vivo: só do próprio candidato ou do dono atual, e só quando o dono atual passou a posse,
+    // a vaga está vazia ou é uma disputa logo depois de o dono sair
+    if (sender !== o.id && sender !== own.id) return;
+    const viaOwner = sender === own.id;
+    const contest = o.epoch === own.epoch && performance.now() < ownerWindow;
+    if (!viaOwner && own.id && !contest) return;
+    if (!viaOwner && o.epoch > own.epoch + 1) return;
+  }
+  let take = false;
+  if (o.epoch > own.epoch) take = true;
+  else if (o.epoch === own.epoch && o.id !== own.id) take = !own.id || slotOf(o.id) < slotOf(own.id);
+  if (!take) return;
+  const prev = own.id;
+  own = { id: o.id, epoch: o.epoch };
+  ownerChanged(prev, true);
+}
+function ownerChanged(prev, announce) {
+  clearTimeout(heirTimer);
+  if (announce && prev !== own.id) {
+    if (own.id === myId) msgK('youOwner');
+    else if (people.get(own.id) && prev) msgK('newOwner', { name: people.get(own.id).name });
+    setTimeout(() => { if (['youOwner', 'newOwner'].includes(msgKey())) msg(''); }, 6000);
+  }
+  render();
+}
+function claimOwner(announce) {
+  if (!myId) return;
+  const prev = own.id;
+  own = { id: myId, epoch: own.epoch + 1 };
+  broadcast({ t: 'owner', id: own.id, epoch: own.epoch });
+  ownerChanged(prev, announce);
+}
+// o dono saiu: o participante mais antigo assume (se houver empate/divergência, a menor vaga)
+function ownerLeft() {
+  own = { id: null, epoch: own.epoch };
+  ownerWindow = performance.now() + 8000;
+  clearTimeout(heirTimer);
+  if (!myId) return;
+  const cands = [{ id: myId, since: joinedAt, slot: mySlot }];
+  people.forEach((p, id) => cands.push({ id, since: p.since, slot: p.slot != null ? p.slot : slotOf(id) }));
+  cands.sort((a, b) => a.since - b.since || a.slot - b.slot);
+  if (cands[0].id === myId) { claimOwner(true); return; }
+  heirTimer = setTimeout(() => {
+    if (own.id || leaving || !peer) return;
+    const lowest = [...cands].filter(c => c.id === myId || people.has(c.id)).sort((a, b) => a.slot - b.slot)[0];
+    if (lowest && lowest.id === myId) claimOwner(true);
+  }, 2500);
+}
+function transferOwner(id) {
+  if (!isOwner()) return;
+  const p = people.get(id); if (!p) return;
+  if (!confirm(T('confirmOwner', { name: p.name }))) return;
+  own = { id, epoch: own.epoch + 1 };
+  broadcast({ t: 'owner', id: own.id, epoch: own.epoch });
+  ownerChanged(myId, false);
+}
+function kickPerson(id, ban) {
+  if (!isOwner()) return;
+  const p = people.get(id), c = verifiedConn(id); if (!p || !c) return;
+  if (!confirm(T(ban ? 'confirmBan' : 'confirmKick', { name: p.name }))) return;
+  if (ban) {
+    bans.add(p.cid); bansName.add(norm(p.name));
+    broadcast({ t: 'ban', cid: p.cid, nm: norm(p.name) });
+  }
+  try { c.send({ t: 'kicked', ban: !!ban }); } catch (e) {}
+  setTimeout(() => { allConns(id).forEach(x => { try { x.close(); } catch (e) {} }); }, 400);
+}
+
+/* =====================  RECEBER VÍDEO (só de quem já foi validado)  ===================== */
+function onCall(call) {
+  if (!isRoomPeer(call.peer)) { try { call.close(); } catch (e) {} return; }
+  if (verifiedConn(call.peer)) { answerCall(call); return; }
+  pendingCalls.set(call.peer, call);
+  setTimeout(() => {
+    if (pendingCalls.get(call.peer) === call) { pendingCalls.delete(call.peer); try { call.close(); } catch (e) {} }
+  }, 10000);
+}
+function answerCall(call) {
+  call.answer(undefined, { sdpTransform: tuneSdp });
+  call.on('stream', s => showTile(call.peer, s, call));
+  call.on('close', () => { const t = tiles.get(call.peer); if (t && t.call === call) removeTile(call.peer); });
+}
+
+/* =====================  QUALIDADE DE VÍDEO  ===================== */
+const DIMS = { 720: [1280, 720], 1080: [1920, 1080], 1440: [2560, 1440], 2160: [3840, 2160] };
+function qualitySettings() {
+  const fps = +$('fps').value;
+  const res = +$('res').value;
+  const [w, h] = DIMS[res] || DIMS[720];
+  // bits por pixel diminuem quando o FPS sobe (quadros vizinhos são muito parecidos)
+  const bpp = fps <= 30 ? 0.07 : fps <= 60 ? 0.06 : 0.035;
+  const base = Math.min(40e6, Math.max(1.5e6, w * h * fps * bpp));
+  return { fps, res, w, h, base };
+}
+
+// Faz o codificador começar já em boa qualidade (sem a fase "borrada" inicial).
+function tuneSdp(sdp) {
+  if (!IS_CHROMIUM) return sdp;
+  try {
+    const lines = sdp.split('\r\n');
+    const pts = new Set(), withFmtp = new Set();
+    lines.forEach(l => {
+      let m = l.match(/^a=rtpmap:(\d+) (VP8|VP9|H264|AV1)\//);
+      if (m) pts.add(m[1]);
+      m = l.match(/^a=fmtp:(\d+) /);
+      if (m) withFmtp.add(m[1]);
+    });
+    const extra = 'x-google-start-bitrate=2500;x-google-min-bitrate=600;x-google-max-bitrate=40000';
+    const out = [];
+    lines.forEach(l => {
+      let m = l.match(/^a=fmtp:(\d+) (.*)$/);
+      if (m && pts.has(m[1]) && !l.includes('x-google-')) { out.push(l + ';' + extra); return; }
+      out.push(l);
+      m = l.match(/^a=rtpmap:(\d+) /);
+      if (m && pts.has(m[1]) && !withFmtp.has(m[1])) out.push('a=fmtp:' + m[1] + ' ' + extra);
+    });
+    return out.join('\r\n');
+  } catch (e) { return sdp; }
+}
+
+function applyQuality() {
+  if (!myStream) return;
+  const q = qualitySettings();
+  const n = Math.max(1, calls.size);
+  // a sua internet é dividida entre quem está assistindo
+  const per = Math.round(Math.max(1.2e6, Math.min(q.base, q.base * 1.6 / n)));
+  calls.forEach(c => {
+    const pc = c.peerConnection; if (!pc) return;
+    pc.getSenders().forEach(s => {
+      if (!s.track || s.track.kind !== 'video') return;
+      const p = s.getParameters();
+      if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+      const e = p.encodings[0];
+      e.maxBitrate = per;
+      e.maxFramerate = q.fps;
+      const w = (s.track.getSettings && s.track.getSettings().width) || q.w;
+      e.scaleResolutionDownBy = Math.max(1, w / q.w);
+      p.degradationPreference = (myKind === 'screen' && q.fps <= 30) ? 'maintain-resolution'
+        : (q.fps >= 60 ? 'maintain-framerate' : 'balanced');
+      s.setParameters(p).catch(() => {});
+    });
+  });
+}
+let qTimers = [];
+function scheduleQuality() {
+  qTimers.forEach(clearTimeout);
+  qTimers = [setTimeout(applyQuality, 1500), setTimeout(applyQuality, 4500)];
+}
+
+/* =====================  TRANSMISSÃO E ÁUDIO  ===================== */
+// Celulares (Android e iPhone) não permitem compartilhar tela pelo navegador: é uma limitação deles.
+const canShareScreen = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+const canUseCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+let hasAudio = false;      // a transmissão atual tem faixa de áudio?
+function audioKey() { return hasAudio ? 'audOn' : 'audNone'; }
+
+function updateLocalNote() {
+  const t = tiles.get('me');
+  if (!t || !myStream) return;
+  if (t.note) {
+    const vt = myStream.getVideoTracks()[0]; if (!vt) return;
+    const s = vt.getSettings ? vt.getSettings() : {};
+    const info = (s.width || '?') + '×' + (s.height || '?') + ' · ' + Math.round(s.frameRate || 0) + ' FPS · ' + T(audioKey());
+    const head = calls.size === 0 ? T('sharingReady') : calls.size === 1 ? T('sharing1') : T('sharingN', { n: calls.size });
+    t.note.textContent = head + '\n' + info;
+  }
+}
+
+function callPeer(id) {
+  if (!myStream || !peer || calls.has(id)) return;
+  const c = peer.call(id, myStream, { sdpTransform: tuneSdp });
+  calls.set(id, c);
+  c.on('close', () => {
+    if (calls.get(id) === c) { calls.delete(id); updateLocalNote(); scheduleQuality(); }
+  });
+  updateLocalNote();
+  scheduleQuality();
+}
+
+if (!canShareScreen) $('btnScreen').disabled = true;
+$('facing').onchange = () => { if (myKind === 'cam') share('cam'); };
+
+async function share(kind) {
+  if (kind === 'screen' && !canShareScreen) { msgK('cantScreen'); return; }
+  if (kind === 'cam' && !canUseCamera) { msgK('cantCam'); return; }
+  if (myStream) stopShare();
+  const q = qualitySettings();
+  const frameRate = { ideal: q.fps, max: q.fps };
+  let stream, camAudioFailed = false;
+  try {
+    if (kind === 'screen') {
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always', frameRate, width: { ideal: q.w, max: q.w }, height: { ideal: q.h, max: q.h } },
+        // restrictOwnAudio: no Chrome/Edge/Brave tira do áudio do sistema o som tocado por esta própria página (evita eco)
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, restrictOwnAudio: true },
+        systemAudio: 'include'
+      });
+    } else {
+      const video = { frameRate, width: { ideal: q.w }, height: { ideal: q.h }, facingMode: { ideal: $('facing').value } };
+      try { stream = await navigator.mediaDevices.getUserMedia({ video, audio: true }); }
+      catch (e) { camAudioFailed = true; stream = await navigator.mediaDevices.getUserMedia({ video }); }
+    }
+  } catch (e) { msgK('startFail', { e: e.message }); return; }
+  myStream = stream;
+  myKind = kind;
+  hasAudio = stream.getAudioTracks().length > 0;
+  if (kind === 'screen' && !hasAudio) msgK('noSysAudio');
+  else if (kind === 'cam' && !hasAudio && camAudioFailed) msgK('camNoAudio');
+  else msg('');
+  setTimeout(() => { if (['camNoAudio', 'noSysAudio'].includes(msgKey())) msg(''); }, 9000);
+
+  const vt = stream.getVideoTracks()[0];
+  vt.contentHint = kind === 'screen' ? (q.fps >= 60 ? 'motion' : 'detail') : 'motion';
+  vt.onended = () => stopShare();
+  showTile('me', myStream, null, true);
+  connIds().forEach(id => { if (verifiedConn(id)) callPeer(id); });
+  broadcast({ t: 'sharing', on: true, kind });
+  updateLocalNote();
+  updateButtons(); render();
+}
+
+function stopShare() {
+  if (!myStream) return;
+  const s = myStream;
+  myStream = null; myKind = null;
+  s.getTracks().forEach(t => { t.onended = null; t.stop(); });
+  hasAudio = false;
+  const list = [...calls.values()]; calls.clear(); list.forEach(c => c.close());
+  removeTile('me');
+  broadcast({ t: 'sharing', on: false });
+  updateButtons(); render();
+}
+
+let warnTimer;
+async function qualityChanged() {
+  const q = qualitySettings();
+  if (q.res >= 1440 || q.fps > 60) {
+    msgK('qualityHigh');
+    clearTimeout(warnTimer); warnTimer = setTimeout(() => { if (msgKey() === 'qualityHigh') msg(''); }, 7000);
+  }
+  if (!myStream) return;
+  const vt = myStream.getVideoTracks()[0];
+  try {
+    await vt.applyConstraints({
+      frameRate: { ideal: q.fps, max: q.fps },
+      width: { ideal: q.w, max: q.w }, height: { ideal: q.h, max: q.h }
+    });
+  } catch (e) {}
+  vt.contentHint = myKind === 'screen' ? (q.fps >= 60 ? 'motion' : 'detail') : 'motion';
+  applyQuality();
+  setTimeout(updateLocalNote, 800);
+}
+$('fps').onchange = qualityChanged;
+$('res').onchange = qualityChanged;
+
+$('btnLink').onclick = async () => {
+  const link = location.href.split('#')[0] + '#' + encodeURIComponent($('roomName').textContent);
+  try { await navigator.clipboard.writeText(link); msgK('linkCopied'); }
+  catch (e) { prompt(T('copyPrompt'), link); }
+  setTimeout(() => { if (msgKey() === 'linkCopied') msg(''); }, 2500);
+};
+$('btnScreen').onclick = () => share('screen');
+$('btnCam').onclick = () => share('cam');
+$('btnStop').onclick = stopShare;
+
+function leaveRoom() {
+  stopShare();
+  leaving = true;
+  closeAll(); resetState();
+  msg('');
+  $('room').classList.add('hidden');
+  $('join').classList.remove('hidden');
+}
+$('btnLeave').onclick = leaveRoom;
+window.addEventListener('beforeunload', () => { leaving = true; closeAll(); });
+
+function updateButtons() {
+  $('btnStop').disabled = !myStream;
+  $('btnScreen').textContent = !canShareScreen ? T('btnScreenNA') : myKind === 'screen' ? T('btnScreenRe') : T('btnScreen');
+  $('btnCam').textContent = myKind === 'cam' ? T('btnCamRe') : T('btnCam');
+}
+
+/* =====================  INTERFACE  ===================== */
+let masterVol = (() => {
+  try { const v = parseFloat(localStorage.getItem('sala-vol')); return isNaN(v) ? 1 : Math.min(1, Math.max(0, v)); }
+  catch (e) { return 1; }
+})();
+function applyVolume(t) {
+  try { t.video.volume = Math.min(1, Math.max(0, masterVol * (t.vol == null ? 1 : t.vol))); } catch (e) {}
+}
+$('vol').value = Math.round(masterVol * 100);
+$('vol').oninput = () => {
+  masterVol = $('vol').value / 100;
+  try { localStorage.setItem('sala-vol', String(masterVol)); } catch (e) {}
+  tiles.forEach(t => { if (!t.local) applyVolume(t); });
+};
+
+function updateSoundBtn(t) {
+  if (!t.snd) return;
+  t.snd.textContent = t.video.muted ? '🔇 ' + T('soundOn') : '🔊 ' + T('soundOff');
+}
+function updateTileTexts(t) {
+  if (t.hbtn) t.hbtn.textContent = '🙈 ' + T('hideBtn');
+  if (t.vslider) t.vslider.title = T('volTile');
+  updateSoundBtn(t);
+}
+
+function startRemotePlayback(t) {
+  const v = t.video;
+  v.muted = false;
+  const pr = v.play();
+  if (pr && pr.catch) pr.catch(() => {
+    // reprodução com som bloqueada: toca sem som para a imagem aparecer e deixa o botão de som visível
+    v.muted = true;
+    v.play().catch(() => {});
+  });
+}
+
+function showTile(id, stream, call, isLocal) {
+  let t = tiles.get(id);
+  if (!t) {
+    const el = document.createElement('div'); el.className = 'tile';
+    const video = document.createElement('video'); video.autoplay = true; video.playsInline = true;
+    const label = document.createElement('div'); label.className = 'label';
+    el.append(video);
+    t = { el, video, label, call: null, stream: null, note: null, snd: null, hbtn: null, noPreview: false, timer: 0, fps: 0, res: '', lastFrames: 0, lastT: 0, created: performance.now(), userMuted: false, local: !!isLocal, vol: 1, vslider: null };
+    // Ver a própria tela dentro da própria tela gera um "espelho infinito" e pesa; mostramos um aviso.
+    if (isLocal && myKind === 'screen') {
+      t.noPreview = true;
+      t.note = document.createElement('div'); t.note.className = 'note';
+      el.append(t.note);
+    }
+    el.append(label);
+    if (!isLocal) {
+      // Aviso se a imagem demorar a aparecer (tela preta): clicar na tela força a reprodução
+      t.note = document.createElement('div'); t.note.className = 'note hidden';
+      t.note.style.pointerEvents = 'none';
+      el.append(t.note);
+      el.onclick = () => { t.video.play().catch(() => {}); };
+      // botão de som (alterna silenciar / ativar)
+      t.snd = document.createElement('button'); t.snd.className = 'tbtn snd';
+      t.snd.onclick = e => {
+        e.stopPropagation();
+        t.video.muted = !t.video.muted; t.userMuted = t.video.muted;
+        if (!t.video.muted) t.video.play().catch(() => {});
+        updateSoundBtn(t);
+      };
+      video.addEventListener('volumechange', () => updateSoundBtn(t));
+      el.append(t.snd);
+      // botão de ocultar a tela dessa pessoa
+      t.hbtn = document.createElement('button'); t.hbtn.className = 'tbtn hide';
+      t.hbtn.onclick = e => { e.stopPropagation(); toggleHide(id); };
+      el.append(t.hbtn);
+      // volume desta transmissão (vale junto com o volume geral da barra de baixo)
+      t.vslider = document.createElement('input'); t.vslider.type = 'range'; t.vslider.className = 'tvol';
+      t.vslider.min = 0; t.vslider.max = 100; t.vslider.value = 100;
+      t.vslider.oninput = () => { t.vol = t.vslider.value / 100; applyVolume(t); };
+      t.vslider.onclick = e => e.stopPropagation();
+      t.vslider.ondblclick = e => e.stopPropagation();
+      el.append(t.vslider);
+      applyVolume(t);
+    }
+    el.ondblclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen(); };
+    // controles aparecem com o mouse se movendo sobre o quadro (ou toque) e somem após 2,5 s parado ou ao sair
+    {
+      let tmr = 0, down = false;
+      const busy = () => down || el.querySelector('.tbtn:hover, .tvol:hover');
+      const hideUi = () => { if (busy()) { tmr = setTimeout(hideUi, 1000); return; } el.classList.remove('ui'); };
+      const showUi = () => { el.classList.add('ui'); clearTimeout(tmr); tmr = setTimeout(hideUi, 2500); };
+      el.addEventListener('pointermove', showUi);
+      el.addEventListener('pointerdown', () => { down = true; showUi(); });
+      el.addEventListener('pointerup', () => { down = false; showUi(); });
+      el.addEventListener('pointercancel', () => { down = false; });
+      el.addEventListener('pointerleave', () => { if (!down) { clearTimeout(tmr); el.classList.remove('ui'); } });
+    }
+    if (hidden.has(id)) el.classList.add('hidden');
+    $('grid').append(el);
+    tiles.set(id, t);
+    updateTileTexts(t);
+    // Medidor leve do que está chegando (a cada 2 s, só com a aba visível)
+    if (!isLocal) {
+      t.lastT = performance.now();
+      t.timer = setInterval(() => {
+        if (document.hidden) { t.lastT = performance.now(); return; }
+        const v = t.video, q = v.getVideoPlaybackQuality && v.getVideoPlaybackQuality();
+        const now = performance.now();
+        if (q) { t.fps = Math.round((q.totalVideoFrames - t.lastFrames) * 1000 / (now - t.lastT)); t.lastFrames = q.totalVideoFrames; }
+        t.lastT = now;
+        t.res = v.videoWidth ? v.videoWidth + '×' + v.videoHeight : '';
+        if (t.note) {
+          const stuck = !v.videoWidth || v.paused;
+          const waited = now - t.created > 4000;
+          t.note.textContent = v.paused && v.videoWidth ? T('pausedImg') : T('loadingImg');
+          t.note.classList.toggle('hidden', !(stuck && waited));
+          if (v.paused && v.videoWidth && !hidden.has(id)) v.play().catch(() => {});
+        }
+        render();
+      }, 2000);
+    }
+  }
+  t.stream = stream;
+  if (!t.noPreview && t.video.srcObject !== stream) {
+    t.video.srcObject = stream;
+    if (isLocal) { t.video.muted = true; t.video.play().catch(() => {}); }
+    else { if (t.userMuted) { t.video.muted = true; t.video.play().catch(() => {}); } else startRemotePlayback(t); }
+  }
+  t.call = call;
+  render();
+}
+function removeTile(id) {
+  const t = tiles.get(id);
+  if (t) { destroyTile(t); tiles.delete(id); }
+  render();
+}
+
+function toggleHide(id) {
+  if (hidden.has(id)) hidden.delete(id); else hidden.add(id);
+  const t = tiles.get(id);
+  if (t) t.el.classList.toggle('hidden', hidden.has(id));
+  render();
+}
+
+// Agrupa várias atualizações num único redesenho
+let renderQueued = false;
+function render() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; doRender(); });
+}
+window.addEventListener('resize', render);
+
+let lastSig = '';
+function renderPeople() {
+  $('count').textContent = people.size + 1;
+  const list = [...people].map(([id, p]) => [id, p.name, p.sharing ? 1 : 0, p.kind || '']);
+  const sig = JSON.stringify([lang, own.id, myId, myName, !!myStream, myKind, [...hidden], list, isOwner()]);
+  if (sig === lastSig) return;
+  lastSig = sig;
+
+  const ul = $('people'); ul.textContent = '';
+  const mkBtn = (txt, cls, fn) => { const b = document.createElement('button'); b.textContent = txt; if (cls) b.className = cls; b.onclick = fn; return b; };
+  const row = (id, name, sharing, kind, you) => {
+    const li = document.createElement('li');
+    const top = document.createElement('div'); top.className = 'prow';
+    const n = document.createElement('span'); n.className = 'nm';
+    const crown = id && own.id === id;
+    n.textContent = (crown ? '👑 ' : '') + name + (you ? ' (' + T('you') + ')' : '');
+    if (crown) n.title = T('owner');
+    top.append(n);
+    if (sharing) {
+      const b = document.createElement('span'); b.className = 'badge';
+      b.textContent = kind === 'cam' ? T('badgeCam') : T('badgeScreen');
+      top.append(b);
+    }
+    li.append(top);
+    if (!you) {
+      const acts = document.createElement('div'); acts.className = 'acts';
+      if (sharing) acts.append(mkBtn(hidden.has(id) ? T('showScreen') : T('hideScreen'), 'sec', () => toggleHide(id)));
+      if (isOwner()) {
+        acts.append(mkBtn(T('kick'), 'sec', () => kickPerson(id, false)));
+        acts.append(mkBtn(T('ban'), 'bad', () => kickPerson(id, true)));
+        acts.append(mkBtn(T('makeOwner'), 'sec', () => transferOwner(id)));
+      }
+      if (acts.children.length) li.append(acts);
+    }
+    ul.append(li);
+  };
+  row(myId, myName || '', !!myStream, myKind, true);
+  people.forEach((p, id) => row(id, p.name, p.sharing, p.kind, false));
+}
+
+function doRender() {
+  renderPeople();
+
+  tiles.forEach((t, id) => {
+    const me = id === 'me';
+    const name = me ? myName + ' (' + T('you') + ')' : (people.get(id) || {}).name || '...';
+    const kind = me ? myKind : (people.get(id) || {}).kind;
+    let text = name + ' — ' + (kind === 'cam' ? T('tagCam') : T('tagScreen'));
+    if (me) text += ' · ' + T(audioKey());
+    else {
+      if (t.res) text += ' · ' + t.res;
+      if (t.fps) text += ' · ' + t.fps + ' fps';
+      if (t.stream && t.stream.getAudioTracks().length === 0) text += ' · ' + T('noAudio');
+    }
+    if (t.label.textContent !== text) t.label.textContent = text;
+  });
+
+  // As telas visíveis dividem o espaço disponível sem estourar a janela
+  const n = [...tiles.keys()].filter(id => !hidden.has(id)).length;
+  $('empty').classList.toggle('hidden', n > 0);
+  $('empty').textContent = tiles.size > 0 ? T('emptyHidden') : T('emptyNone');
+  let cols = 1, rows = 1;
+  if (n > 0) {
+    cols = window.matchMedia('(max-width:800px)').matches ? 1 : Math.ceil(Math.sqrt(n));
+    rows = Math.ceil(n / cols);
+  }
+  $('grid').style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
+  $('grid').style.gridTemplateRows = 'repeat(' + rows + ', minmax(0, 1fr))';
+}
+
+$('verTxt').textContent = 'v' + APP_VERSION;
+applyLang();
+</script>
+</body>
+</html>
