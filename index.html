@@ -1610,7 +1610,7 @@ const FONTS = {
   lobster:   { n: 'Lobster',    fam: "'Lobster', cursive",             q: 'Lobster',                     fw: 400 },
   righteous: { n: 'Righteous',  fam: "'Righteous', sans-serif",        q: 'Righteous',                   fw: 400 },
   orbitron:  { n: 'Orbitron',   fam: "'Orbitron', sans-serif",         q: 'Orbitron:wght@700',           fw: 700, sz: .92 },
-  pixel:     { n: '8-Bit',      fam: "'Press Start 2P', monospace",    q: 'Press+Start+2P',              fw: 400, sz: .68 },
+  pixel:     { n: '8-Bit',      fam: "'Press Start 2P', monospace",    q: 'Press+Start+2P',              fw: 400, sz: .84 },
   cinzel:    { n: 'Medieval',   fam: "'Cinzel Decorative', serif",     q: 'Cinzel+Decorative:wght@700',  fw: 700, sz: .92 },
   creepster: { n: 'Vampiro',    fam: "'Creepster', cursive",           q: 'Creepster',                   fw: 400, sz: 1.1 },
   fredoka:   { n: 'Balão',      fam: "'Fredoka', sans-serif",          q: 'Fredoka:wght@600',            fw: 600 },
@@ -1661,6 +1661,12 @@ function shift(hex, deg) {
   return '#' + [r1, g1, b1].map(v => Math.round((v + m) * 255).toString(16).padStart(2, '0')).join('');
 }
 
+/* mistura a cor com branco (0..1): o miolo do neon fica claro, mas ainda colorido */
+function lighten(hex, k) {
+  const v = i => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - k) + 255 * k).toString(16).padStart(2, '0');
+  return '#' + v(1) + v(3) + v(5);
+}
+
 /* ----- aplica o estilo num elemento de texto ----- */
 const PROPS = ['color', 'background-image', 'background-size', 'background-position', '-webkit-background-clip', 'background-clip', '-webkit-text-fill-color', 'text-shadow', 'font-family', 'font-weight', 'font-size', 'letter-spacing'];
 function style(node, s, fb) {
@@ -1686,10 +1692,10 @@ function style(node, s, fb) {
     else { st.backgroundImage = 'linear-gradient(90deg,' + c1 + ',' + c2 + ',' + c1 + ')'; st.backgroundSize = '200% 100%'; node.classList.add('ns-shimmer'); }
     node.classList.add('ns-pad');
   } else if (s.fx === 'neon') {
-    st.color = '#fff'; node.classList.add('ns-open');       // o brilho não pode ser cortado pelo overflow do nome
-    st.textShadow = '0 0 2px #fff, 0 0 6px ' + c1 + ', 0 0 12px ' + c1 + ', 0 0 20px ' + c1 + '99';
+    st.color = lighten(c1, .5); node.classList.add('ns-open');   // miolo claro e colorido (legível); brilho curto, sem cortar no overflow
+    st.textShadow = '0 0 3px ' + c1 + 'cc, 0 0 9px ' + c1 + '88';
   } else if (s.fx === 'glow') {
-    st.color = c1; node.classList.add('ns-open'); st.textShadow = '0 0 5px ' + c1 + '99, 0 0 11px ' + c1 + '66';
+    st.color = c1; node.classList.add('ns-open'); st.textShadow = '0 0 4px ' + c1 + '88, 0 0 9px ' + c1 + '44';
   } else st.color = c1;
 }
 
