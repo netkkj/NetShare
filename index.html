@@ -1531,6 +1531,7 @@ function renderPeople() {
       const who = document.createElement('span'); who.className = 'who';
       who.append(Acc.avatar(prof || { display_name: name }, 28), n);
       if (prof) {
+        if (prof.username && window.Srv && Srv.badgeEl) who.append(Srv.badgeEl(prof.username));
         const vf = document.createElement('span'); vf.className = 'vf'; vf.textContent = '✓';
         who.append(vf);
         who.setAttribute('role', 'button'); who.tabIndex = 0; who.title = T('cardVerified');
@@ -2266,8 +2267,6 @@ applyLang();
   .msg .mh { display: flex; align-items: baseline; gap: 8px; font-size: .9rem; }
   .msg .mh span { font-size: .72rem; }
   .msg .mt { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; color: #dbe2f4; font-size: .93rem; }
-  .msg .mdel { position: absolute; right: 0; top: 0; display: none; min-height: 0; padding: 3px 7px; font-size: .72rem; }
-  .msg:hover .mdel { display: block; }
   #svForm { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
   #svForm input { flex: 1; }
   #svForm button { min-width: 48px; padding: 0 14px; }
@@ -2284,6 +2283,77 @@ applyLang();
     .sv-side.open { transform: none; }
     .sv-burger { display: inline-block; }
   }
+
+  /* ---------- v7: descrição, cargos, tags, mensagens ricas, painel ---------- */
+  .sv-desc { margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line); color: #aeb9d3; font-size: .8rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 6.2em; overflow: hidden; cursor: pointer; }
+  .sv-desc:hover { color: var(--fg); }
+  .sv-desc.empty { color: var(--mut); font-style: italic; }
+  .mcol { display: grid; gap: 2px; min-width: 0; }
+  .mem-row.click { padding: 4px 6px; border-radius: 9px; }
+  .mem-row.click:hover { background: var(--surface-hover); }
+  .sv-mem .sgrp span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rdot { --c: #99aab5; width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%; background: var(--c); }
+
+  .gb { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+  .gb:empty { display: none; }
+  .who .gb { flex-wrap: nowrap; overflow: hidden; max-width: 120px; }
+  .gbadge { --c: #6c7cff; display: inline-block; padding: 1px 7px; border: 1px solid var(--c); border-radius: 999px; background: rgba(255,255,255,.04); background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--c); font-size: .68rem; font-weight: 800; line-height: 1.55; white-space: nowrap; }
+  .rchips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .rpick { display: grid; gap: 4px; margin-top: 6px; }
+
+  .msg .mh .mname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .msg .mh { flex-wrap: wrap; row-gap: 2px; }
+  .msg .mact { position: absolute; right: 0; top: -6px; display: none; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--card-solid); box-shadow: 0 6px 18px rgba(0,0,0,.3); }
+  .msg:hover .mact, .msg:focus-within .mact, .msg.sel .mact { display: flex; }
+  .msg .mact button { min-height: 0; padding: 3px 8px; border-radius: 7px; font-size: .78rem; box-shadow: none; }
+  .msg .mact button:hover:not(:disabled) { transform: none; }
+  .edited { margin-left: 6px; color: var(--mut); font-size: .7rem; }
+  .medit { width: 100%; min-height: 56px; padding: 8px 10px; border: 1px solid var(--acc); border-radius: 10px; outline: none; resize: vertical; background: rgba(5,9,22,.65); color: var(--fg); font: inherit; }
+  .cemoji { width: 1.45em; height: 1.45em; vertical-align: -.32em; object-fit: contain; }
+  .mt.jumbo { font-size: 2rem; line-height: 1.25; }
+  .mt.jumbo .cemoji { width: 1.5em; height: 1.5em; }
+  .mre { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .mre:empty { display: none; }
+  .rchip { display: inline-flex; align-items: center; gap: 5px; min-height: 0; padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); box-shadow: none; color: var(--fg); font-size: .82rem; font-weight: 700; }
+  .rchip.mine { border-color: var(--acc); background: rgba(108,124,255,.18); }
+  .rchip:hover:not(:disabled) { transform: none; box-shadow: none; background: var(--surface-hover); }
+  .rchip .cemoji { width: 1.25em; height: 1.25em; }
+  .rchip.radd { color: var(--mut); }
+  #svForm #svEmoji { min-width: 48px; padding: 0 12px; font-size: 1.15rem; }
+
+  #emoPick { position: fixed; z-index: 80; width: min(340px, calc(100vw - 16px)); max-height: 360px; display: grid; grid-template-rows: auto minmax(0, 1fr); border: 1px solid var(--line); border-radius: 16px; background: var(--card-solid); box-shadow: var(--shadow); overflow: hidden; }
+  #emoPick .etabs { display: flex; gap: 2px; padding: 6px; overflow-x: auto; border-bottom: 1px solid var(--line); }
+  #emoPick .etabs button { flex: 0 0 auto; min-width: 36px; min-height: 36px; padding: 0 6px; border: 0; border-radius: 9px; background: transparent; box-shadow: none; font-size: 1.15rem; }
+  #emoPick .etabs button.on { background: var(--surface-hover); }
+  #emoPick .egrid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; align-content: start; padding: 8px; overflow-y: auto; }
+  #emoPick .egrid.cust { grid-template-columns: repeat(6, 1fr); }
+  #emoPick .egrid button { min-height: 38px; padding: 0; border: 0; border-radius: 8px; background: transparent; box-shadow: none; font-size: 1.3rem; }
+  #emoPick .egrid button:hover:not(:disabled) { transform: none; box-shadow: none; background: var(--surface-hover); }
+  #emoPick .egrid .cemoji { width: 28px; height: 28px; vertical-align: middle; }
+
+  #srvRail .sadmin { margin-top: auto; font-size: 1.2rem; }
+
+  .dlg.wide { width: min(94vw, 780px); }
+  .dlg label.chk { display: flex; align-items: center; gap: 9px; font-weight: 600; cursor: pointer; }
+  label.chk input { width: 18px; min-height: 18px; padding: 0; accent-color: var(--acc); flex: 0 0 auto; }
+  .colorin { width: 52px; min-height: 42px; padding: 3px; cursor: pointer; flex: 0 0 auto; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 7px; }
+  .swatch { --c: #6c7cff; width: 26px; min-height: 26px; height: 26px; padding: 0; border: 2px solid transparent; border-radius: 50%; background: var(--c); box-shadow: none; }
+  .swatch.on { border-color: #fff; }
+  .swatch:hover:not(:disabled) { transform: scale(1.1); box-shadow: none; }
+  .lrow { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(4,8,20,.38); }
+  .lrow .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .lrow button { min-height: 32px; padding: 4px 9px; border-radius: 8px; font-size: .76rem; }
+  .lrow .cemoji { width: 32px; height: 32px; }
+  .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .box { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(4,8,20,.38); }
+  .tabs.t4 { grid-template-columns: repeat(4, 1fr); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .stat { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+  .stat b { display: block; font: 800 1.6rem/1.1 'Manrope', sans-serif; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips button { min-height: 30px; padding: 3px 10px; border-radius: 999px; font-size: .76rem; }
+  @media (max-width: 520px) { .fgrid { grid-template-columns: 1fr; } .tabs.t4 button { padding: 4px; font-size: .78rem; } }
 </style>
 
 <script>
@@ -2295,13 +2365,35 @@ const ST = {
    chName:'Nome do canal', chKind:'Tipo', chText:'Texto', chVoice:'Voz (com compartilhamento de tela)', msgPh:'Escreva uma mensagem', del:'Apagar', close:'Fechar',
    save:'Salvar', icon:'Trocar ícone', rmIcon:'Remover ícone', invite:'Link de convite', copy:'Copiar', copied:'Copiado!', regen:'Gerar novo convite', members:'Membros',
    owner:'Dono', admin:'Admin', member:'Membro', kick:'Expulsar e banir', badInvite:'Convite inválido ou expirado.', banned:'Banidos', unban:'Desbanir', roleIn:'Cargo em {s}', leave:'Sair do servidor', delSrv:'Apagar servidor', confirmDel:'Apagar o servidor "{n}" e todos os canais e mensagens? Isso não pode ser desfeito.',
-   confirmLeave:'Sair do servidor "{n}"?', confirmKick:'Expulsar e banir {n}? Ele não poderá voltar pelo convite nem pela sala de voz.', confirmCh:'Apagar o canal "{n}"?', rename:'Novo nome do canal:', tooBig:'A imagem passa de 2 MB.', badImg:'Use PNG, JPG, WebP ou GIF.', noText:'Este servidor ainda não tem canal de texto.' },
+   confirmLeave:'Sair do servidor "{n}"?', confirmKick:'Expulsar e banir {n}? Ele não poderá voltar pelo convite nem pela sala de voz.', confirmCh:'Apagar o canal "{n}"?', rename:'Novo nome do canal:', tooBig:'A imagem passa de 2 MB.', badImg:'Use PNG, JPG, WebP ou GIF.', noText:'Este servidor ainda não tem canal de texto.',
+   desc:'Descrição do servidor', descPh:'Sobre o que é este servidor?', descAdd:'Adicionar descrição do servidor...',
+   roles:'Cargos', rolesTitle:'Cargos do servidor', roleName:'Nome do cargo', roleColor:'Cor do cargo', roleHoist:'Mostrar separado na lista de membros',
+   createRole:'Criar cargo', saveRole:'Salvar cargo', cancel:'Cancelar', noRoles:'Este servidor ainda não tem cargos. Crie o primeiro abaixo.',
+   newRoleH:'Novo cargo', editRoleH:'Editar cargo', roleNameReq:'Digite um nome para o cargo.', confirmRole:'Apagar o cargo "{n}"? Quem tem esse cargo vai perdê-lo.',
+   roleMembers:'{n} pessoa(s)', hoisted:'separado na lista', up:'Subir', down:'Descer', edit:'Editar', preview:'Prévia',
+   grpOwner:'Dono', grpAdmin:'Admins', grpMembers:'Membros', rolesOf:'Cargos de {n}', noRolesHere:'Este servidor ainda não tem cargos.',
+   emojis:'Emojis', emojisTitle:'Emojis do servidor', emojiAdd:'Adicionar emoji', emojiName:'Nome do emoji', emojiPick:'Escolher imagem',
+   emojiHint:'PNG, JPG, WebP ou GIF de até 256 KB. No chat, use pelo botão de emojis ou digitando :nome:', emojiBadName:'Nome do emoji: 2 a 24 caracteres, só letras minúsculas, números e _.',
+   emojiTooBig:'A imagem passa de 256 KB.', emojiNoFile:'Escolha uma imagem.', emojiEmpty:'Nenhum emoji personalizado ainda.', emojiDel:'Apagar o emoji :{n}:?',
+   edited:'(editado)', editHint:'Enter salva · Esc cancela · Shift+Enter quebra a linha', react:'Adicionar reação', emojiBtn:'Emojis',
+   ecat0:'Rostos', ecat1:'Gestos', ecat2:'Corações e símbolos', ecat3:'Natureza', ecat4:'Comida', ecat5:'Atividades e objetos', ecustom:'Deste servidor' },
  en: { addServer:'Create or join a server', createTitle:'Create my server', srvName:'Server name', create:'Create', nameShort:'The name needs at least 2 letters.',
    joinTitle:'Join with an invite', inviteCode:'Invite code or link', join:'Join', textCh:'Text channels', voiceCh:'Voice channels', newCh:'New channel',
    chName:'Channel name', chKind:'Type', chText:'Text', chVoice:'Voice (with screen sharing)', msgPh:'Write a message', del:'Delete', close:'Close',
    save:'Save', icon:'Change icon', rmIcon:'Remove icon', invite:'Invite link', copy:'Copy', copied:'Copied!', regen:'New invite', members:'Members',
    owner:'Owner', admin:'Admin', member:'Member', kick:'Kick and ban', badInvite:'Invalid or expired invite.', banned:'Banned', unban:'Unban', roleIn:'Role in {s}', leave:'Leave server', delSrv:'Delete server', confirmDel:'Delete the server "{n}" with all channels and messages? This cannot be undone.',
-   confirmLeave:'Leave the server "{n}"?', confirmKick:'Kick and ban {n}? They will not be able to come back through the invite or the voice room.', confirmCh:'Delete the channel "{n}"?', rename:'New channel name:', tooBig:'The image is over 2 MB.', badImg:'Use PNG, JPG, WebP or GIF.', noText:'This server has no text channel yet.' }
+   confirmLeave:'Leave the server "{n}"?', confirmKick:'Kick and ban {n}? They will not be able to come back through the invite or the voice room.', confirmCh:'Delete the channel "{n}"?', rename:'New channel name:', tooBig:'The image is over 2 MB.', badImg:'Use PNG, JPG, WebP or GIF.', noText:'This server has no text channel yet.',
+   desc:'Server description', descPh:'What is this server about?', descAdd:'Add a server description...',
+   roles:'Roles', rolesTitle:'Server roles', roleName:'Role name', roleColor:'Role color', roleHoist:'Show separately in the member list',
+   createRole:'Create role', saveRole:'Save role', cancel:'Cancel', noRoles:'This server has no roles yet. Create the first one below.',
+   newRoleH:'New role', editRoleH:'Edit role', roleNameReq:'Type a name for the role.', confirmRole:'Delete the role "{n}"? Everyone who has it will lose it.',
+   roleMembers:'{n} people', hoisted:'shown separately', up:'Move up', down:'Move down', edit:'Edit', preview:'Preview',
+   grpOwner:'Owner', grpAdmin:'Admins', grpMembers:'Members', rolesOf:'Roles of {n}', noRolesHere:'This server has no roles yet.',
+   emojis:'Emojis', emojisTitle:'Server emojis', emojiAdd:'Add emoji', emojiName:'Emoji name', emojiPick:'Choose image',
+   emojiHint:'PNG, JPG, WebP or GIF up to 256 KB. In chat, use the emoji button or type :name:', emojiBadName:'Emoji name: 2 to 24 characters, lowercase letters, numbers and _ only.',
+   emojiTooBig:'The image is over 256 KB.', emojiNoFile:'Choose an image.', emojiEmpty:'No custom emojis yet.', emojiDel:'Delete the emoji :{n}:?',
+   edited:'(edited)', editHint:'Enter saves · Esc cancels · Shift+Enter for a new line', react:'Add reaction', emojiBtn:'Emojis',
+   ecat0:'Faces', ecat1:'Gestures', ecat2:'Hearts and symbols', ecat3:'Nature', ecat4:'Food', ecat5:'Activities and objects', ecustom:'This server' }
 };
 const t = (k, v) => { let s = (ST[String(lang).startsWith('en') ? 'en' : 'pt'][k]) ?? ST.pt[k] ?? k; for (const x in (v || {})) s = s.replace('{' + x + '}', v[x]); return s; };
 const A = () => window.Acc, sb = () => A().sb();
@@ -2311,16 +2403,29 @@ const err = e => alert(String((e && e.message) || e));
 const CTRL = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g;
 const ini = n => [...String(n).trim()].slice(0, 2).join('').toUpperCase();
 const normCh = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const okHex = c => (typeof c === 'string' && HEX.test(c)) ? c.toLowerCase() : '';
+const PAL = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#6c7cff', '#9b59b6', '#e91e63', '#99aab5'];
+const fmtDate = iso => new Date(iso).toLocaleString([], { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-let voiceCh = null, uid = null, servers = [], cur = null, chans = [], mem = [], chan = null, rt = null, myRole = 'member', voiceJoin = false, lastSend = 0;
-const msgIds = new Set();
+let voiceCh = null, uid = null, servers = [], cur = null, chans = [], mem = [], chan = null, rt = null, rt2 = null, myRole = 'member', voiceJoin = false, lastSend = 0;
+let roles = [], mroles = new Map(), emojis = [], siteOwner = false;
+const msgIds = new Set(), msgData = new Map(), reacts = new Map();
 const isAdm = () => myRole === 'owner' || myRole === 'admin';
+const memOf = id => mem.find(x => x.user_id === id);
+const hasRole = (u, rid) => { const s = mroles.get(u); return !!s && s.has(rid); };
+const topRole = u => roles.find(r => hasRole(u, r.id)) || null;
+const nameColor = u => { const r = u ? topRole(u) : null; return r ? r.color : ''; };
+const emojiById = id => emojis.find(e => e.id === id);
+const emojiByName = n => emojis.find(e => e.name === n);
+const cleanRole = r => ({ id: String(r.id), name: cleanStr(r.name, 24), color: okHex(r.color) || '#99aab5', hoist: !!r.hoist, position: +r.position || 0 });
+const cleanEmoji = e => ({ id: String(e.id), name: String(e.name || '').replace(/[^a-z0-9_]/g, '').slice(0, 24), path: String(e.path || '') });
 
 const rail = el('aside', 'hidden'); rail.id = 'srvRail';
 const view = el('section', 'hidden'); view.id = 'srvView';
-view.innerHTML = '<div class="sv-side" id="svSide"><button type="button" class="sv-head" id="svName"></button><div class="sv-list" id="svChans"></div></div>' +
+view.innerHTML = '<div class="sv-side" id="svSide"><button type="button" class="sv-head" id="svName"></button><div class="sv-desc hidden" id="svDesc"></div><div class="sv-list" id="svChans"></div></div>' +
   '<div class="sv-main"><div class="sv-top"><button type="button" class="sec sv-burger" id="svBurger">☰</button><strong id="svTitle"></strong><button type="button" class="sec x" id="svClose">✕</button></div>' +
-  '<div id="svMsgs"></div><form id="svForm" class="hidden"><input id="svInput" maxlength="1000" autocomplete="off"><button type="submit">➤</button></form></div>' +
+  '<div id="svMsgs"></div><form id="svForm" class="hidden"><button type="button" class="sec" id="svEmoji">😊</button><input id="svInput" maxlength="1000" autocomplete="off"><button type="submit">➤</button></form></div>' +
   '<div class="sv-mem" id="svMem"></div>';
 document.body.append(rail, view);
 
@@ -2334,6 +2439,7 @@ function renderRail() {
   rail.textContent = '';
   servers.forEach(s => { const b = mk('', () => openServer(s.id), 'sbtn' + (cur && cur.id === s.id ? ' on' : '')); b.title = s.name; b.append(icon(s)); rail.append(b); });
   const add = mk('+', () => dlgAdd(), 'sbtn sadd'); add.title = t('addServer'); rail.append(add);
+  if (siteOwner) { const ad = mk('🛡️', () => dlgAdmin(), 'sbtn sadmin'); ad.title = 'Painel do dono do site'; rail.append(ad); }
 }
 function layout() {
   const inRoom = !$('room').classList.contains('hidden');
@@ -2354,16 +2460,36 @@ const railObs = new MutationObserver(syncRail);
 ['join', 'room'].forEach(id => railObs.observe($(id), { attributes: true, attributeFilter: ['class'] }));
 
 async function loadServers() {
-  const { data, error } = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code').order('created_at');
+  // se a migração v7 ainda não foi rodada, cai para a consulta antiga (sem descrição)
+  let r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description').order('created_at');
+  if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code').order('created_at');
+  const { data, error } = r;
   if (error) return console.warn(error);
   servers = data || [];
-  if (cur) { cur = servers.find(s => s.id === cur.id) || null; if (!cur) closeView(); }
+  if (cur) { cur = servers.find(s => s.id === cur.id) || null; if (!cur) closeView(); else paintDesc(); }
   renderRail();
+}
+function paintDesc() {
+  const d = $('svDesc'); if (!cur) return;
+  const txt = String(cur.description || '').trim();
+  d.classList.toggle('empty', !txt && isAdm());
+  d.textContent = txt || (isAdm() ? t('descAdd') : '');
+  d.classList.toggle('hidden', !txt && !isAdm());
+}
+$('svDesc').onclick = () => cur && dlgSettings();
+
+async function checkOwner() {
+  const me = uid;
+  let ok = false;
+  try { const { data, error } = await sb().rpc('ns_is_site_owner'); ok = !error && data === true; } catch (e) {}
+  if (uid !== me) return;
+  siteOwner = ok; renderRail();
 }
 function onAuth(id) {
   if (id === uid) return;
-  uid = id; closeView(); servers = []; renderRail(); syncRail();
+  uid = id; siteOwner = false; closeView(); servers = []; renderRail(); syncRail();
   if (!id) return;
+  checkOwner();
   loadServers().then(() => {
     const c = sessionStorage.getItem('sala-convite');
     if (c) { sessionStorage.removeItem('sala-convite'); dlgAdd(c); }
@@ -2374,19 +2500,20 @@ function onAuth(id) {
   if (q) { try { sessionStorage.setItem('sala-convite', q.slice(0, 40)); } catch (e) {} history.replaceState(null, '', location.pathname + location.hash); }
 })();
 
-function closeView() { view.classList.add('hidden'); unsub(); cur = null; chan = null; renderRail(); layout(); }
+function closeView() { view.classList.add('hidden'); unsub(); closePicker(); cur = null; chan = null; roles = []; mroles = new Map(); emojis = []; renderRail(); layout(); }
 // dentro da sala de voz só esconde o painel (mantém o servidor ativo); fora dela fecha de vez
-function hideView() { view.classList.add('hidden'); if ($('room').classList.contains('hidden')) closeView(); else layout(); }
+function hideView() { view.classList.add('hidden'); closePicker(); if ($('room').classList.contains('hidden')) closeView(); else layout(); }
 $('svClose').onclick = hideView;
 $('svBurger').onclick = () => $('svSide').classList.toggle('open');
 $('svName').onclick = () => cur && dlgSettings();
 
 async function openServer(id) {
   const s = servers.find(x => x.id === id); if (!s) return;
-  cur = s; chan = null; unsub(); renderRail();
-  $('svName').textContent = s.name + ' ▾'; $('svTitle').textContent = ''; $('svMsgs').textContent = ''; $('svForm').classList.add('hidden');
+  cur = s; chan = null; roles = []; mroles = new Map(); emojis = []; unsub(); closePicker(); renderRail();
+  $('svName').textContent = s.name + ' ▾'; $('svTitle').textContent = ''; $('svMsgs').textContent = ''; $('svForm').classList.add('hidden'); $('svMem').textContent = '';
+  paintDesc();
   view.classList.remove('hidden'); layout();
-  await Promise.all([loadChans(), loadMembers()]);
+  await Promise.all([loadChans(), loadMembers(), loadRoles(), loadEmojis()]);
   if (cur !== s) return;
   renderChans();
   const first = chans.find(c => c.kind === 'text');
@@ -2414,18 +2541,96 @@ async function loadMembers() {
   if (!m) { closeView(); loadServers(); return; }   // fui expulso
   const before = myRole; myRole = m.role;
   renderMembers();
-  if (before !== myRole) renderChans();
+  if (before !== myRole) { renderChans(); paintDesc(); }
+}
+
+/* ----- cargos do servidor ----- */
+async function loadRoles() {
+  const s = cur; if (!s) return;
+  const [a, b] = await Promise.all([
+    sb().from('server_roles').select('id,name,color,hoist,position').eq('server_id', s.id).order('position'),
+    sb().from('member_roles').select('role_id,user_id').eq('server_id', s.id)
+  ]);
+  if (cur !== s) return;
+  roles = a.error ? [] : (a.data || []).map(cleanRole).filter(r => r.name).sort((x, y) => x.position - y.position);
+  mroles = new Map();
+  if (!b.error) (b.data || []).forEach(x => { let st = mroles.get(x.user_id); if (!st) mroles.set(x.user_id, st = new Set()); st.add(String(x.role_id)); });
+  renderMembers(); repaintNames();
+}
+function repaintNames() {
+  $('svMsgs').querySelectorAll('.msg').forEach(d => { const nm = d.querySelector('.mname'); if (nm) nm.style.color = nameColor(d.dataset.uid) || ''; });
+}
+
+/* ----- tags do site (aparecem ao lado do nome) ----- */
+const bcache = new Map(), bpend = new Set(); let btimer = 0;
+const ULOW = /^[a-z0-9_]{3,20}$/;
+function fillBadge(n) {
+  const c = bcache.get(n.dataset.u), now = Date.now();
+  const list = c ? c.list.filter(b => !b.exp || new Date(b.exp).getTime() > now) : [];
+  const sig = list.map(b => b.label + b.color).join('|');
+  if (n.dataset.sig === sig) return;
+  n.dataset.sig = sig; n.textContent = '';
+  list.forEach(b => {
+    const s = el('span', 'gbadge', b.label); s.style.setProperty('--c', b.color);
+    if (b.exp) s.title = 'Temporária · até ' + fmtDate(b.exp);
+    n.append(s);
+  });
+}
+function paintBadges() { document.querySelectorAll('.gb').forEach(fillBadge); }
+function wantBadges(list) {
+  let any = false;
+  (list || []).forEach(u => {
+    u = String(u || '').toLowerCase(); if (!ULOW.test(u)) return;
+    const c = bcache.get(u); if (c && Date.now() - c.t < 300000) return;
+    bpend.add(u); any = true;
+  });
+  if (any && !btimer) btimer = setTimeout(flushBadges, 150);
+}
+async function flushBadges() {
+  btimer = 0;
+  const names = [...bpend].slice(0, 100); names.forEach(n => bpend.delete(n));
+  if (bpend.size) btimer = setTimeout(flushBadges, 150);
+  if (!names.length || !A() || !A().sb()) return;
+  let rows = null;
+  try { const { data, error } = await sb().rpc('ns_get_badges', { p_usernames: names }); if (!error) rows = data || []; } catch (e) {}
+  const now = Date.now(), by = new Map(names.map(n => [n, []]));
+  (rows || []).forEach(b => { const l = by.get(b.username), c = okHex(b.color); if (l && c) l.push({ label: cleanStr(b.label, 20), color: c, exp: b.expires_at || null }); });
+  // se a consulta falhou, tenta de novo em ~1 minuto
+  names.forEach(n => bcache.set(n, { t: rows ? now : now - 240000, list: by.get(n) }));
+  paintBadges();
+}
+function badgeEl(username) {
+  const g = el('span', 'gb'); const u = String(username || '').toLowerCase(); g.dataset.u = u;
+  if (ULOW.test(u)) { fillBadge(g); wantBadges([u]); }
+  return g;
+}
+
+/* ----- lista de membros (barra da direita) ----- */
+function memRow(m) {
+  const r = el('div', 'mem-row click'); r.append(A().avatar(m, 30));
+  const col = el('div', 'mcol'), nm = el('b', 'mname', m.display_name);
+  const c = nameColor(m.user_id); if (c) nm.style.color = c;
+  col.append(nm); if (m.username) col.append(badgeEl(m.username));
+  r.append(col); r.onclick = () => A().showCard(m);
+  return r;
 }
 function renderMembers() {
   const box = $('svMem'); box.textContent = '';
-  box.append(el('div', 'sgrp', t('members') + ' — ' + mem.length));
-  mem.forEach(m => {
-    const r = el('div', 'mem-row click'); r.append(A().avatar(m, 30), el('b', '', m.display_name));
-    if (m.role !== 'member') r.append(el('span', 'vf', m.role === 'owner' ? '👑' : '★'));
-    r.onclick = () => A().showCard(m);
-    box.append(r);
-  });
+  const used = new Set();
+  const take = fn => mem.filter(m => !used.has(m.user_id) && fn(m)).map(m => (used.add(m.user_id), m));
+  const section = (label, list, color) => {
+    if (!list.length) return;
+    const h = el('div', 'sgrp'), sp = el('span', '', label + ' — ' + list.length);
+    if (color) sp.style.color = color;
+    h.append(sp); box.append(h); list.forEach(m => box.append(memRow(m)));
+  };
+  section(t('grpOwner'), take(m => m.role === 'owner'));
+  section(t('grpAdmin'), take(m => m.role === 'admin'));
+  roles.filter(r => r.hoist).forEach(r => section(r.name, take(m => hasRole(m.user_id, r.id)), r.color));
+  section(t('grpMembers'), take(() => true));
+  wantBadges(mem.map(m => m.username));
 }
+
 function renderChans() {
   const box = $('svChans'); box.textContent = '';
   [['text', t('textCh')], ['voice', t('voiceCh')]].forEach(([k, label]) => {
@@ -2451,6 +2656,110 @@ async function delChan(c) {
   await loadChans(); renderChans();
 }
 
+/* ----- emojis: servidor, texto rico e seletor ----- */
+async function loadEmojis() {
+  const s = cur; if (!s) return;
+  const { data, error } = await sb().from('server_emojis').select('id,name,path').eq('server_id', s.id).order('name');
+  if (cur !== s) return;
+  emojis = error ? [] : (data || []).map(cleanEmoji).filter(e => e.name && A().imgUrl('server-emojis', e.path));
+  repaintMessages();
+}
+function emojiImg(e) {
+  const i = new Image(); i.className = 'cemoji'; i.alt = ':' + e.name + ':'; i.title = ':' + e.name + ':';
+  i.decoding = 'async'; i.loading = 'lazy'; i.referrerPolicy = 'no-referrer';
+  i.src = A().imgUrl('server-emojis', e.path) || '';
+  return i;
+}
+function emoNode(key) {
+  if (key.startsWith('c:')) { const e = emojiById(key.slice(2)); return e ? emojiImg(e) : el('span', '', ':?:'); }
+  return el('span', '', key);
+}
+let JUMBO = null;
+try { JUMBO = new RegExp('^[\\s\\p{Extended_Pictographic}\\u200d\\ufe0f]+$', 'u'); } catch (e) {}
+function isJumbo(s) {
+  const full = s.trim(); if (!full || full.length > 60) return false;
+  const rest = full.replace(/:([a-z0-9_]{2,24}):/g, (x, n) => emojiByName(n) ? '' : x).trim();
+  return rest === '' || !!(JUMBO && JUMBO.test(rest));
+}
+function richInto(node, text) {
+  const re = /:([a-z0-9_]{2,24}):/g; let last = 0, m;
+  while ((m = re.exec(text))) {
+    const e = emojiByName(m[1]); if (!e) continue;
+    if (m.index > last) node.append(document.createTextNode(text.slice(last, m.index)));
+    node.append(emojiImg(e)); last = m.index + m[0].length;
+  }
+  if (last < text.length) node.append(document.createTextNode(text.slice(last)));
+}
+function paintText(mt, r) {
+  mt.textContent = '';
+  const s = el('span', 'mtx'); richInto(s, r.content || ''); mt.append(s);
+  if (r.edited_at) mt.append(el('span', 'edited', t('edited')));
+  mt.classList.toggle('jumbo', isJumbo(r.content || ''));
+}
+function repaintMessages() {
+  msgData.forEach((r, id) => {
+    const d = document.getElementById('m' + id); if (!d) return;
+    const mt = d.querySelector('.mt'); if (mt && !mt.querySelector('textarea')) paintText(mt, r);
+    renderReacts(id);
+  });
+}
+
+const EMO = [
+ ['😀', 'ecat0', '😀 😃 😄 😁 😆 😅 😂 🤣 🥲 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🫡 🤭 🫢 🤫 🫠 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👹 👺 🤡 💩 👻 💀 👽 🤖 🎃'],
+ ['👋', 'ecat1', '👋 🤚 🖐️ ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 🫶 👐 🤲 🤝 🙏 ✍️ 💅 💪 🦾 🧠 👀 👁️ 👅 👄 💋'],
+ ['❤️', 'ecat2', '❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❤️‍🔥 💕 💞 💓 💗 💖 💘 💝 💯 💢 💥 💫 💦 💨 💬 💭 💤 ✨ 🌟 ⭐ 🔥 🎉 🎊 🎁 🏆 🥇 🥈 🥉 ✅ ❌ ⚠️ ❓ ❗ 💲 🔔'],
+ ['🐶', 'ecat3', '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐔 🐧 🐦 🐤 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🐛 🦋 🐌 🐞 🐢 🐍 🦖 🐙 🦑 🦀 🐠 🐬 🐳 🦈 🌵 🌲 🌳 🌴 🌱 🍀 🌸 🌹 🌻 🌈 ☀️ 🌙 ☁️ ⚡ ❄️ 🌊'],
+ ['🍔', 'ecat4', '🍎 🍊 🍋 🍌 🍉 🍇 🍓 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🥑 🌽 🥕 🍞 🧀 🍳 🥞 🥓 🍔 🍟 🍕 🌭 🥪 🌮 🌯 🍝 🍜 🍣 🍤 🍙 🍩 🍪 🎂 🍰 🍫 🍬 🍿 ☕ 🍵 🥤 🍺 🍻 🥂 🍷'],
+ ['⚽', 'ecat5', '⚽ 🏀 🏈 ⚾ 🎾 🏐 🏓 🥊 🎮 🕹️ 🎲 🧩 🎯 🎳 🎵 🎶 🎤 🎧 🎸 🥁 🎬 🎨 📷 🚗 🚀 ✈️ 🚲 🏠 💻 🖥️ ⌨️ 🖱️ 📱 💡 🔒 🔑 📌 📎 🎈']
+];
+let pick = null;
+function closePicker() {
+  if (!pick) return;
+  pick.box.remove();
+  document.removeEventListener('pointerdown', pick.out, true);
+  document.removeEventListener('keydown', pick.key, true);
+  pick = null;
+}
+function openPicker(anchor, onPick) {
+  if (pick && pick.anchor === anchor) return closePicker();
+  closePicker();
+  const box = el('div'); box.id = 'emoPick';
+  const tabs = el('div', 'etabs'), grid = el('div', 'egrid');
+  box.append(tabs, grid);
+  const cats = EMO.map(([icon, k, list]) => ({ icon, title: t(k), list: list.split(' ') }));
+  if (cur && emojis.length) cats.unshift({ icon: '⭐', title: t('ecustom'), custom: true });
+  const choose = (p, ev) => { onPick(p); if (!ev.shiftKey) closePicker(); };
+  const show = i => {
+    [...tabs.children].forEach((b, k) => b.classList.toggle('on', k === i));
+    grid.textContent = ''; grid.className = 'egrid' + (cats[i].custom ? ' cust' : '');
+    if (cats[i].custom) emojis.forEach(e => { const b = mk('', ev => choose({ c: e }, ev), ''); b.title = ':' + e.name + ':'; b.append(emojiImg(e)); grid.append(b); });
+    else cats[i].list.forEach(ch => grid.append(mk(ch, ev => choose({ u: ch }, ev), '')));
+    grid.scrollTop = 0;
+  };
+  cats.forEach((c, i) => { const b = mk(c.icon, () => show(i), ''); b.title = c.title; tabs.append(b); });
+  document.body.append(box);
+  const r = anchor.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
+  const x = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
+  let y = r.top - h - 8; if (y < 8) y = Math.min(r.bottom + 8, window.innerHeight - h - 8);
+  box.style.left = x + 'px'; box.style.top = Math.max(8, y) + 'px';
+  show(0);
+  const out = e => { if (!box.contains(e.target) && !anchor.contains(e.target)) closePicker(); };
+  const key = e => { if (e.key === 'Escape') closePicker(); };
+  document.addEventListener('pointerdown', out, true);
+  document.addEventListener('keydown', key, true);
+  pick = { box, anchor, out, key };
+}
+const pickKey = p => p.c ? 'c:' + p.c.id : p.u;
+function insertText(s) {
+  const i = $('svInput'), a = i.selectionStart == null ? i.value.length : i.selectionStart, b = i.selectionEnd == null ? a : i.selectionEnd;
+  const v = i.value.slice(0, a) + s + i.value.slice(b);
+  if (v.length > i.maxLength) return;
+  i.value = v; i.focus();
+  try { i.setSelectionRange(a + s.length, a + s.length); } catch (e) {}
+}
+$('svEmoji').title = t('emojiBtn');
+$('svEmoji').onclick = e => openPicker(e.currentTarget, p => insertText(p.c ? ':' + p.c.name + ': ' : p.u));
+
 /* ----- chat ----- */
 async function pickChan(c) {
   $('svSide').classList.remove('open');
@@ -2460,34 +2769,111 @@ async function pickChan(c) {
     if (inRoom) { leaveRoom(); setTimeout(() => joinVoice(c), 300); return; }
     return joinVoice(c);
   }
-  chan = c; msgIds.clear(); renderChans();
-  $('svTitle').textContent = '# ' + c.name; $('svMsgs').textContent = ''; $('svForm').classList.remove('hidden'); $('svInput').placeholder = t('msgPh');
-  const { data, error } = await sb().rpc('list_messages', { p_channel: c.id });
+  chan = c; msgIds.clear(); msgData.clear(); reacts.clear(); renderChans(); closePicker();
+  $('svTitle').textContent = '# ' + c.name; $('svMsgs').textContent = ''; $('svForm').classList.remove('hidden'); $('svInput').placeholder = t('msgPh'); $('svEmoji').title = t('emojiBtn');
+  let res = await sb().rpc('ns_list_messages', { p_channel: c.id });
+  if (res.error) res = await sb().rpc('list_messages', { p_channel: c.id });   // migração v7 ainda não rodou
   if (chan !== c) return;
-  if (error) return err(error);
-  (data || []).reverse().forEach(r => addMsg(r));
+  if (res.error) return err(res.error);
+  (res.data || []).reverse().forEach(r => addMsg(r));
   $('svMsgs').scrollTop = $('svMsgs').scrollHeight;
+  loadReacts(c);
+}
+async function loadReacts(c) {
+  const { data, error } = await sb().rpc('ns_list_reactions', { p_channel: c.id });
+  if (error || chan !== c) return;
+  (data || []).forEach(x => reactSet(String(x.message_id), x.emoji, x.user_id, true));
+  msgData.forEach((_, id) => renderReacts(id));
 }
 function addMsg(r) {
-  if (msgIds.has(r.id)) return; msgIds.add(r.id);
-  let m = r.display_name ? r : mem.find(x => x.user_id === r.user_id);
+  if (msgIds.has(r.id)) return; msgIds.add(r.id); msgData.set(String(r.id), r);
+  let m = r.display_name ? r : memOf(r.user_id);
   if (!m) { m = { display_name: '?' }; loadMembers(); }
   const box = $('svMsgs'), near = box.scrollHeight - box.scrollTop - box.clientHeight < 90;
-  const d = el('div', 'msg'); d.id = 'm' + r.id;
+  const d = el('div', 'msg'); d.id = 'm' + r.id; d.dataset.uid = r.user_id || '';
   const b = el('div', 'mb'), h = el('div', 'mh');
-  const nm = el('strong', 'click', m.display_name), av = A().avatar(m, 36);
-  const openU = () => { const mm = mem.find(x => x.user_id === r.user_id); if (mm) A().showCard(mm); };
+  const nm = el('strong', 'click mname', m.display_name), av = A().avatar(m, 36);
+  const col = nameColor(r.user_id); if (col) nm.style.color = col;
+  const openU = () => { const mm = memOf(r.user_id); if (mm) A().showCard(mm); };
   nm.onclick = openU; av.onclick = openU; av.classList.add('click');
-  h.append(nm, el('span', 'mut', new Date(r.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
-  b.append(h, el('div', 'mt', r.content));
+  h.append(nm);
+  if (m.username) h.append(badgeEl(m.username));
+  h.append(el('span', 'mut', new Date(r.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
+  const mt = el('div', 'mt'); paintText(mt, r);
+  b.append(h, mt, el('div', 'mre'));
   d.append(av, b);
+
+  const act = el('div', 'mact');
+  const rb = mk('😊', e => { e.stopPropagation(); openPicker(e.currentTarget, p => toggleReact(r.id, pickKey(p))); }, 'sec'); rb.title = t('react'); act.append(rb);
+  if (r.user_id === uid) { const eb = mk('✎', e => { e.stopPropagation(); startEdit(d, r); }, 'sec'); eb.title = t('edit'); act.append(eb); }
   if (r.user_id === uid || isAdm()) {
-    const x = mk('✕', async () => { const { error } = await sb().from('messages').delete().eq('id', r.id); if (error) err(error); else d.remove(); }, 'mdel sec');
-    x.title = t('del'); d.append(x);
+    const x = mk('✕', async () => { const { error } = await sb().from('messages').delete().eq('id', r.id); if (error) err(error); else d.remove(); }, 'sec');
+    x.title = t('del'); act.append(x);
   }
+  d.append(act);
+  // no celular (sem hover): tocar na mensagem mostra as ações
+  d.addEventListener('click', e => {
+    if (window.matchMedia('(hover: none)').matches && !e.target.closest('button, textarea, .click')) d.classList.toggle('sel');
+  });
   box.append(d);
+  renderReacts(String(r.id));
   if (near || r.user_id === uid) box.scrollTop = box.scrollHeight;
 }
+function startEdit(d, r) {
+  const mt = d.querySelector('.mt'); if (!mt || mt.querySelector('textarea')) return;
+  const ta = el('textarea', 'medit'); ta.maxLength = 1000; ta.value = r.content || '';
+  ta.rows = Math.min(8, (ta.value.match(/\n/g) || []).length + 2);
+  mt.textContent = ''; mt.classList.remove('jumbo'); mt.append(ta, el('div', 'mut', t('editHint')));
+  const cancel = () => paintText(mt, r);
+  const save = async () => {
+    const c = ta.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000);
+    if (!c) return;                          // para esvaziar, use o botão de apagar
+    if (c === r.content) return cancel();
+    ta.disabled = true;
+    const { data, error } = await sb().rpc('ns_edit_message', { p_id: r.id, p_content: c });
+    if (error) { ta.disabled = false; err(error); ta.focus(); return; }
+    r.content = c; r.edited_at = data || new Date().toISOString(); paintText(mt, r);
+  };
+  ta.onkeydown = e => {
+    if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
+  };
+  ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+function updateMsg(n) {
+  if (!n) return;
+  const key = String(n.id), r = msgData.get(key); if (!r) return;
+  r.content = n.content; r.edited_at = n.edited_at || r.edited_at;
+  const d = document.getElementById('m' + key), mt = d && d.querySelector('.mt');
+  if (mt && !mt.querySelector('textarea')) paintText(mt, r);     // não atrapalha quem está editando
+}
+
+/* ----- reações ----- */
+function reactSet(id, emoji, user, on) {
+  let m = reacts.get(id); if (!m) reacts.set(id, m = new Map());
+  let s = m.get(emoji);
+  if (on) { if (!s) m.set(emoji, s = new Set()); s.add(user); }
+  else if (s) { s.delete(user); if (!s.size) m.delete(emoji); }
+}
+const reactAdd = n => { if (n && msgData.has(String(n.message_id))) { reactSet(String(n.message_id), n.emoji, n.user_id, true); renderReacts(String(n.message_id)); } };
+const reactDel = o => { if (o && msgData.has(String(o.message_id))) { reactSet(String(o.message_id), o.emoji, o.user_id, false); renderReacts(String(o.message_id)); } };
+function renderReacts(id) {
+  const d = document.getElementById('m' + id), box = d && d.querySelector('.mre'); if (!box) return;
+  box.textContent = '';
+  const m = reacts.get(id); if (!m || !m.size) return;
+  [...m].forEach(([emo, users]) => {
+    const b = mk('', () => toggleReact(id, emo), 'rchip' + (users.has(uid) ? ' mine' : ''));
+    b.append(emoNode(emo), el('span', '', String(users.size))); box.append(b);
+  });
+  const add = mk('＋', e => openPicker(e.currentTarget, p => toggleReact(id, pickKey(p))), 'rchip radd'); add.title = t('react'); box.append(add);
+}
+async function toggleReact(id, key) {
+  const r = msgData.get(String(id)); if (!r || !key) return;
+  const { data, error } = await sb().rpc('ns_toggle_reaction', { p_message: r.id, p_emoji: key });
+  if (error) return err(error);
+  reactSet(String(id), key, uid, data === true); renderReacts(String(id));
+}
+
 $('svForm').onsubmit = async e => {
   e.preventDefault();
   const inp = $('svInput'), c = inp.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000);
@@ -2499,15 +2885,31 @@ $('svForm').onsubmit = async e => {
 };
 function subscribe() {
   unsub();
-  const id = cur.id;
+  const id = cur.id, f = 'server_id=eq.' + id;
   rt = sb().channel('srv:' + id)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: 'server_id=eq.' + id }, p => { if (chan && p.new.channel_id === chan.id) addMsg(p.new); })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: f }, p => { if (chan && p.new.channel_id === chan.id) addMsg(p.new); })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, p => { const n = document.getElementById('m' + p.old.id); if (n) n.remove(); })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'channels', filter: 'server_id=eq.' + id }, async () => { await loadChans(); renderChans(); })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'server_members', filter: 'server_id=eq.' + id }, () => loadMembers())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'channels', filter: f }, async () => { await loadChans(); renderChans(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'server_members', filter: f }, () => loadMembers())
+    .subscribe();
+  // canal à parte: se a migração v7 ainda não foi rodada, só estes recursos ficam sem tempo real e o chat segue normal
+  rt2 = sb().channel('srvx:' + id)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: f }, p => updateMsg(p.new))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'message_reactions', filter: f }, p => reactAdd(p.new))
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'message_reactions' }, p => reactDel(p.old))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'server_roles', filter: f }, () => loadRoles())
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'server_roles' }, () => loadRoles())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'member_roles', filter: f }, () => loadRoles())
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'member_roles' }, () => loadRoles())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'server_emojis', filter: f }, () => loadEmojis())
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'server_emojis' }, () => loadEmojis())
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'servers', filter: 'id=eq.' + id }, async () => { await loadServers(); if (cur) $('svName').textContent = cur.name + ' ▾'; })
     .subscribe();
 }
-function unsub() { if (rt) { try { sb().removeChannel(rt); } catch (e) {} rt = null; } }
+function unsub() {
+  [rt, rt2].forEach(c => { if (c) { try { sb().removeChannel(c); } catch (e) {} } });
+  rt = null; rt2 = null;
+}
 
 /* ----- voz: reaproveita a sala (e o compartilhamento de tela) de sempre ----- */
 async function joinVoice(c) {
@@ -2521,8 +2923,8 @@ async function joinVoice(c) {
 }
 
 /* ----- janelas ----- */
-function modal(title, build) {
-  const d = el('dialog', 'dlg'), w = el('div', 'dlg-in'), h = el('div', 'dlg-head');
+function modal(title, build, wide) {
+  const d = el('dialog', 'dlg' + (wide ? ' wide' : '')), w = el('div', 'dlg-in'), h = el('div', 'dlg-head');
   const x = mk('✕', () => d.close(), 'sec x'); x.title = t('close');
   h.append(el('h2', '', title), x); w.append(h); d.append(w);
   d.addEventListener('close', () => d.remove());
@@ -2534,6 +2936,28 @@ function modal(title, build) {
 function fld(w, label, attrs) {
   const l = el('label'), i = el('input'); Object.assign(i, attrs || {}); i.autocomplete = 'off';
   l.append(el('span', '', label), i); w.append(l); return i;
+}
+function chk(w, label, on) {
+  const l = el('label', 'chk'), i = el('input'); i.type = 'checkbox'; i.checked = !!on;
+  l.append(i, el('span', '', label)); w.append(l); return i;
+}
+function colorPicker(init, onChange) {
+  const box = el('div'); box.style.cssText = 'display:grid;gap:8px';
+  const row = el('div'); row.style.cssText = 'display:flex;gap:8px;align-items:center';
+  const ci = el('input'); ci.type = 'color'; ci.className = 'colorin';
+  const hi = el('input'); hi.maxLength = 7; hi.placeholder = '#6c7cff'; hi.autocomplete = 'off'; hi.spellcheck = false; hi.style.flex = '1';
+  const sw = el('div', 'swatches'); let val = '';
+  const set = (c, fromHex, silent) => {
+    c = okHex(c); if (!c) return;
+    val = c; ci.value = c; if (!fromHex) hi.value = c;
+    sw.querySelectorAll('.swatch').forEach(b => b.classList.toggle('on', b.dataset.c === c));
+    if (onChange && !silent) onChange(c);
+  };
+  PAL.forEach(c => { const b = mk('', () => set(c), 'swatch'); b.dataset.c = c; b.style.setProperty('--c', c); b.title = c; sw.append(b); });
+  ci.oninput = () => set(ci.value);
+  hi.oninput = () => { let v = hi.value.trim(); if (v && v[0] !== '#') v = '#' + v; set(v, true); };
+  row.append(ci, hi); box.append(row, sw); set(init, false, true);
+  return { node: box, get: () => val, set };
 }
 function dlgAdd(code) {
   modal(t('addServer'), (w, close) => {
@@ -2571,12 +2995,16 @@ function dlgChannel(kind) {
     }));
   });
 }
+
+/* ----- configurações do servidor ----- */
 function dlgSettings() {
   const s = cur;
   modal(s.name, (w, close) => {
     const reopen = async () => { close(); await loadMembers(); dlgSettings(); };
     if (isAdm()) {
       const n = fld(w, t('srvName'), { maxLength: 32 }); n.value = s.name;
+      const dl = el('label'), dt = el('textarea'); dt.maxLength = 300; dt.value = s.description || ''; dt.placeholder = t('descPh');
+      dl.append(el('span', '', t('desc')), dt); w.append(dl);
       const file = el('input'); file.type = 'file'; file.hidden = true; file.accept = 'image/png,image/jpeg,image/webp,image/gif';
       const setIcon = async path => {
         const old = s.icon_path;
@@ -2596,12 +3024,17 @@ function dlgSettings() {
       const row = el('div', 'pe-actions');
       row.append(mk(t('save'), async () => {
         const name = cleanStr(n.value, 32); if (name.length < 2) return err(t('nameShort'));
-        const { error } = await sb().from('servers').update({ name }).eq('id', s.id); if (error) return err(error);
-        await loadServers(); $('svName').textContent = name + ' ▾'; close();
+        const desc = dt.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 300);
+        if (name !== s.name) { const { error } = await sb().from('servers').update({ name }).eq('id', s.id); if (error) return err(error); }
+        if (desc !== String(s.description || '')) { const { error } = await sb().rpc('ns_set_server_description', { p_server: s.id, p_text: desc }); if (error) return err(error); }
+        await loadServers(); if (cur) $('svName').textContent = cur.name + ' ▾'; close();
       }), mk(t('icon'), () => file.click(), 'sec'));
       if (s.icon_path) row.append(mk(t('rmIcon'), () => setIcon(null), 'sec'));
       w.append(row, file);
-    }
+      const row2 = el('div', 'pe-actions');
+      row2.append(mk('🏷️ ' + t('roles'), () => { close(); dlgRoles(); }, 'sec'), mk('😊 ' + t('emojis'), () => { close(); dlgEmojis(); }, 'sec'));
+      w.append(row2);
+    } else if (s.description) w.append(el('p', 'pc-bio', s.description));
     const link = location.origin + location.pathname + '?convite=' + s.invite_code;
     const li = fld(w, t('invite'), { readOnly: true }); li.value = link;
     const r2 = el('div', 'pe-actions');
@@ -2612,7 +3045,8 @@ function dlgSettings() {
     }, 'sec'));
     w.append(r2, el('strong', '', t('members') + ' — ' + mem.length));
     mem.forEach(m => {
-      const r = el('div', 'mem-row'); r.append(A().avatar(m, 30), el('b', '', m.display_name));
+      const r = el('div', 'mem-row'); const nmE = el('b', '', m.display_name); const col = nameColor(m.user_id); if (col) nmE.style.color = col;
+      r.append(A().avatar(m, 30), nmE);
       const lab = m.role === 'owner' ? t('owner') : m.role === 'admin' ? t('admin') : t('member');
       if (myRole === 'owner' && m.role !== 'owner') {
         const sel = el('select'); [['member', t('member')], ['admin', t('admin')]].forEach(([v, x]) => { const o = el('option', '', x); o.value = v; sel.append(o); });
@@ -2620,6 +3054,7 @@ function dlgSettings() {
         sel.onchange = async () => { const { error } = await sb().rpc('set_member_role', { p_server: s.id, p_user: m.user_id, p_role: sel.value }); if (error) err(error); reopen(); };
         r.append(sel);
       } else { const sp = el('span', 'mut', lab); sp.style.marginLeft = 'auto'; r.append(sp); }
+      if (isAdm()) { const rb = mk('🏷️', () => dlgMemberRoles(m), 'sec'); rb.title = t('rolesOf', { n: m.display_name }); r.append(rb); }
       if (isAdm() && m.user_id !== uid && m.role !== 'owner' && (myRole === 'owner' || m.role === 'member')) {
         r.append(mk('✕', async () => { if (!confirm(t('confirmKick', { n: m.display_name }))) return; const { error } = await sb().rpc('kick_member', { p_server: s.id, p_user: m.user_id }); if (error) err(error); reopen(); }, 'sec'));
         r.lastChild.title = t('kick');
@@ -2651,12 +3086,312 @@ function dlgSettings() {
   });
 }
 
+/* ----- cargos: dar/tirar de uma pessoa ----- */
+function rolePicker(m, host) {
+  host.textContent = '';
+  if (!roles.length) { host.append(el('p', 'mut', t('noRolesHere'))); return; }
+  roles.forEach(r => {
+    const l = el('label', 'chk'), c = el('input'); c.type = 'checkbox'; c.checked = hasRole(m.user_id, r.id);
+    const dot = el('span', 'rdot'); dot.style.setProperty('--c', r.color);
+    l.append(c, dot, el('span', '', r.name));
+    c.onchange = async () => {
+      c.disabled = true;
+      const set = new Set(mroles.get(m.user_id) || []); if (c.checked) set.add(r.id); else set.delete(r.id);
+      const { error } = await sb().rpc('ns_set_member_roles', { p_server: cur.id, p_user: m.user_id, p_roles: [...set] });
+      c.disabled = false;
+      if (error) { c.checked = !c.checked; return err(error); }
+      mroles.set(m.user_id, set); renderMembers(); repaintNames();
+    };
+    host.append(l);
+  });
+}
+function dlgMemberRoles(m) {
+  modal(t('rolesOf', { n: m.display_name }), w => { const host = el('div', 'rpick'); w.append(host); rolePicker(m, host); });
+}
+
+/* ----- cargos: criar, editar, ordenar e apagar ----- */
+function dlgRoles() {
+  const s = cur;
+  modal(t('rolesTitle'), (w, close) => {
+    let editing = null;
+    const list = el('div'); list.style.cssText = 'display:grid;gap:8px';
+    const head = el('strong', '', t('newRoleH'));
+    const form = el('div', 'box');
+    const nameIn = fld(form, t('roleName'), { maxLength: 24 });
+    const prev = el('span', 'gbadge', '—');
+    const refreshPrev = () => { prev.textContent = cleanStr(nameIn.value, 24) || t('preview'); prev.style.setProperty('--c', cp.get() || '#99aab5'); };
+    const cl = el('div'); cl.style.cssText = 'display:grid;gap:8px'; cl.append(el('span', 'mut', t('roleColor')));
+    const cp = colorPicker('#6c7cff', refreshPrev); cl.append(cp.node); form.append(cl);
+    const hoist = chk(form, t('roleHoist'), true);
+    const pr = el('div'); pr.style.cssText = 'display:flex;gap:8px;align-items:center'; pr.append(el('span', 'mut', t('preview')), prev); form.append(pr);
+    nameIn.oninput = refreshPrev;
+    const acts = el('div', 'pe-actions');
+    const okBtn = mk(t('createRole'), async e => {
+      const name = cleanStr(nameIn.value, 24); if (!name) return err(t('roleNameReq'));
+      e.target.disabled = true;
+      const args = { p_name: name, p_color: cp.get(), p_hoist: hoist.checked };
+      const { error } = editing ? await sb().rpc('ns_update_role', { p_role: editing.id, ...args }) : await sb().rpc('ns_create_role', { p_server: s.id, ...args });
+      e.target.disabled = false; if (error) return err(error);
+      resetForm(); await loadRoles(); draw();
+    });
+    const cancelBtn = mk(t('cancel'), () => resetForm(), 'sec');
+    acts.append(okBtn, cancelBtn); form.append(acts);
+    const resetForm = () => {
+      editing = null; nameIn.value = ''; cp.set('#6c7cff'); hoist.checked = true;
+      head.textContent = t('newRoleH'); okBtn.textContent = t('createRole'); cancelBtn.classList.add('hidden'); refreshPrev();
+    };
+    const draw = () => {
+      list.textContent = '';
+      if (!roles.length) list.append(el('p', 'mut', t('noRoles')));
+      roles.forEach((r, i) => {
+        const row = el('div', 'lrow'), dot = el('span', 'rdot'); dot.style.setProperty('--c', r.color);
+        const g = el('div', 'grow'), nmE = el('b', '', r.name); nmE.style.color = r.color;
+        const cnt = mem.filter(m => hasRole(m.user_id, r.id)).length;
+        g.append(nmE, el('div', 'mut', t('roleMembers', { n: cnt }) + (r.hoist ? ' · ' + t('hoisted') : '')));
+        const move = dir => async () => { const { error } = await sb().rpc('ns_move_role', { p_role: r.id, p_dir: dir }); if (error) return err(error); await loadRoles(); draw(); };
+        const up = mk('▲', move(-1), 'sec'), dn = mk('▼', move(1), 'sec');
+        up.title = t('up'); dn.title = t('down'); up.disabled = i === 0; dn.disabled = i === roles.length - 1;
+        const ed = mk('✎', () => {
+          editing = r; nameIn.value = r.name; cp.set(r.color); hoist.checked = r.hoist;
+          head.textContent = t('editRoleH'); okBtn.textContent = t('saveRole'); cancelBtn.classList.remove('hidden'); refreshPrev(); nameIn.focus();
+        }, 'sec'); ed.title = t('edit');
+        const rm = mk('✕', async () => {
+          if (!confirm(t('confirmRole', { n: r.name }))) return;
+          const { error } = await sb().rpc('ns_delete_role', { p_role: r.id }); if (error) return err(error);
+          if (editing && editing.id === r.id) resetForm();
+          await loadRoles(); draw();
+        }, 'bad'); rm.title = t('del');
+        row.append(dot, g, up, dn, ed, rm); list.append(row);
+      });
+    };
+    w.append(list, head, form);
+    resetForm(); draw();
+  }, true);
+}
+
+/* ----- emojis personalizados do servidor ----- */
+function dlgEmojis() {
+  const s = cur;
+  modal(t('emojisTitle'), (w, close) => {
+    w.append(el('p', 'mut', t('emojiHint')));
+    const grid = el('div'); grid.style.cssText = 'display:grid;gap:8px';
+    const draw = () => {
+      grid.textContent = '';
+      if (!emojis.length) grid.append(el('p', 'mut', t('emojiEmpty')));
+      emojis.forEach(e => {
+        const row = el('div', 'lrow'), g = el('div', 'grow');
+        g.append(el('b', '', ':' + e.name + ':'));
+        row.append(emojiImg(e), g, mk(t('del'), async () => {
+          if (!confirm(t('emojiDel', { n: e.name }))) return;
+          const { data, error } = await sb().rpc('ns_delete_emoji', { p_id: e.id }); if (error) return err(error);
+          if (typeof data === 'string' && data) sb().storage.from('server-emojis').remove([data]);
+          await loadEmojis(); draw();
+        }, 'bad'));
+        grid.append(row);
+      });
+    };
+    const box = el('div', 'box');
+    const nameIn = fld(box, t('emojiName'), { maxLength: 24, placeholder: 'ex.: gato_feliz' });
+    const file = el('input'); file.type = 'file'; file.hidden = true; file.accept = 'image/png,image/jpeg,image/webp,image/gif';
+    const info = el('span', 'mut', ''); let chosen = null;
+    file.onchange = async () => {
+      const f = file.files[0]; file.value = ''; if (!f) return;
+      if (f.size > 262144) return err(t('emojiTooBig'));
+      const ty = await A().sniff(f); if (!ty) return err(t('badImg'));
+      chosen = { f, ty }; info.textContent = f.name;
+      if (!nameIn.value) nameIn.value = f.name.replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 24);
+    };
+    const pr = el('div', 'pe-actions'); pr.style.alignItems = 'center';
+    pr.append(mk(t('emojiPick'), () => file.click(), 'sec'), info);
+    const add = mk(t('emojiAdd'), async e => {
+      const name = nameIn.value.trim().toLowerCase();
+      if (!/^[a-z0-9_]{2,24}$/.test(name)) return err(t('emojiBadName'));
+      if (!chosen) return err(t('emojiNoFile'));
+      e.target.disabled = true;
+      const path = s.id + '/' + Date.now() + '-' + rndHex(4) + '.' + chosen.ty.ext;
+      const up = await sb().storage.from('server-emojis').upload(path, chosen.f, { contentType: chosen.ty.mime, cacheControl: '31536000', upsert: false });
+      if (up.error) { e.target.disabled = false; return err(up.error); }
+      const { error } = await sb().rpc('ns_add_emoji', { p_server: s.id, p_name: name, p_path: path });
+      e.target.disabled = false;
+      if (error) { sb().storage.from('server-emojis').remove([path]); return err(error); }
+      chosen = null; info.textContent = ''; nameIn.value = '';
+      await loadEmojis(); draw();
+    });
+    box.append(pr, add, file);
+    w.append(grid, box); draw();
+  }, true);
+}
+
+/* ----- painel do dono do site (só aparece para a conta dona; tudo é conferido no servidor) ----- */
+function dlgAdmin() {
+  modal('Painel do dono do site', w => {
+    const names = [['tags', 'Tags'], ['people', 'Pessoas'], ['servers', 'Servidores'], ['stats', 'Resumo']];
+    const tabs = el('div', 'tabs t4'), body = el('div'); body.style.cssText = 'display:grid;gap:14px';
+    let prefill = '';
+    const show = k => { [...tabs.children].forEach((b, i) => b.classList.toggle('on', names[i][0] === k)); body.textContent = ''; panes[k](); };
+    names.forEach(([k, lab]) => tabs.append(mk(lab, () => show(k), '')));
+    w.append(tabs, body);
+
+    const row = (...kids) => { const r = el('div', 'lrow'); r.append(...kids); return r; };
+    const grow = (...kids) => { const g = el('div', 'grow'); g.append(...kids); return g; };
+    const listOf = () => { const l = el('div'); l.style.cssText = 'display:grid;gap:8px'; return l; };
+
+    const panes = {
+      /* ---- tags ---- */
+      tags() {
+        let editing = null;
+        const form = el('div', 'box');
+        const pf = prefill; prefill = '';
+        const uIn = fld(form, '@ da pessoa', { maxLength: 21, placeholder: '@usuario' });
+        uIn.autocapitalize = 'none'; uIn.spellcheck = false;
+        const lIn = fld(form, 'Nome da tag', { maxLength: 20, placeholder: 'Ex.: Dono do site' });
+        const prev = el('span', 'gbadge', 'Prévia');
+        const refresh = () => { prev.textContent = cleanStr(lIn.value, 20) || 'Prévia'; prev.style.setProperty('--c', cp.get() || '#6c7cff'); };
+        lIn.oninput = refresh;
+        const presets = el('div', 'chips');
+        [['Dono do site', '#f1c40f'], ['Beta', '#3498db'], ['Staff', '#e74c3c'], ['Apoiador', '#e91e63'], ['VIP', '#9b59b6'], ['Verificado', '#49d9ff']]
+          .forEach(([lab, c]) => presets.append(mk(lab, () => { lIn.value = lab; cp.set(c); refresh(); }, 'sec')));
+        const cl = el('div'); cl.style.cssText = 'display:grid;gap:8px'; cl.append(el('span', 'mut', 'Atalhos e cor da tag (e do nome na tag)'), presets);
+        const cp = colorPicker('#6c7cff', refresh); cl.append(cp.node); form.append(cl);
+        const dl = el('label'), dur = el('select'), dtIn = el('input'); dtIn.type = 'datetime-local'; dtIn.classList.add('hidden');
+        const setDur = (editingNow) => {
+          dur.textContent = '';
+          const opts = (editingNow ? [['keep', 'Manter como está']] : []).concat([['perm', 'Permanente'], ['1h', '1 hora'], ['1d', '1 dia'], ['7d', '7 dias'], ['30d', '30 dias'], ['custom', 'Data e hora específicas...']]);
+          opts.forEach(([v, x]) => { const o = el('option', '', x); o.value = v; dur.append(o); });
+          dur.value = editingNow ? 'keep' : 'perm'; dtIn.classList.add('hidden');
+        };
+        dur.onchange = () => dtIn.classList.toggle('hidden', dur.value !== 'custom');
+        dl.append(el('span', '', 'Duração'), dur, dtIn); form.append(dl);
+        const pr = el('div'); pr.style.cssText = 'display:flex;gap:8px;align-items:center'; pr.append(el('span', 'mut', 'Prévia'), prev); form.append(pr);
+        const expiry = () => {
+          const v = dur.value;
+          if (v === 'keep') return editing.expires_at || null;
+          if (v === 'perm') return null;
+          if (v === 'custom') { const d = new Date(dtIn.value); if (!dtIn.value || isNaN(d)) throw new Error('Escolha a data e a hora em que a tag expira.'); return d.toISOString(); }
+          return new Date(Date.now() + ({ '1h': 3600e3, '1d': 864e5, '7d': 7 * 864e5, '30d': 30 * 864e5 })[v]).toISOString();
+        };
+        const acts = el('div', 'pe-actions');
+        const okBtn = mk('Dar tag', async e => {
+          const label = cleanStr(lIn.value, 20), user = uIn.value.trim().replace(/^@/, '').toLowerCase();
+          if (!editing && !ULOW.test(user)) return err('Digite o @ da pessoa (3 a 20 letras minúsculas, números ou _).');
+          if (!label) return err('Digite o nome da tag.');
+          let exp; try { exp = expiry(); } catch (x) { return err(x); }
+          e.target.disabled = true;
+          const { error } = editing
+            ? await sb().rpc('ns_admin_update_badge', { p_id: editing.id, p_label: label, p_color: cp.get(), p_expires_at: exp })
+            : await sb().rpc('ns_admin_give_badge', { p_username: user, p_label: label, p_color: cp.get(), p_expires_at: exp });
+          e.target.disabled = false; if (error) return err(error);
+          reset(); bcache.clear(); wantBadges(mem.map(m => m.username)); load();
+        });
+        const cancelBtn = mk('Cancelar edição', () => reset(), 'sec');
+        acts.append(okBtn, cancelBtn); form.append(acts);
+        const reset = () => {
+          editing = null; uIn.value = ''; uIn.readOnly = false; lIn.value = ''; cp.set('#6c7cff'); setDur(false);
+          okBtn.textContent = 'Dar tag'; cancelBtn.classList.add('hidden'); refresh();
+        };
+        const filter = fld(body, 'Tags existentes — filtrar por @ ou nome', { maxLength: 30 });
+        const box = listOf(); let rows = [];
+        const draw = () => {
+          box.textContent = ''; const q = filter.value.trim().toLowerCase().replace(/^@/, '');
+          const sel = rows.filter(r => !q || (r.username || '').includes(q) || r.label.toLowerCase().includes(q));
+          if (!sel.length) box.append(el('p', 'mut', rows.length ? 'Nada encontrado.' : 'Nenhuma tag criada ainda.'));
+          sel.forEach(r => {
+            const p = el('span', 'gbadge', r.label); p.style.setProperty('--c', okHex(r.color) || '#6c7cff');
+            const st = r.expires_at ? (r.active ? 'expira em ' + fmtDate(r.expires_at) : 'expirou em ' + fmtDate(r.expires_at)) : 'permanente';
+            const info = grow(el('b', '', '@' + (r.username || '?')), el('div', 'mut', (r.display_name || '') + ' · ' + st));
+            const ed = mk('Editar', () => {
+              editing = r; uIn.value = '@' + r.username; uIn.readOnly = true; lIn.value = r.label; cp.set(okHex(r.color) || '#6c7cff'); setDur(true);
+              okBtn.textContent = 'Salvar tag'; cancelBtn.classList.remove('hidden'); refresh(); form.scrollIntoView({ block: 'nearest' });
+            }, 'sec');
+            const rm = mk('Remover', async () => {
+              if (!confirm('Remover a tag "' + r.label + '" de @' + r.username + '?')) return;
+              const { error } = await sb().rpc('ns_admin_remove_badge', { p_id: r.id }); if (error) return err(error);
+              bcache.clear(); wantBadges(mem.map(m => m.username)); load();
+            }, 'bad');
+            const rw = row(p, info, ed, rm); if (!r.active) rw.style.opacity = '.6'; box.append(rw);
+          });
+        };
+        const load = async () => {
+          const { data, error } = await sb().rpc('ns_admin_list_badges');
+          if (error) { box.textContent = ''; box.append(el('p', 'amsg err', 'Não foi possível carregar: ' + error.message + ' (rodou a migração SQL?)')); return; }
+          rows = data || []; draw();
+        };
+        filter.oninput = draw;
+        body.prepend(form); body.append(box);
+        reset(); load();
+        if (pf) { uIn.value = '@' + pf; lIn.focus(); }
+      },
+      /* ---- pessoas ---- */
+      people() {
+        const q = fld(body, 'Buscar por @ ou nome', { maxLength: 30 }); const box = listOf(); body.append(box);
+        let tm = 0;
+        const run = async () => {
+          const { data, error } = await sb().rpc('ns_admin_find_user', { p_q: q.value });
+          box.textContent = '';
+          if (error) return box.append(el('p', 'amsg err', error.message));
+          if (!(data || []).length) return box.append(el('p', 'mut', 'Ninguém encontrado.'));
+          data.forEach(u => {
+            const go = mk('Dar tag', () => { prefill = u.username || ''; show('tags'); }, 'sec'); go.disabled = !u.username;
+            box.append(row(A().avatar(u, 32), grow(el('b', '', u.display_name), el('div', 'mut', (u.username ? '@' + u.username : 'sem @') + ' · ' + u.tags + ' tag(s) · ' + u.servers + ' servidor(es)')), go));
+          });
+        };
+        q.oninput = () => { clearTimeout(tm); tm = setTimeout(run, 300); };
+        run();
+      },
+      /* ---- servidores ---- */
+      servers() {
+        const q = fld(body, 'Buscar servidor por nome', { maxLength: 32 }); const box = listOf(); body.append(box);
+        let tm = 0;
+        const run = async () => {
+          const { data, error } = await sb().rpc('ns_admin_list_servers', { p_q: q.value });
+          box.textContent = '';
+          if (error) return box.append(el('p', 'amsg err', error.message));
+          if (!(data || []).length) return box.append(el('p', 'mut', 'Nenhum servidor.'));
+          data.forEach(s => {
+            const rm = mk('Apagar', async () => {
+              if (!confirm('Apagar o servidor "' + s.name + '" com todos os canais e mensagens? Isso não pode ser desfeito.')) return;
+              const { error: e2 } = await sb().rpc('ns_admin_delete_server', { p_id: s.id }); if (e2) return err(e2);
+              if (cur && cur.id === s.id) closeView();
+              loadServers(); run();
+            }, 'bad');
+            box.append(row(grow(el('b', '', s.name), el('div', 'mut', 'dono: ' + (s.owner_username ? '@' + s.owner_username : '?') + ' · ' + s.members + ' membro(s) · criado em ' + fmtDate(s.created_at))), rm));
+          });
+        };
+        q.oninput = () => { clearTimeout(tm); tm = setTimeout(run, 300); };
+        run();
+      },
+      /* ---- resumo ---- */
+      stats() {
+        const box = el('div', 'stats'); body.append(box);
+        sb().rpc('ns_admin_stats').then(({ data, error }) => {
+          if (error) return box.replaceWith(el('p', 'amsg err', error.message));
+          [['users', 'Contas'], ['servers', 'Servidores'], ['messages', 'Mensagens'], ['tags', 'Tags ativas'], ['emojis', 'Emojis']].forEach(([k, lab]) => {
+            const c = el('div', 'stat'); c.append(el('b', '', String((data || {})[k] ?? 0)), el('span', 'mut', lab)); box.append(c);
+          });
+        });
+      }
+    };
+    show('tags');
+  }, true);
+}
+
 renderRail();
-/* ----- extras do cartão de perfil: cargo e moderação ----- */
+/* ----- extras do cartão de perfil: tags, cargos e moderação ----- */
 function cardExtras(p, box) {
+  if (p && p.username) {
+    const g = badgeEl(p.username), bio = box.querySelector('.pc-bio');
+    g.style.marginTop = '6px';
+    if (bio) box.insertBefore(g, bio); else box.append(g);
+  }
   const m = cur && mem.find(x => (p.user_id && x.user_id === p.user_id) || (p.username && x.username === p.username));
   if (!m) return;
   const lab = k => k === 'owner' ? t('owner') : k === 'admin' ? t('admin') : t('member');
+  const rs = roles.filter(r => hasRole(m.user_id, r.id));
+  if (rs.length) {
+    const chips = el('div', 'rchips');
+    rs.forEach(r => { const c = el('span', 'gbadge', r.name); c.style.setProperty('--c', r.color); chips.append(c); });
+    box.append(chips);
+  }
   const sep = el('div', 'sgrp'); sep.append(el('span', '', t('roleIn', { s: cur.name })));
   box.append(sep);
   if (myRole === 'owner' && m.role !== 'owner') {
@@ -2670,6 +3405,10 @@ function cardExtras(p, box) {
     };
     box.append(sel);
   } else box.append(el('strong', '', lab(m.role)));
+  if (isAdm()) {
+    const h = el('div', 'sgrp'); h.append(el('span', '', t('roles'))); box.append(h);
+    const host = el('div', 'rpick'); box.append(host); rolePicker(m, host);
+  }
   if (isAdm() && m.user_id !== uid && m.role !== 'owner' && (myRole === 'owner' || m.role === 'member')) {
     const b = mk(t('kick'), async () => {
       if (!confirm(t('confirmKick', { n: m.display_name }))) return;
@@ -2680,7 +3419,7 @@ function cardExtras(p, box) {
     b.style.marginTop = '10px'; box.append(b);
   }
 }
-return { onAuth, cardExtras };
+return { onAuth, cardExtras, badgeEl };
 })();
 </script>
 
