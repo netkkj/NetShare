@@ -2291,6 +2291,19 @@ applyLang();
   /* ---------- v7: descrição, cargos, tags, mensagens ricas, painel ---------- */
   .sv-desc { margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line); color: #aeb9d3; font-size: .8rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 6.2em; overflow: hidden; cursor: pointer; }
   .sv-desc:hover { color: var(--fg); }
+  .sv-banner { flex: 0 0 auto; position: relative; height: 108px; overflow: hidden; background: #111931; border-bottom: 1px solid var(--line); }
+  .sv-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .sv-banner::after { content: ''; position: absolute; inset: auto 0 0 0; height: 45%; background: linear-gradient(transparent, rgba(6, 10, 24, .8)); pointer-events: none; }
+  .sv-bpreview { height: 120px; border: 1px dashed var(--line); border-radius: 14px; overflow: hidden; display: grid; place-items: center; background: rgba(255, 255, 255, .03); }
+  .sv-bpreview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .permbox { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255, 255, 255, .03); }
+  .permbox p { margin: 0 0 4px; }
+  .permrow { display: flex; gap: 10px; align-items: flex-start; padding: 7px 6px; border-radius: 10px; cursor: pointer; }
+  .permrow:hover { background: var(--surface); }
+  .permrow input { width: auto; min-height: 0; padding: 0; margin-top: 3px; flex: 0 0 auto; accent-color: var(--acc); }
+  .permrow b { font-size: .9rem; }
+  .permrow .mut { font-size: .78rem; }
+  .permrow input:disabled + div { opacity: .45; }
   .sv-desc.empty { color: var(--mut); font-style: italic; }
   .mcol { display: grid; gap: 2px; min-width: 0; }
   .mem-row.click { padding: 4px 6px; border-radius: 9px; }
@@ -2376,6 +2389,13 @@ const ST = {
    newRoleH:'Novo cargo', editRoleH:'Editar cargo', roleNameReq:'Digite um nome para o cargo.', confirmRole:'Apagar o cargo "{n}"? Quem tem esse cargo vai perdê-lo.',
    roleMembers:'{n} pessoa(s)', hoisted:'separado na lista', up:'Subir', down:'Descer', edit:'Editar', preview:'Prévia',
    grpOwner:'Dono', grpAdmin:'Admins', grpMembers:'Membros', rolesOf:'Cargos de {n}', noRolesHere:'Este servidor ainda não tem cargos.',
+   banner:'Trocar banner', rmBanner:'Remover banner', noBanner:'Sem banner', bannerHint:'Banner: PNG, JPG, WebP ou GIF animado de até 5 MB (ideal: 960×300). O banner e o ícone são aplicados na hora; nome e descrição só depois de “Salvar alterações”.',
+   bannerTooBig:'O banner passa de 5 MB.', saveChanges:'Salvar alterações', saved:'Salvo ✓', needV8:'Falta rodar a migração SQL v8 no Supabase para usar isso.',
+   permsTitle:'Permissões', permsHint:'Ative o que este cargo pode fazer. Dono e admins já podem tudo.',
+   permAdmin:'Administrador', permAdminD:'Tem todas as permissões abaixo.', permServer:'Editar o servidor', permServerD:'Mudar nome, descrição, ícone e banner.',
+   permChannels:'Gerenciar canais', permChannelsD:'Criar, renomear e apagar canais.', permRoles:'Gerenciar cargos', permRolesD:'Criar, editar e apagar cargos e dar cargos às pessoas (só com permissões que você mesmo tem).',
+   permEmojis:'Gerenciar emojis', permEmojisD:'Adicionar e apagar emojis do servidor.', permMsgs:'Gerenciar mensagens', permMsgsD:'Apagar mensagens de outras pessoas.',
+   permCount:'{n} permissão(ões)', permAll:'todas as permissões',
    emojis:'Emojis', emojisTitle:'Emojis do servidor', emojiAdd:'Adicionar emoji', emojiName:'Nome do emoji', emojiPick:'Escolher imagem',
    emojiHint:'PNG, JPG, WebP ou GIF de até 256 KB. No chat, use pelo botão de emojis ou digitando :nome:', emojiBadName:'Nome do emoji: 2 a 24 caracteres, só letras minúsculas, números e _.',
    emojiTooBig:'A imagem passa de 256 KB.', emojiNoFile:'Escolha uma imagem.', emojiEmpty:'Nenhum emoji personalizado ainda.', emojiDel:'Apagar o emoji :{n}:?',
@@ -2393,6 +2413,13 @@ const ST = {
    newRoleH:'New role', editRoleH:'Edit role', roleNameReq:'Type a name for the role.', confirmRole:'Delete the role "{n}"? Everyone who has it will lose it.',
    roleMembers:'{n} people', hoisted:'shown separately', up:'Move up', down:'Move down', edit:'Edit', preview:'Preview',
    grpOwner:'Owner', grpAdmin:'Admins', grpMembers:'Members', rolesOf:'Roles of {n}', noRolesHere:'This server has no roles yet.',
+   banner:'Change banner', rmBanner:'Remove banner', noBanner:'No banner', bannerHint:'Banner: PNG, JPG, WebP or animated GIF up to 5 MB (ideal: 960×300). Banner and icon apply right away; name and description only after “Save changes”.',
+   bannerTooBig:'The banner is over 5 MB.', saveChanges:'Save changes', saved:'Saved ✓', needV8:'The v8 SQL migration still needs to be run in Supabase to use this.',
+   permsTitle:'Permissions', permsHint:'Turn on what this role can do. Owner and admins can already do everything.',
+   permAdmin:'Administrator', permAdminD:'Has all the permissions below.', permServer:'Edit the server', permServerD:'Change name, description, icon and banner.',
+   permChannels:'Manage channels', permChannelsD:'Create, rename and delete channels.', permRoles:'Manage roles', permRolesD:'Create, edit and delete roles and give roles to people (only permissions you have yourself).',
+   permEmojis:'Manage emojis', permEmojisD:'Add and delete server emojis.', permMsgs:'Manage messages', permMsgsD:'Delete other people’s messages.',
+   permCount:'{n} permission(s)', permAll:'all permissions',
    emojis:'Emojis', emojisTitle:'Server emojis', emojiAdd:'Add emoji', emojiName:'Emoji name', emojiPick:'Choose image',
    emojiHint:'PNG, JPG, WebP or GIF up to 256 KB. In chat, use the emoji button or type :name:', emojiBadName:'Emoji name: 2 to 24 characters, lowercase letters, numbers and _ only.',
    emojiTooBig:'The image is over 256 KB.', emojiNoFile:'Choose an image.', emojiEmpty:'No custom emojis yet.', emojiDel:'Delete the emoji :{n}:?',
@@ -2404,6 +2431,7 @@ const A = () => window.Acc, sb = () => A().sb();
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const mk = (txt, fn, cls) => { const b = el('button', cls || '', txt); b.type = 'button'; b.onclick = fn; return b; };
 const err = e => alert(String((e && e.message) || e));
+const missingFn = e => !!e && (e.code === 'PGRST202' || /could not find the function|schema cache|does not exist|bucket not found/i.test(String(e.message || '')));
 const CTRL = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g;
 const ini = n => [...String(n).trim()].slice(0, 2).join('').toUpperCase();
 const normCh = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
@@ -2418,16 +2446,24 @@ const msgIds = new Set(), msgData = new Map(), reacts = new Map();
 const isAdm = () => myRole === 'owner' || myRole === 'admin';
 const memOf = id => mem.find(x => x.user_id === id);
 const hasRole = (u, rid) => { const s = mroles.get(u); return !!s && s.has(rid); };
+// dono e admin podem tudo; os demais, o que os cargos deles permitirem (o servidor confere de novo)
+const can = p => isAdm() || roles.some(r => hasRole(uid, r.id) && (r.perms.includes('administrator') || r.perms.includes(p)));
 const topRole = u => roles.find(r => hasRole(u, r.id)) || null;
 const nameColor = u => { const r = u ? topRole(u) : null; return r ? r.color : ''; };
 const emojiById = id => emojis.find(e => e.id === id);
 const emojiByName = n => emojis.find(e => e.name === n);
-const cleanRole = r => ({ id: String(r.id), name: cleanStr(r.name, 24), color: okHex(r.color) || '#99aab5', hoist: !!r.hoist, position: +r.position || 0 });
+const PERMS = [
+  ['administrator', 'permAdmin', 'permAdminD'], ['manage_server', 'permServer', 'permServerD'], ['manage_channels', 'permChannels', 'permChannelsD'],
+  ['manage_roles', 'permRoles', 'permRolesD'], ['manage_emojis', 'permEmojis', 'permEmojisD'], ['manage_messages', 'permMsgs', 'permMsgsD']
+];
+const PERM_KEYS = PERMS.map(x => x[0]);
+const cleanRole = r => ({ id: String(r.id), name: cleanStr(r.name, 24), color: okHex(r.color) || '#99aab5', hoist: !!r.hoist, position: +r.position || 0,
+  perms: Array.isArray(r.perms) ? r.perms.filter(x => PERM_KEYS.includes(x)) : [] });
 const cleanEmoji = e => ({ id: String(e.id), name: String(e.name || '').replace(/[^a-z0-9_]/g, '').slice(0, 24), path: String(e.path || '') });
 
 const rail = el('aside', 'hidden'); rail.id = 'srvRail';
 const view = el('section', 'hidden'); view.id = 'srvView';
-view.innerHTML = '<div class="sv-side" id="svSide"><button type="button" class="sv-head" id="svName"></button><div class="sv-desc hidden" id="svDesc"></div><div class="sv-list" id="svChans"></div></div>' +
+view.innerHTML = '<div class="sv-side" id="svSide"><div class="sv-banner hidden" id="svBanner"></div><button type="button" class="sv-head" id="svName"></button><div class="sv-desc hidden" id="svDesc"></div><div class="sv-list" id="svChans"></div></div>' +
   '<div class="sv-main"><div class="sv-top"><button type="button" class="sec sv-burger" id="svBurger">☰</button><strong id="svTitle"></strong><button type="button" class="sec x" id="svClose">✕</button></div>' +
   '<div id="svMsgs"></div><form id="svForm" class="hidden"><button type="button" class="sec" id="svEmoji">😊</button><input id="svInput" maxlength="1000" autocomplete="off"><button type="submit">➤</button></form></div>' +
   '<div class="sv-mem" id="svMem"></div>';
@@ -2465,7 +2501,8 @@ const railObs = new MutationObserver(syncRail);
 
 async function loadServers() {
   // se a migração v7 ainda não foi rodada, cai para a consulta antiga (sem descrição)
-  let r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description').order('created_at');
+  let r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path').order('created_at');
+  if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description').order('created_at');
   if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code').order('created_at');
   const { data, error } = r;
   if (error) return console.warn(error);
@@ -2473,12 +2510,20 @@ async function loadServers() {
   if (cur) { cur = servers.find(s => s.id === cur.id) || null; if (!cur) closeView(); else paintDesc(); }
   renderRail();
 }
+function paintBanner() {
+  const b = $('svBanner'); if (!b) return;
+  const u = (cur && A().imgUrl('server-banners', cur.banner_path)) || '';
+  if ((b.dataset.src || '') === u) return;                 // não redesenha à toa (um GIF reiniciaria)
+  b.dataset.src = u; b.textContent = ''; b.classList.toggle('hidden', !u);
+  if (u) { const i = new Image(); i.alt = ''; i.referrerPolicy = 'no-referrer'; i.onerror = () => b.classList.add('hidden'); i.src = u; b.append(i); }
+}
 function paintDesc() {
   const d = $('svDesc'); if (!cur) return;
-  const txt = String(cur.description || '').trim();
-  d.classList.toggle('empty', !txt && isAdm());
-  d.textContent = txt || (isAdm() ? t('descAdd') : '');
-  d.classList.toggle('hidden', !txt && !isAdm());
+  paintBanner();
+  const ed = can('manage_server'), txt = String(cur.description || '').trim();
+  d.classList.toggle('empty', !txt && ed);
+  d.textContent = txt || (ed ? t('descAdd') : '');
+  d.classList.toggle('hidden', !txt && !ed);
 }
 $('svDesc').onclick = () => cur && dlgSettings();
 
@@ -2551,15 +2596,16 @@ async function loadMembers() {
 /* ----- cargos do servidor ----- */
 async function loadRoles() {
   const s = cur; if (!s) return;
-  const [a, b] = await Promise.all([
-    sb().from('server_roles').select('id,name,color,hoist,position').eq('server_id', s.id).order('position'),
+  let [a, b] = await Promise.all([
+    sb().from('server_roles').select('id,name,color,hoist,position,perms').eq('server_id', s.id).order('position'),
     sb().from('member_roles').select('role_id,user_id').eq('server_id', s.id)
   ]);
+  if (a.error) a = await sb().from('server_roles').select('id,name,color,hoist,position').eq('server_id', s.id).order('position');   // v8 ainda não rodou
   if (cur !== s) return;
   roles = a.error ? [] : (a.data || []).map(cleanRole).filter(r => r.name).sort((x, y) => x.position - y.position);
   mroles = new Map();
   if (!b.error) (b.data || []).forEach(x => { let st = mroles.get(x.user_id); if (!st) mroles.set(x.user_id, st = new Set()); st.add(String(x.role_id)); });
-  renderMembers(); repaintNames();
+  renderMembers(); repaintNames(); paintDesc(); renderChans();   // as permissões podem ter mudado
 }
 function repaintNames() {
   $('svMsgs').querySelectorAll('.msg').forEach(d => { const nm = d.querySelector('.mname'); if (nm) nm.style.color = nameColor(d.dataset.uid) || ''; });
@@ -2638,12 +2684,12 @@ function renderChans() {
   const box = $('svChans'); box.textContent = '';
   [['text', t('textCh')], ['voice', t('voiceCh')]].forEach(([k, label]) => {
     const h = el('div', 'sgrp'); h.append(el('span', '', label));
-    if (isAdm()) { const a = mk('+', () => dlgChannel(k)); a.title = t('newCh'); h.append(a); }
+    if (can('manage_channels')) { const a = mk('+', () => dlgChannel(k)); a.title = t('newCh'); h.append(a); }
     box.append(h);
     chans.filter(c => c.kind === k).forEach(c => {
       const r = el('div', 'crow' + ((chan && chan.id === c.id) || voiceCh === c.id ? ' on' : ''));
       r.append(mk((k === 'text' ? '# ' : '🔊 ') + c.name, () => pickChan(c), 'cbtn'));
-      if (isAdm()) r.append(mk('✎', () => renameChan(c), 'cact'), mk('✕', () => delChan(c), 'cact'));
+      if (can('manage_channels')) r.append(mk('✎', () => renameChan(c), 'cact'), mk('✕', () => delChan(c), 'cact'));
       box.append(r);
     });
   });
@@ -2846,7 +2892,7 @@ function addMsg(r) {
   const act = el('div', 'mact');
   const rb = mk('😊', e => { e.stopPropagation(); openPicker(e.currentTarget, p => toggleReact(r.id, pickKey(p))); }, 'sec'); rb.title = t('react'); act.append(rb);
   if (r.user_id === uid) { const eb = mk('✎', e => { e.stopPropagation(); startEdit(d, r); }, 'sec'); eb.title = t('edit'); act.append(eb); }
-  if (r.user_id === uid || isAdm()) {
+  if (r.user_id === uid || can('manage_messages')) {
     const x = mk('✕', async () => { const { error } = await sb().from('messages').delete().eq('id', r.id); if (error) err(error); else d.remove(); }, 'sec');
     x.title = t('del'); act.append(x);
   }
@@ -3042,19 +3088,51 @@ function dlgSettings() {
   const s = cur;
   modal(s.name, (w, close) => {
     const reopen = async () => { close(); await loadMembers(); dlgSettings(); };
-    if (isAdm()) {
-      const n = fld(w, t('srvName'), { maxLength: 32 }); n.value = s.name;
-      const dl = el('label'), dt = el('textarea'); dt.maxLength = 300; dt.value = s.description || ''; dt.placeholder = t('descPh');
-      dl.append(el('span', '', t('desc')), dt); w.append(dl);
-      const file = el('input'); file.type = 'file'; file.hidden = true; file.accept = 'image/png,image/jpeg,image/webp,image/gif';
-      const setIcon = async path => {
-        const old = s.icon_path;
-        const { error } = await sb().from('servers').update({ icon_path: path }).eq('id', s.id); if (error) return err(error);
-        if (old) sb().storage.from('server-icons').remove([old]);
-        await loadServers(); close(); if (cur) { $('svName').textContent = cur.name + ' ▾'; dlgSettings(); }
+    const canEdit = can('manage_server');
+    let paintB = () => {};
+    if (canEdit || s.banner_path) {
+      const bn = el('div', 'sv-bpreview');
+      paintB = () => {
+        bn.textContent = '';
+        const u = A().imgUrl('server-banners', s.banner_path);
+        if (u) { const i = new Image(); i.alt = ''; i.referrerPolicy = 'no-referrer'; i.src = u; bn.append(i); } else bn.append(el('span', 'mut', t('noBanner')));
       };
-      file.onchange = async () => {
-        const f = file.files[0]; file.value = ''; if (!f) return;
+      paintB(); w.append(bn);
+    }
+    if (canEdit) {
+      /* --- banner e ícone: aplicam na hora --- */
+      const bfile = el('input'); bfile.type = 'file'; bfile.hidden = true; bfile.accept = 'image/png,image/jpeg,image/webp,image/gif';
+      const ifile = el('input'); ifile.type = 'file'; ifile.hidden = true; ifile.accept = 'image/png,image/jpeg,image/webp,image/gif';
+      const bbtn = mk(t('banner'), () => bfile.click(), 'sec'), brm = mk(t('rmBanner'), () => setBanner(null), 'sec');
+      const ibtn = mk(t('icon'), () => ifile.click(), 'sec'), irm = mk(t('rmIcon'), () => setIcon(null), 'sec');
+      const refreshBtns = () => { brm.classList.toggle('hidden', !s.banner_path); irm.classList.toggle('hidden', !s.icon_path); };
+      const hintErr = e => err(missingFn(e) ? t('needV8') : e);
+      const setBanner = async path => {
+        const { data: old, error } = await sb().rpc('ns_set_server_banner', { p_server: s.id, p_path: path });
+        if (error) { if (path) sb().storage.from('server-banners').remove([path]); return hintErr(error); }
+        if (typeof old === 'string' && old) sb().storage.from('server-banners').remove([old]);
+        s.banner_path = path; paintB(); refreshBtns(); await loadServers();
+      };
+      const setIcon = async path => {
+        let old = s.icon_path;
+        let { data, error } = await sb().rpc('ns_set_server_icon', { p_server: s.id, p_path: path });
+        if (error && missingFn(error)) error = (await sb().from('servers').update({ icon_path: path }).eq('id', s.id)).error;   // v8 ainda não rodou
+        else if (!error && typeof data === 'string' && data) old = data;
+        if (error) return err(error);
+        if (old) sb().storage.from('server-icons').remove([old]);
+        s.icon_path = path; refreshBtns(); await loadServers();
+      };
+      bfile.onchange = async () => {
+        const f = bfile.files[0]; bfile.value = ''; if (!f) return;
+        if (f.size > 5242880) return err(t('bannerTooBig'));
+        const ty = await A().sniff(f); if (!ty) return err(t('badImg'));
+        const path = s.id + '/' + Date.now() + '-' + rndHex(4) + '.' + ty.ext;
+        const up = await sb().storage.from('server-banners').upload(path, f, { contentType: ty.mime, cacheControl: '31536000', upsert: false });
+        if (up.error) return hintErr(up.error);
+        setBanner(path);
+      };
+      ifile.onchange = async () => {
+        const f = ifile.files[0]; ifile.value = ''; if (!f) return;
         if (f.size > 2097152) return err(t('tooBig'));
         const ty = await A().sniff(f); if (!ty) return err(t('badImg'));
         const path = s.id + '/' + Date.now() + '-' + rndHex(4) + '.' + ty.ext;
@@ -3062,20 +3140,44 @@ function dlgSettings() {
         if (up.error) return err(up.error);
         setIcon(path);
       };
-      const row = el('div', 'pe-actions');
-      row.append(mk(t('save'), async () => {
+      const brow = el('div', 'pe-actions'); brow.append(bbtn, brm, bfile);
+      w.append(brow, el('p', 'mut', t('bannerHint')));
+
+      /* --- nome e descrição: só valem depois de "Salvar alterações" --- */
+      const n = fld(w, t('srvName'), { maxLength: 32 }); n.value = s.name;
+      const dl = el('label'), dt = el('textarea'); dt.maxLength = 300; dt.value = s.description || ''; dt.placeholder = t('descPh');
+      const cnt = el('span', 'mut'); const upd = () => { cnt.textContent = dt.value.length + '/300'; }; dt.oninput = upd; upd();
+      dl.append(el('span', '', t('desc')), dt, cnt); w.append(dl);
+      const saveBtn = mk(t('saveChanges'), async () => {
         const name = cleanStr(n.value, 32); if (name.length < 2) return err(t('nameShort'));
         const desc = dt.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 300);
-        if (name !== s.name) { const { error } = await sb().from('servers').update({ name }).eq('id', s.id); if (error) return err(error); }
-        if (desc !== String(s.description || '')) { const { error } = await sb().rpc('ns_set_server_description', { p_server: s.id, p_text: desc }); if (error) return err(error); }
-        await loadServers(); if (cur) $('svName').textContent = cur.name + ' ▾'; close();
-      }), mk(t('icon'), () => file.click(), 'sec'));
-      if (s.icon_path) row.append(mk(t('rmIcon'), () => setIcon(null), 'sec'));
-      w.append(row, file);
-      const row2 = el('div', 'pe-actions');
-      row2.append(mk('🏷️ ' + t('roles'), () => { close(); dlgRoles(); }, 'sec'), mk('😊 ' + t('emojis'), () => { close(); dlgEmojis(); }, 'sec'));
-      w.append(row2);
+        saveBtn.disabled = true;
+        try {
+          if (name !== s.name) {
+            let { error } = await sb().rpc('ns_set_server_name', { p_server: s.id, p_name: name });
+            if (error && missingFn(error)) error = (await sb().from('servers').update({ name }).eq('id', s.id)).error;   // v8 ainda não rodou
+            if (error) return err(error);
+            s.name = name;
+          }
+          if (desc !== String(s.description || '')) {
+            const { error } = await sb().rpc('ns_set_server_description', { p_server: s.id, p_text: desc });
+            if (error) return hintErr(error);
+            s.description = desc;
+          }
+        } finally { saveBtn.disabled = false; }
+        await loadServers(); if (cur) $('svName').textContent = cur.name + ' ▾';
+        saveBtn.textContent = t('saved'); setTimeout(() => { saveBtn.textContent = t('saveChanges'); }, 1800);
+      });
+      saveBtn.style.width = '100%';
+      w.append(saveBtn);
+
+      const irow = el('div', 'pe-actions'); irow.append(ibtn, irm, ifile); w.append(irow);
+      refreshBtns();
     } else if (s.description) w.append(el('p', 'pc-bio', s.description));
+    const row2 = el('div', 'pe-actions');
+    if (can('manage_roles')) row2.append(mk('🏷️ ' + t('roles'), () => { close(); dlgRoles(); }, 'sec'));
+    if (can('manage_emojis')) row2.append(mk('😊 ' + t('emojis'), () => { close(); dlgEmojis(); }, 'sec'));
+    if (row2.children.length) w.append(row2);
     const link = location.origin + location.pathname + '?convite=' + s.invite_code;
     const li = fld(w, t('invite'), { readOnly: true }); li.value = link;
     const r2 = el('div', 'pe-actions');
@@ -3095,7 +3197,7 @@ function dlgSettings() {
         sel.onchange = async () => { const { error } = await sb().rpc('set_member_role', { p_server: s.id, p_user: m.user_id, p_role: sel.value }); if (error) err(error); reopen(); };
         r.append(sel);
       } else { const sp = el('span', 'mut', lab); sp.style.marginLeft = 'auto'; r.append(sp); }
-      if (isAdm()) { const rb = mk('🏷️', () => dlgMemberRoles(m), 'sec'); rb.title = t('rolesOf', { n: m.display_name }); r.append(rb); }
+      if (can('manage_roles')) { const rb = mk('🏷️', () => dlgMemberRoles(m), 'sec'); rb.title = t('rolesOf', { n: m.display_name }); r.append(rb); }
       if (isAdm() && m.user_id !== uid && m.role !== 'owner' && (myRole === 'owner' || m.role === 'member')) {
         r.append(mk('✕', async () => { if (!confirm(t('confirmKick', { n: m.display_name }))) return; const { error } = await sb().rpc('kick_member', { p_server: s.id, p_user: m.user_id }); if (error) err(error); reopen(); }, 'sec'));
         r.lastChild.title = t('kick');
@@ -3166,19 +3268,38 @@ function dlgRoles() {
     const hoist = chk(form, t('roleHoist'), true);
     const pr = el('div'); pr.style.cssText = 'display:flex;gap:8px;align-items:center'; pr.append(el('span', 'mut', t('preview')), prev); form.append(pr);
     nameIn.oninput = refreshPrev;
+    /* permissões do cargo (cada uma é ligada/desligada) */
+    const permBox = el('div', 'permbox'), permIn = {};
+    permBox.append(el('strong', '', t('permsTitle')), el('p', 'mut', t('permsHint')));
+    const syncPerms = () => {
+      const adm = permIn.administrator.checked;
+      PERM_KEYS.forEach(k => {
+        if (k === 'administrator') { permIn[k].disabled = !can('administrator'); return; }
+        if (adm) permIn[k].checked = true;
+        permIn[k].disabled = adm || !can(k);                 // só dá para ligar o que você mesmo tem
+      });
+    };
+    PERMS.forEach(([k, nk, dk]) => {
+      const l = el('label', 'permrow'), i = el('input'); i.type = 'checkbox'; i.onchange = syncPerms;
+      const tx = el('div'); tx.append(el('b', '', t(nk)), el('div', 'mut', t(dk)));
+      l.append(i, tx); permBox.append(l); permIn[k] = i;
+    });
+    const setPerms = list => { PERM_KEYS.forEach(k => { permIn[k].checked = list.includes(k); }); syncPerms(); };
+    const getPerms = () => permIn.administrator.checked ? ['administrator'] : PERM_KEYS.filter(k => permIn[k].checked);
+    form.append(permBox);
     const acts = el('div', 'pe-actions');
     const okBtn = mk(t('createRole'), async e => {
       const name = cleanStr(nameIn.value, 24); if (!name) return err(t('roleNameReq'));
       e.target.disabled = true;
-      const args = { p_name: name, p_color: cp.get(), p_hoist: hoist.checked };
+      const args = { p_name: name, p_color: cp.get(), p_hoist: hoist.checked, p_perms: getPerms() };
       const { error } = editing ? await sb().rpc('ns_update_role', { p_role: editing.id, ...args }) : await sb().rpc('ns_create_role', { p_server: s.id, ...args });
-      e.target.disabled = false; if (error) return err(error);
+      e.target.disabled = false; if (error) return err(missingFn(error) ? t('needV8') : error);
       resetForm(); await loadRoles(); draw();
     });
     const cancelBtn = mk(t('cancel'), () => resetForm(), 'sec');
     acts.append(okBtn, cancelBtn); form.append(acts);
     const resetForm = () => {
-      editing = null; nameIn.value = ''; cp.set('#6c7cff'); hoist.checked = true;
+      editing = null; nameIn.value = ''; cp.set('#6c7cff'); hoist.checked = true; setPerms([]);
       head.textContent = t('newRoleH'); okBtn.textContent = t('createRole'); cancelBtn.classList.add('hidden'); refreshPrev();
     };
     const draw = () => {
@@ -3188,12 +3309,12 @@ function dlgRoles() {
         const row = el('div', 'lrow'), dot = el('span', 'rdot'); dot.style.setProperty('--c', r.color);
         const g = el('div', 'grow'), nmE = el('b', '', r.name); nmE.style.color = r.color;
         const cnt = mem.filter(m => hasRole(m.user_id, r.id)).length;
-        g.append(nmE, el('div', 'mut', t('roleMembers', { n: cnt }) + (r.hoist ? ' · ' + t('hoisted') : '')));
+        g.append(nmE, el('div', 'mut', t('roleMembers', { n: cnt }) + (r.hoist ? ' · ' + t('hoisted') : '') + (r.perms.includes('administrator') ? ' · ' + t('permAll') : r.perms.length ? ' · ' + t('permCount', { n: r.perms.length }) : '')));
         const move = dir => async () => { const { error } = await sb().rpc('ns_move_role', { p_role: r.id, p_dir: dir }); if (error) return err(error); await loadRoles(); draw(); };
         const up = mk('▲', move(-1), 'sec'), dn = mk('▼', move(1), 'sec');
         up.title = t('up'); dn.title = t('down'); up.disabled = i === 0; dn.disabled = i === roles.length - 1;
         const ed = mk('✎', () => {
-          editing = r; nameIn.value = r.name; cp.set(r.color); hoist.checked = r.hoist;
+          editing = r; nameIn.value = r.name; cp.set(r.color); hoist.checked = r.hoist; setPerms(r.perms);
           head.textContent = t('editRoleH'); okBtn.textContent = t('saveRole'); cancelBtn.classList.remove('hidden'); refreshPrev(); nameIn.focus();
         }, 'sec'); ed.title = t('edit');
         const rm = mk('✕', async () => {
@@ -3449,7 +3570,7 @@ function cardExtras(p, box) {
     };
     box.append(sel);
   }
-  if (isAdm() && roles.length) {
+  if (can('manage_roles') && roles.length) {
     const host = el('div', 'rpick'); box.append(host); rolePicker(m, host);
   }
   if (isAdm() && m.user_id !== uid && m.role !== 'owner' && (myRole === 'owner' || m.role === 'member')) {
