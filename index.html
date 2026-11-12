@@ -276,6 +276,7 @@
   .amsg:empty { display: none; }
   .amsg.err { color: #ff9bad; }
   .amsg.ok { color: var(--ok); }
+  .captcha { display: flex; justify-content: center; min-height: 78px; }
   .linkbtn { min-height: 0; padding: 4px; border: 0; background: none; box-shadow: none; color: var(--mut); font-weight: 600; text-decoration: underline; }
   .linkbtn:hover:not(:disabled) { transform: none; box-shadow: none; color: var(--fg); }
 
@@ -401,6 +402,7 @@
       <label id="lblUser"><span data-i18n="accUsername"></span><input id="auUser" maxlength="20" autocomplete="nickname" autocapitalize="none" spellcheck="false" data-i18n-ph="accUserPh"></label>
       <label id="lblEmail"><span data-i18n="accEmail"></span><input id="auEmail" type="email" maxlength="254" autocomplete="email" autocapitalize="none" spellcheck="false"></label>
       <label><span id="lblPass" data-i18n="accPass"></span><input id="auPass" type="password" maxlength="72" autocomplete="current-password"></label>
+      <div id="captchaBox" class="captcha hidden"></div>
       <p id="authMsg" class="amsg" role="status"></p>
       <button type="submit" id="authSubmit"></button>
       <button type="button" id="authForgot" class="linkbtn" data-i18n="accForgot"></button>
@@ -1600,6 +1602,7 @@ applyLang();
 const SB_URL = 'https://dekxgzfjjrwonwrehdcj.supabase.co';   // "Project URL"
 const SB_KEY = 'sb_publishable_mc8AyKOj4AEpZgdrv2B95g_zV_rriYu';            // chave "anon" / "publishable". NUNCA use a service_role aqui.
 const SB_OAUTH = [];   // login só com e-mail e senha (sem botões de Google, Discord ou GitHub)
+const SB_HCAPTCHA = '23389ff8-fad0-41e6-b48a-456ad634677a';   // Site Key do hCaptcha (a chave PÚBLICA, em hcaptcha.com → Sites). Preencha se ativou o CAPTCHA no Supabase; senão deixe vazio.
 
 /* ---------- Textos (pt-BR, en, pt-PT) ---------- */
 const ACC_I18N = {
@@ -1614,7 +1617,7 @@ const ACC_I18N = {
   accConfirm:'Enviamos um link de confirmação para o seu e-mail. Abra-o para ativar a conta.',
   accResetSent:'Se esse e-mail tiver uma conta, enviamos um link para redefinir a senha.',
   accBadCreds:'E-mail ou senha incorretos.', accNotConfirmed:'Confirme seu e-mail antes de entrar.',
-  accWeakPass:'Use uma senha com pelo menos 8 caracteres.', accBadEmail:'Digite um e-mail válido.',
+  accWeakPass:'Use uma senha com pelo menos 8 caracteres.', accBadEmail:'Digite um e-mail válido.', accCaptcha:'Marque a caixa "Sou humano" para continuar.', accCaptchaFail:'Não foi possível carregar a verificação anti-robô. Desative bloqueadores de anúncio e tente de novo.',
   accBadUser:'Nome de usuário: 3 a 20 caracteres, só letras minúsculas, números e _.',
   accErr:'Não foi possível concluir: {e}',
   accSetPass:'Definir nova senha', accSaveNewPass:'Salvar nova senha', accPassChanged:'Senha alterada.',
@@ -1638,7 +1641,7 @@ const ACC_I18N = {
   accConfirm:'We sent a confirmation link to your email. Open it to activate your account.',
   accResetSent:'If that email has an account, we sent a link to reset the password.',
   accBadCreds:'Wrong email or password.', accNotConfirmed:'Confirm your email before signing in.',
-  accWeakPass:'Use a password with at least 8 characters.', accBadEmail:'Enter a valid email.',
+  accWeakPass:'Use a password with at least 8 characters.', accBadEmail:'Enter a valid email.', accCaptcha:'Tick the "I am human" box to continue.', accCaptchaFail:'Could not load the anti-bot check. Disable ad blockers and try again.',
   accBadUser:'Username: 3 to 20 characters, lowercase letters, numbers and _ only.',
   accErr:'Could not finish: {e}',
   accSetPass:'Set new password', accSaveNewPass:'Save new password', accPassChanged:'Password changed.',
@@ -1676,6 +1679,8 @@ window.Acc = (() => {
   let sb = null, session = null, me = null;
   let sid = '', claimedId = null, claimP = null, hb = 0;
   let guestName = '', mode = 'in', pend = null;
+  let capId = null, capToken = '', capLoad = null;
+  const capOn = !!SB_HCAPTCHA;
   let resolveReady; const ready = new Promise(r => { resolveReady = r; });
 
   const api = { enabled };
@@ -1813,6 +1818,42 @@ window.Acc = (() => {
     });
   }
 
+  /* ---------- CAPTCHA (hCaptcha) ---------- */
+  function loadCaptcha() {
+    if (!capOn) return Promise.resolve(false);
+    if (window.hcaptcha) return Promise.resolve(true);
+    if (capLoad) return capLoad;
+    capLoad = new Promise(resolve => {
+      window.__hcLoaded = () => resolve(!!window.hcaptcha);
+      const sc = document.createElement('script');
+      sc.src = 'https://js.hcaptcha.com/1/api.js?render=explicit&onload=__hcLoaded';
+      sc.async = true; sc.defer = true;
+      sc.onerror = () => { capLoad = null; resolve(false); };
+      document.head.appendChild(sc);
+    });
+    return capLoad;
+  }
+  async function showCaptcha() {
+    const box = $('captchaBox');
+    const need = capOn && mode !== 'reset';
+    box.classList.toggle('hidden', !need);
+    if (!need) return;
+    if (!(await loadCaptcha())) return msgTo('authMsg', 'accCaptchaFail', 'err');
+    if (capId === null) {
+      capId = window.hcaptcha.render(box, {
+        sitekey: SB_HCAPTCHA, theme: 'dark',
+        callback: t => { capToken = t; },
+        'expired-callback': () => { capToken = ''; },
+        'error-callback': () => { capToken = ''; }
+      });
+    }
+  }
+  function resetCaptcha() {
+    capToken = '';
+    if (capId !== null && window.hcaptcha) { try { window.hcaptcha.reset(capId); } catch (e) {} }
+  }
+  const capOpts = () => (capOn ? { captchaToken: capToken } : {});
+
   function setMode(m) {
     mode = m;
     $('tabIn').classList.toggle('on', m === 'in');
@@ -1829,6 +1870,7 @@ window.Acc = (() => {
     setI18n($('lblPass'), m === 'reset' ? 'accPassNew' : 'accPass');
     setI18n($('authSubmit'), m === 'up' ? 'accSubmitUp' : m === 'reset' ? 'accSaveNewPass' : 'accSubmitIn');
     msgTo('authMsg', null);
+    if ($('dlgAuth').open) showCaptcha(); else $('captchaBox').classList.toggle('hidden', !(capOn && m !== 'reset'));
   }
 
   function openAuth(m) {
@@ -1836,6 +1878,7 @@ window.Acc = (() => {
     setMode(m || 'in');
     $('auPass').value = '';
     if (!$('dlgAuth').open) $('dlgAuth').showModal();
+    showCaptcha();
   }
 
   const validEmail = s => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
@@ -1864,6 +1907,8 @@ window.Acc = (() => {
     const un = $('auUser').value.trim().toLowerCase();
     if (mode === 'up' && un && !USER_RE.test(un)) return msgTo('authMsg', 'accBadUser', 'err');
 
+    if (capOn && mode !== 'reset' && !capToken) return msgTo('authMsg', 'accCaptcha', 'err');
+
     const submit = $('authSubmit');
     submit.disabled = true;
     try {
@@ -1875,13 +1920,13 @@ window.Acc = (() => {
       } else if (mode === 'up') {
         const { data, error } = await sb.auth.signUp({
           email, password: pass,
-          options: { data: un ? { username: un } : {}, emailRedirectTo: redirectUrl() }
+          options: { data: un ? { username: un } : {}, emailRedirectTo: redirectUrl(), ...capOpts() }
         });
         if (error) { const [k, v] = authError(error); return msgTo('authMsg', k, 'err', v); }
         if (!data.session) msgTo('authMsg', 'accConfirm', 'ok');
         else $('dlgAuth').close();
       } else {
-        const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+        const { error } = await sb.auth.signInWithPassword({ email, password: pass, options: capOpts() });
         if (error) { const [k, v] = authError(error); return msgTo('authMsg', k, 'err', v); }
         $('dlgAuth').close();
       }
@@ -1889,19 +1934,22 @@ window.Acc = (() => {
       msgTo('authMsg', 'accErr', 'err', { e: err && err.message || String(err) });
     } finally {
       submit.disabled = false;
+      if (mode !== 'reset') resetCaptcha();
     }
   }
 
   async function onForgot() {
     const email = $('auEmail').value.trim();
     if (!validEmail(email)) return msgTo('authMsg', 'accBadEmail', 'err');
+    if (capOn && !capToken) return msgTo('authMsg', 'accCaptcha', 'err');
     try {
-      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl() });
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl(), ...capOpts() });
       if (error) { const [k, v] = authError(error); msgTo('authMsg', k, 'err', v); }
       else msgTo('authMsg', 'accResetSent', 'ok');   // mesma resposta exista a conta ou não
     } catch (err) {
       msgTo('authMsg', 'accErr', 'err', { e: err && err.message || String(err) });
     }
+    resetCaptcha();
   }
 
   /* ---------- editor de perfil ---------- */
