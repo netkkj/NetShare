@@ -1599,8 +1599,8 @@ applyLang();
    CONTAS (Supabase)  —  CONFIGURE AQUI
    No painel do Supabase: Project Settings → API
    ===================================================================== */
-const SB_URL = 'https://dekxgzfjjrwonwrehdcj.supabase.co';   // "Project URL"
-const SB_KEY = 'sb_publishable_mc8AyKOj4AEpZgdrv2B95g_zV_rriYu';            // chave "anon" / "publishable". NUNCA use a service_role aqui.
+const SB_URL = 'https://SEU-PROJETO.supabase.co';   // "Project URL"
+const SB_KEY = 'SUA-CHAVE-ANON-PUBLICA';            // chave "anon" / "publishable". NUNCA use a service_role aqui.
 const SB_OAUTH = [];   // login só com e-mail e senha (sem botões de Google, Discord ou GitHub)
 const SB_HCAPTCHA = '';   // Site Key do hCaptcha (a chave PÚBLICA, em hcaptcha.com → Sites). Preencha se ativou o CAPTCHA no Supabase; senão deixe vazio.
 
@@ -2220,7 +2220,6 @@ applyLang();
 <style>
   /* =====================  SERVIDORES  ===================== */
   :root { --rail: 72px; }
-  body.hasrail #join { margin-left: var(--rail); }
   #srvRail { position: fixed; left: 0; top: 0; bottom: 0; z-index: 30; width: var(--rail); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 0; overflow-y: auto; background: rgba(5, 9, 22, .86); border-right: 1px solid var(--line); backdrop-filter: blur(14px); }
   #srvRail .sbtn { position: relative; flex: 0 0 auto; width: 48px; min-height: 48px; height: 48px; padding: 0; border: 0; border-radius: 16px; background: var(--surface); box-shadow: none; color: var(--fg); overflow: hidden; transition: border-radius .18s ease, background .18s ease; }
   #srvRail .sbtn:hover:not(:disabled), #srvRail .sbtn.on { border-radius: 12px; transform: none; box-shadow: 0 0 0 2px var(--acc); }
@@ -2264,6 +2263,7 @@ applyLang();
   .mem-row b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
   @media (max-width: 860px) {
     :root { --rail: 60px; }
+    body.hasrail { padding-left: var(--rail); }
     #srvView { grid-template-columns: minmax(0, 1fr); }
     .sv-mem { display: none; }
     .sv-side { position: absolute; z-index: 3; inset: 0 auto 0 0; width: 80%; max-width: 300px; transform: translateX(-102%); transition: transform .2s ease; background: var(--card-solid); }
