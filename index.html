@@ -2715,6 +2715,36 @@ const EMO = [
  ['🍔', 'ecat4', '🍎 🍊 🍋 🍌 🍉 🍇 🍓 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🥑 🌽 🥕 🍞 🧀 🍳 🥞 🥓 🍔 🍟 🍕 🌭 🥪 🌮 🌯 🍝 🍜 🍣 🍤 🍙 🍩 🍪 🎂 🍰 🍫 🍬 🍿 ☕ 🍵 🥤 🍺 🍻 🥂 🍷'],
  ['⚽', 'ecat5', '⚽ 🏀 🏈 ⚾ 🎾 🏐 🏓 🥊 🎮 🕹️ 🎲 🧩 🎯 🎳 🎵 🎶 🎤 🎧 🎸 🥁 🎬 🎨 📷 🚗 🚀 ✈️ 🚲 🏠 💻 🖥️ ⌨️ 🖱️ 📱 💡 🔒 🔑 📌 📎 🎈']
 ];
+/* esconde do seletor os emojis que este aparelho não sabe desenhar (aparecem como "▯" ou quebrados em dois) */
+const emoOk = (() => {
+  const cache = new Map(); let cx = null, base = 0;
+  const ctx = () => {
+    if (cx !== null) return cx;
+    try {
+      const c = document.createElement('canvas'); c.width = c.height = 32;
+      cx = c.getContext('2d', { willReadFrequently: true });
+      cx.font = '24px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif'; cx.textBaseline = 'top';
+      base = cx.measureText('😀').width || 0;
+    } catch (e) { cx = false; }
+    return cx;
+  };
+  const draw = (g, ch, color) => { g.clearRect(0, 0, 32, 32); g.fillStyle = color; g.fillText(ch, 0, 2); return g.getImageData(0, 0, 32, 32).data; };
+  return ch => {
+    if (cache.has(ch)) return cache.get(ch);
+    let ok = true; const g = ctx();
+    if (g) {
+      try {
+        if (base && g.measureText(ch).width > base * 1.6) ok = false;      // sequência que virou 2+ símbolos
+        else {
+          const a = draw(g, ch, '#000'), b = draw(g, ch, '#fff'); let diff = false;
+          for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) { diff = true; break; }
+          ok = !diff;                                                       // emoji colorido ignora a cor do texto; o "quadradinho" não
+        }
+      } catch (e) { ok = true; }
+    }
+    cache.set(ch, ok); return ok;
+  };
+})();
 let pick = null;
 function closePicker() {
   if (!pick) return;
@@ -2729,7 +2759,10 @@ function openPicker(anchor, onPick) {
   const box = el('div'); box.id = 'emoPick';
   const tabs = el('div', 'etabs'), grid = el('div', 'egrid');
   box.append(tabs, grid);
-  const cats = EMO.map(([icon, k, list]) => ({ icon, title: t(k), list: list.split(' ') }));
+  const cats = EMO.map(([icon, k, list]) => {
+    const all = list.split(' '), okl = all.filter(emoOk);
+    return { icon, title: t(k), list: okl.length >= all.length / 2 ? okl : all };   // se o teste falhar em massa, mostra tudo
+  });
   if (cur && emojis.length) cats.unshift({ icon: '⭐', title: t('ecustom'), custom: true });
   const choose = (p, ev) => { onPick(p); if (!ev.shiftKey) closePicker(); };
   const show = i => {
@@ -2741,11 +2774,16 @@ function openPicker(anchor, onPick) {
   };
   cats.forEach((c, i) => { const b = mk(c.icon, () => show(i), ''); b.title = c.title; tabs.append(b); });
   document.body.append(box);
-  const r = anchor.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
-  const x = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
-  let y = r.top - h - 8; if (y < 8) y = Math.min(r.bottom + 8, window.innerHeight - h - 8);
-  box.style.left = x + 'px'; box.style.top = Math.max(8, y) + 'px';
-  show(0);
+  show(0);                                                   // enche a grade antes de medir (antes media só as abas e a caixa crescia pra fora da tela)
+  const r = anchor.getBoundingClientRect(), vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+  const w = box.offsetWidth, h = box.offsetHeight;
+  box.style.left = Math.min(Math.max(8, r.right - w), vw - w - 8) + 'px';
+  const above = r.top - 16, below = vh - r.bottom - 16;
+  if (above >= Math.min(h, 260) || above >= below) {         // abre para cima e cresce para cima
+    box.style.maxHeight = Math.min(360, above) + 'px'; box.style.bottom = (vh - r.top + 8) + 'px';
+  } else {                                                    // sem espaço em cima: abre para baixo
+    box.style.maxHeight = Math.min(360, below) + 'px'; box.style.top = (r.bottom + 8) + 'px';
+  }
   const out = e => { if (!box.contains(e.target) && !anchor.contains(e.target)) closePicker(); };
   const key = e => { if (e.key === 'Escape') closePicker(); };
   document.addEventListener('pointerdown', out, true);
