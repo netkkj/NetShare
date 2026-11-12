@@ -233,6 +233,70 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
   }
+
+  /* =====================  CONTAS E PERFIL  ===================== */
+  body { place-items: safe center; overflow-x: hidden; overflow-y: auto; }
+
+  #accBar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+  #accBar .acc-who { display: flex; align-items: center; gap: 11px; min-width: 0; flex: 1 1 150px; }
+  #accBar .acc-txt { display: grid; min-width: 0; line-height: 1.3; }
+  #accBar .acc-txt strong, #accBar .acc-txt span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #accBar .acc-hint { flex: 1 1 170px; margin: 0; }
+  #accBar button { min-height: 38px; padding: 7px 12px; font-size: .82rem; }
+  #inName.locked { opacity: .72; cursor: not-allowed; }
+
+  .av { --s: 36px; flex: 0 0 auto; width: var(--s); height: var(--s); border-radius: 50%; display: inline-grid; place-items: center; overflow: hidden; background: linear-gradient(135deg, var(--acc), var(--cyan)); color: #fff; font: 800 calc(var(--s) * .42)/1 'Manrope', sans-serif; user-select: none; }
+  .av img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .who { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .who[role='button'] { cursor: pointer; border-radius: 9px; }
+  .who[role='button']:hover .nm { text-decoration: underline; }
+  .vf { flex: 0 0 auto; color: var(--cyan); font-size: .78rem; font-weight: 800; }
+
+  .dlg { width: min(92vw, 440px); max-height: min(90dvh, 780px); padding: 0; border: 1px solid var(--line); border-radius: 22px; background: var(--card-solid); color: var(--fg); box-shadow: var(--shadow); overflow: auto; }
+  .dlg::backdrop { background: rgba(3, 6, 15, .72); backdrop-filter: blur(6px); }
+  .dlg-in { display: grid; gap: 14px; padding: 22px; }
+  .dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .dlg-head h2 { margin: 0; font: 800 1.25rem/1.15 'Manrope', sans-serif; letter-spacing: -.03em; }
+  .dlg .x { flex: 0 0 auto; width: 36px; min-height: 36px; padding: 0; }
+  .dlg-form { display: grid; gap: 14px; }
+  .dlg label { display: grid; gap: 7px; color: #c8d0e5; font-size: .84rem; font-weight: 600; }
+  .dlg textarea { width: 100%; min-height: 92px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 12px; outline: none; resize: vertical; background: rgba(5, 9, 22, .65); color: var(--fg); font: inherit; transition: border-color .2s ease, box-shadow .2s ease; }
+  .dlg textarea:focus { border-color: var(--acc); box-shadow: 0 0 0 4px rgba(108,124,255,.13); }
+  .dlg-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .counter { justify-self: end; margin-top: -8px; }
+
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; border: 1px solid var(--line); border-radius: 14px; background: rgba(4, 8, 20, .5); }
+  .tabs button { min-height: 38px; border: 0; background: transparent; box-shadow: none; color: var(--mut); }
+  .tabs button:hover:not(:disabled) { transform: none; box-shadow: none; color: var(--fg); }
+  .tabs button.on { background: var(--surface-hover); color: var(--fg); }
+  .oauth { display: grid; gap: 8px; }
+  .sep { display: flex; align-items: center; gap: 10px; margin: 0; }
+  .sep::before, .sep::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+  .amsg { margin: 0; font-size: .85rem; font-weight: 700; line-height: 1.45; }
+  .amsg:empty { display: none; }
+  .amsg.err { color: #ff9bad; }
+  .amsg.ok { color: var(--ok); }
+  .linkbtn { min-height: 0; padding: 4px; border: 0; background: none; box-shadow: none; color: var(--mut); font-weight: 600; text-decoration: underline; }
+  .linkbtn:hover:not(:disabled) { transform: none; box-shadow: none; color: var(--fg); }
+
+  .pe-banner { position: relative; aspect-ratio: 3 / 1; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(135deg, rgba(108,124,255,.35), rgba(73,217,255,.2)); }
+  .pe-banner img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .pe-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pe-actions button { min-height: 34px; padding: 5px 10px; font-size: .76rem; border-radius: 9px; }
+  .pe-banner .pe-actions { position: absolute; right: 8px; bottom: 8px; }
+  .pe-banner .pe-actions button { background: rgba(7, 11, 24, .78); backdrop-filter: blur(10px); }
+  .pe-avrow { position: relative; display: flex; align-items: flex-start; gap: 14px; margin-top: -40px; padding-left: 14px; }
+  .pe-avrow .av { --s: 76px; border: 4px solid var(--card-solid); }
+  .pe-avrow .pe-actions { margin-top: 46px; }
+
+  .dlg-card .dlg-in { gap: 0; padding: 0; }
+  .pc-banner { aspect-ratio: 3 / 1; overflow: hidden; background: linear-gradient(135deg, var(--acc), var(--acc-2)); }
+  .pc-banner img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .pc-body { display: grid; gap: 4px; padding: 0 20px 22px; }
+  .pc-body .av { --s: 84px; margin-top: -42px; border: 4px solid var(--card-solid); }
+  .pc-body h3 { margin: 8px 0 0; font: 800 1.3rem/1.15 'Manrope', sans-serif; letter-spacing: -.03em; overflow-wrap: anywhere; }
+  .pc-bio { margin: 8px 0 0; color: #d7def0; font-size: .92rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .card-x { position: absolute; top: 10px; right: 10px; z-index: 2; background: rgba(7, 11, 24, .7); }
 </style>
 </head>
 <body>
@@ -255,7 +319,8 @@
     <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="12" r="2.5" fill="white"/><circle cx="18" cy="6" r="2.5" fill="white"/><circle cx="18" cy="18" r="2.5" fill="white"/><path d="M8.2 10.9 15.7 7M8.2 13.1l7.5 3.9" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></span>
     <span>NetShare</span><span class="brand-dot" aria-hidden="true"></span>
   </div>
-  <div class="eyebrow"><span>Conexão direta</span><span>•</span><span>Sem cadastro</span></div>
+  <div class="eyebrow"><span data-i18n="eyebrowA"></span><span>•</span><span id="eyebrowB" data-i18n="eyebrowB"></span></div>
+  <div id="accBar" class="hidden"></div>
   <h1 data-i18n="title"></h1>
   <p class="mut" data-i18n="joinIntro"></p>
   <label><span data-i18n="lblName"></span> <input id="inName" maxlength="24" data-i18n-ph="phName" autocomplete="off"></label>
@@ -319,6 +384,71 @@
     <button id="btnLeave" class="sec" data-i18n="btnLeave"></button>
   </div>
 </section>
+
+<dialog id="dlgAuth" class="dlg" aria-labelledby="authTitle">
+  <div class="dlg-in">
+    <div class="dlg-head">
+      <h2 id="authTitle"></h2>
+      <button type="button" class="sec x" data-close="dlgAuth">✕</button>
+    </div>
+    <div id="authTabs" class="tabs">
+      <button type="button" id="tabIn" class="sec" data-i18n="accTabIn"></button>
+      <button type="button" id="tabUp" class="sec" data-i18n="accTabUp"></button>
+    </div>
+    <div id="oauthRow" class="oauth"></div>
+    <p id="oauthSep" class="sep mut"><span data-i18n="accOr"></span></p>
+    <form id="frmAuth" class="dlg-form" novalidate>
+      <label id="lblUser"><span data-i18n="accUsername"></span><input id="auUser" maxlength="20" autocomplete="nickname" autocapitalize="none" spellcheck="false" data-i18n-ph="accUserPh"></label>
+      <label id="lblEmail"><span data-i18n="accEmail"></span><input id="auEmail" type="email" maxlength="254" autocomplete="email" autocapitalize="none" spellcheck="false"></label>
+      <label><span id="lblPass" data-i18n="accPass"></span><input id="auPass" type="password" maxlength="72" autocomplete="current-password"></label>
+      <p id="authMsg" class="amsg" role="status"></p>
+      <button type="submit" id="authSubmit"></button>
+      <button type="button" id="authForgot" class="linkbtn" data-i18n="accForgot"></button>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="dlgProfile" class="dlg" aria-labelledby="pfTitle">
+  <div class="dlg-in">
+    <div class="dlg-head">
+      <h2 id="pfTitle" data-i18n="pfTitle"></h2>
+      <button type="button" class="sec x" data-close="dlgProfile">✕</button>
+    </div>
+    <form id="frmProfile" class="dlg-form" novalidate>
+      <div class="pe-banner">
+        <img id="pfBannerImg" alt="" class="hidden">
+        <div class="pe-actions">
+          <button type="button" class="sec" id="pfBannerPick" data-i18n="pfBanner"></button>
+          <button type="button" class="sec" id="pfBannerDel" data-i18n="pfRemove"></button>
+        </div>
+      </div>
+      <div class="pe-avrow">
+        <span id="pfAvatar"></span>
+        <div class="pe-actions">
+          <button type="button" class="sec" id="pfAvatarPick" data-i18n="pfAvatar"></button>
+          <button type="button" class="sec" id="pfAvatarDel" data-i18n="pfRemove"></button>
+        </div>
+      </div>
+      <p class="mut" data-i18n="pfHint" style="margin:0"></p>
+      <input type="file" id="fileAvatar" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+      <input type="file" id="fileBanner" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+      <label><span data-i18n="pfName"></span><input id="pfName" maxlength="24" autocomplete="off"></label>
+      <label><span data-i18n="pfUser"></span><input id="pfUser" maxlength="20" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+      <label><span data-i18n="pfBio"></span><textarea id="pfBio" maxlength="200" data-i18n-ph="pfBioPh"></textarea></label>
+      <span id="pfBioN" class="mut counter">0/200</span>
+      <p id="pfMsg" class="amsg" role="status"></p>
+      <div class="dlg-actions">
+        <button type="button" class="sec" data-close="dlgProfile" data-i18n="pfCancel"></button>
+        <button type="submit" id="pfSave" data-i18n="pfSave"></button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="dlgCard" class="dlg dlg-card" aria-label="Perfil">
+  <button type="button" class="sec x card-x" data-close="dlgCard">✕</button>
+  <div class="dlg-in" id="cardBody"></div>
+</dialog>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -485,6 +615,7 @@ function applyLang() {
   if (typeof updateButtons === 'function') updateButtons();
   if (typeof tiles !== 'undefined') tiles.forEach(t => { updateTileTexts(t); });
   if (typeof lastSig !== 'undefined') lastSig = '';
+  if (window.Acc) Acc.refreshTexts();
   if (typeof render === 'function') render();
 }
 $('lang').onchange = () => {
@@ -608,6 +739,7 @@ $('btnJoin').onclick = async () => {
     key = await deriveRoomKey(rs, pass);
   } catch (e) { $('btnJoin').disabled = false; setJoinErr('eSecure'); return; }
   myName = name;
+  if (window.Acc) Acc.newSid();
   baseId = 'ss3-' + rs;
   roomKey = key;
   $('btnJoin').disabled = false;
@@ -629,6 +761,7 @@ function resetState() {
   clearTimeout(heirTimer); clearTimeout(kickTimer); kickTimer = 0; ownerWindow = 0;
 }
 function closeAll() {
+  if (window.Acc) Acc.release();
   clearInterval(probeTimer); clearTimeout(probeTimer); clearInterval(statusTimer); clearTimeout(searchTimer); clearTimeout(heirTimer); clearTimeout(kickTimer); kickTimer = 0;
   const p = peer; peer = null; myId = null; mySlot = -1;
   try { p && p.destroy(); } catch (e) {}
@@ -652,6 +785,7 @@ function claimSlot(i) {
     if (me !== peer) return;
     opened = true;
     myId = id; mySlot = i;
+    if (window.Acc) Acc.claim(id);
     msgK('searching');
     probe();
     setTimeout(probe, 1000); setTimeout(probe, 3000);
@@ -819,9 +953,14 @@ async function sendHello(c) {
   let proof = '';
   try { if (roomKey) proof = await makeProof(c.theirNonce, myId); } catch (e) { return; }
   if (!c.open || leaving) return;
+  let accSid = '';
+  if (window.Acc) { try { await Acc.whenClaimed(); } catch (e) {} accSid = Acc.sid(); }
+  if (!c.open || leaving) return;
   try {
-    c.send({ t: 'hello', name: myName, sharing: !!myStream, kind: myKind, age: c.sentAge, hasPass: !!roomKey, proof,
-             slot: mySlot, ver: APP_VERSION, cid: clientId });
+    const hello = { t: 'hello', name: myName, sharing: !!myStream, kind: myKind, age: c.sentAge, hasPass: !!roomKey, proof,
+                    slot: mySlot, ver: APP_VERSION, cid: clientId };
+    if (accSid) hello.sid = accSid;
+    c.send(hello);
   } catch (e) {}
 }
 
@@ -903,6 +1042,7 @@ async function onHello(c, d) {
     people.set(id, { name, sharing: !!d.sharing, kind: d.sharing && (d.kind === 'cam' || d.kind === 'screen') ? d.kind : null,
                      cid, slot: cleanNum(d.slot, 0, MAX_SLOTS), since: performance.now() - theirs });
   }
+  if (window.Acc && typeof d.sid === 'string') Acc.verify(id, d.sid);
   const cur = conns.get(id);
   if (cur !== c && !(cur && cur.open && cur.verified)) {
     if (cur) addSpare(id, cur);
@@ -1370,8 +1510,8 @@ window.addEventListener('resize', render);
 let lastSig = '';
 function renderPeople() {
   $('count').textContent = people.size + 1;
-  const list = [...people].map(([id, p]) => [id, p.name, p.sharing ? 1 : 0, p.kind || '']);
-  const sig = JSON.stringify([lang, own.id, myId, myName, !!myStream, myKind, [...hidden], list, isOwner()]);
+  const list = [...people].map(([id, p]) => [id, p.name, p.sharing ? 1 : 0, p.kind || '', p.prof ? [p.prof.username, p.prof.avatar_path, p.prof.bio] : 0]);
+  const sig = JSON.stringify([lang, own.id, myId, myName, !!myStream, myKind, [...hidden], list, isOwner(), window.Acc ? Acc.sigKey() : '']);
   if (sig === lastSig) return;
   lastSig = sig;
 
@@ -1384,7 +1524,20 @@ function renderPeople() {
     const crown = id && own.id === id;
     n.textContent = (crown ? '👑 ' : '') + name + (you ? ' (' + T('you') + ')' : '');
     if (crown) n.title = T('owner');
-    top.append(n);
+    if (window.Acc && Acc.enabled) {
+      const prof = you ? Acc.myProfile() : (people.get(id) || {}).prof;
+      const who = document.createElement('span'); who.className = 'who';
+      who.append(Acc.avatar(prof || { display_name: name }, 28), n);
+      if (prof) {
+        const vf = document.createElement('span'); vf.className = 'vf'; vf.textContent = '✓';
+        who.append(vf);
+        who.setAttribute('role', 'button'); who.tabIndex = 0; who.title = T('cardVerified');
+        const open = () => Acc.showCard(prof);
+        who.onclick = open;
+        who.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } };
+      }
+      top.append(who);
+    } else top.append(n);
     if (sharing) {
       const b = document.createElement('span'); b.className = 'badge';
       b.textContent = kind === 'cam' ? T('badgeCam') : T('badgeScreen');
@@ -1435,6 +1588,580 @@ function doRender() {
   $('grid').style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
   $('grid').style.gridTemplateRows = 'repeat(' + rows + ', minmax(0, 1fr))';
 }
+
+applyLang();
+</script>
+
+<script>
+/* =====================================================================
+   CONTAS (Supabase)  —  CONFIGURE AQUI
+   No painel do Supabase: Project Settings → API
+   ===================================================================== */
+const SB_URL = 'https://dekxgzfjjrwonwrehdcj.supabase.co';   // "Project URL"
+const SB_KEY = 'sb_publishable_mc8AyKOj4AEpZgdrv2B95g_zV_rriYu';            // chave "anon" / "publishable". NUNCA use a service_role aqui.
+const SB_OAUTH = [];   // login só com e-mail e senha (sem botões de Google, Discord ou GitHub)
+
+/* ---------- Textos (pt-BR, en, pt-PT) ---------- */
+const ACC_I18N = {
+'pt-BR': {
+  eyebrowA:'Conexão direta', eyebrowB:'Sem cadastro', eyebrowB2:'Conta opcional',
+  accGuestHint:'Entre para ter nome, foto e banner próprios.',
+  accSignIn:'Entrar ou criar conta', accEdit:'Editar perfil', accSignOut:'Sair da conta',
+  accTitleIn:'Entrar na conta', accTitleUp:'Criar conta', accTabIn:'Entrar', accTabUp:'Criar conta',
+  accUsername:'Nome de usuário (opcional)', accUserPh:'ex.: ana_dev', accEmail:'E-mail', accPass:'Senha', accPassNew:'Nova senha',
+  accOr:'ou use seu e-mail', accWith:'Continuar com {p}', accSubmitIn:'Entrar', accSubmitUp:'Criar conta',
+  accForgot:'Esqueci minha senha', accClose:'Fechar',
+  accConfirm:'Enviamos um link de confirmação para o seu e-mail. Abra-o para ativar a conta.',
+  accResetSent:'Se esse e-mail tiver uma conta, enviamos um link para redefinir a senha.',
+  accBadCreds:'E-mail ou senha incorretos.', accNotConfirmed:'Confirme seu e-mail antes de entrar.',
+  accWeakPass:'Use uma senha com pelo menos 8 caracteres.', accBadEmail:'Digite um e-mail válido.',
+  accBadUser:'Nome de usuário: 3 a 20 caracteres, só letras minúsculas, números e _.',
+  accErr:'Não foi possível concluir: {e}',
+  accSetPass:'Definir nova senha', accSaveNewPass:'Salvar nova senha', accPassChanged:'Senha alterada.',
+  pfTitle:'Seu perfil', pfBanner:'Trocar banner', pfAvatar:'Trocar foto', pfRemove:'Remover',
+  pfName:'Nome de exibição', pfUser:'Nome de usuário', pfBio:'Descrição', pfBioPh:'Conte algo sobre você',
+  pfSave:'Salvar perfil', pfCancel:'Cancelar', pfSaving:'Salvando...',
+  pfHint:'PNG, JPG, WebP ou GIF animado. Foto até 2 MB, banner até 4 MB.',
+  pfTooBig:'A imagem passa de {mb} MB.', pfBadType:'Use uma imagem PNG, JPG, WebP ou GIF.',
+  pfUserTaken:'Esse nome de usuário já está em uso.', pfNameReq:'Digite um nome de exibição.',
+  pfUploadFail:'Falha ao enviar a imagem: {e}',
+  cardVerified:'Conta verificada', cardNoBio:'Sem descrição.'
+},
+'en': {
+  eyebrowA:'Direct connection', eyebrowB:'No sign-up', eyebrowB2:'Account optional',
+  accGuestHint:'Sign in to have your own name, photo and banner.',
+  accSignIn:'Sign in or create account', accEdit:'Edit profile', accSignOut:'Sign out',
+  accTitleIn:'Sign in', accTitleUp:'Create account', accTabIn:'Sign in', accTabUp:'Create account',
+  accUsername:'Username (optional)', accUserPh:'e.g. ana_dev', accEmail:'Email', accPass:'Password', accPassNew:'New password',
+  accOr:'or use your email', accWith:'Continue with {p}', accSubmitIn:'Sign in', accSubmitUp:'Create account',
+  accForgot:'Forgot my password', accClose:'Close',
+  accConfirm:'We sent a confirmation link to your email. Open it to activate your account.',
+  accResetSent:'If that email has an account, we sent a link to reset the password.',
+  accBadCreds:'Wrong email or password.', accNotConfirmed:'Confirm your email before signing in.',
+  accWeakPass:'Use a password with at least 8 characters.', accBadEmail:'Enter a valid email.',
+  accBadUser:'Username: 3 to 20 characters, lowercase letters, numbers and _ only.',
+  accErr:'Could not finish: {e}',
+  accSetPass:'Set new password', accSaveNewPass:'Save new password', accPassChanged:'Password changed.',
+  pfTitle:'Your profile', pfBanner:'Change banner', pfAvatar:'Change photo', pfRemove:'Remove',
+  pfName:'Display name', pfUser:'Username', pfBio:'Bio', pfBioPh:'Tell us something about you',
+  pfSave:'Save profile', pfCancel:'Cancel', pfSaving:'Saving...',
+  pfHint:'PNG, JPG, WebP or animated GIF. Photo up to 2 MB, banner up to 4 MB.',
+  pfTooBig:'The image is over {mb} MB.', pfBadType:'Use a PNG, JPG, WebP or GIF image.',
+  pfUserTaken:'That username is already taken.', pfNameReq:'Enter a display name.',
+  pfUploadFail:'Image upload failed: {e}',
+  cardVerified:'Verified account', cardNoBio:'No bio.'
+},
+'pt-PT': {
+  accPass:'Palavra-passe', accPassNew:'Nova palavra-passe', accForgot:'Esqueci-me da palavra-passe',
+  accSignOut:'Terminar sessão', accSignIn:'Iniciar sessão ou criar conta', accTitleIn:'Iniciar sessão', accTabIn:'Iniciar sessão', accSubmitIn:'Iniciar sessão',
+  accBadCreds:'E-mail ou palavra-passe incorretos.', accWeakPass:'Use uma palavra-passe com pelo menos 8 caracteres.',
+  accSetPass:'Definir nova palavra-passe', accSaveNewPass:'Guardar nova palavra-passe', accPassChanged:'Palavra-passe alterada.',
+  pfAvatar:'Alterar foto', pfBanner:'Alterar banner', pfSave:'Guardar perfil', pfSaving:'A guardar...', pfBio:'Descrição'
+}
+};
+for (const l of Object.keys(ACC_I18N)) Object.assign(I18N[l], ACC_I18N[l]);
+
+window.Acc = (() => {
+  const base = SB_URL.replace(/\/+$/, '');
+  const enabled = /^https:\/\/[^\s/]+$/i.test(base) && !/SEU-PROJETO/i.test(base) && SB_KEY.length > 30 && !/SUA-CHAVE/i.test(SB_KEY);
+  const PATH_RE = /^[0-9a-f-]{36}\/[A-Za-z0-9._-]{1,80}$/;
+  const USER_RE = /^[a-z0-9_]{3,20}$/;
+  const BIO_CTRL = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g;
+  const LIMITS = { avatars: 2 * 1024 * 1024, banners: 4 * 1024 * 1024 };
+  const PROVIDERS = { discord: 'Discord', google: 'Google', github: 'GitHub' };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const bg = p => { Promise.resolve(p).catch(() => {}); };
+  const redirectUrl = () => location.origin + location.pathname;
+
+  let sb = null, session = null, me = null;
+  let sid = '', claimedId = null, claimP = null, hb = 0;
+  let guestName = '', mode = 'in', pend = null;
+  let resolveReady; const ready = new Promise(r => { resolveReady = r; });
+
+  const api = { enabled };
+
+  /* ---------- helpers de perfil e imagem ---------- */
+  const imgUrl = (bucket, path) =>
+    (typeof path === 'string' && PATH_RE.test(path)) ? base + '/storage/v1/object/public/' + bucket + '/' + path : null;
+  const firstChar = s => ([...String(s || '').trim()][0] || '?').toUpperCase();
+
+  function cleanProfile(r) {
+    if (!r || typeof r !== 'object') return null;
+    const dn = cleanStr(r.display_name, 24);
+    if (!dn) return null;
+    return {
+      username: typeof r.username === 'string' && USER_RE.test(r.username) ? r.username : '',
+      display_name: dn,
+      bio: (typeof r.bio === 'string' ? r.bio : '').replace(BIO_CTRL, '').slice(0, 200),
+      avatar_path: PATH_RE.test(r.avatar_path || '') ? r.avatar_path : null,
+      banner_path: PATH_RE.test(r.banner_path || '') ? r.banner_path : null
+    };
+  }
+
+  function avatar(p, size, forceUrl) {
+    const s = document.createElement('span');
+    s.className = 'av';
+    s.style.setProperty('--s', size + 'px');
+    const fb = () => { s.textContent = firstChar(p && (p.display_name || p.username)); };
+    const u = forceUrl !== undefined ? forceUrl : (p && imgUrl('avatars', p.avatar_path));
+    if (u) {
+      const i = new Image();
+      i.alt = ''; i.decoding = 'async'; i.referrerPolicy = 'no-referrer';
+      i.onerror = () => { i.remove(); fb(); };
+      i.src = u;
+      s.append(i);
+    } else fb();
+    return s;
+  }
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function btn(key, cls, fn) {
+    const b = el('button', cls || '');
+    b.type = 'button';
+    b.dataset.i18n = key;
+    b.textContent = T(key);
+    b.onclick = fn;
+    return b;
+  }
+  const setI18n = (node, key) => { node.dataset.i18n = key; node.textContent = T(key); };
+  const msgTo = (id, key, kind, vars) => {
+    const n = $(id);
+    n.className = 'amsg' + (kind ? ' ' + kind : '');
+    n.textContent = key ? T(key, vars) : '';
+  };
+
+  /* ---------- carregar o SDK ---------- */
+  function loadSDK() {
+    if (window.supabase && window.supabase.createClient) return Promise.resolve(true);
+    return new Promise(resolve => {
+      const urls = [
+        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js',
+        'https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js'
+      ];
+      let i = 0;
+      const next = () => {
+        if (window.supabase && window.supabase.createClient) return resolve(true);
+        if (i >= urls.length) return resolve(false);
+        const s = document.createElement('script');
+        s.src = urls[i++];
+        s.onload = () => (window.supabase && window.supabase.createClient ? resolve(true) : next());
+        s.onerror = next;
+        document.head.appendChild(s);
+      };
+      next();
+    });
+  }
+
+  /* ---------- sessão e perfil próprio ---------- */
+  async function loadMe() {
+    if (!session) { me = null; return; }
+    try {
+      const { data, error } = await sb.from('profiles')
+        .select('username,display_name,bio,avatar_path,banner_path')
+        .eq('id', session.user.id).maybeSingle();
+      me = error ? null : cleanProfile(data);
+    } catch (e) { me = null; }
+  }
+
+  function paint() {
+    if (!sb) return;
+    const bar = $('accBar');
+    bar.classList.remove('hidden');
+    bar.textContent = '';
+    const inName = $('inName');
+    if (session && me) {
+      const who = el('div', 'acc-who');
+      const t = el('div', 'acc-txt');
+      t.append(el('strong', '', me.display_name), el('span', 'mut', me.username ? '@' + me.username : ''));
+      who.append(avatar(me, 40), t);
+      bar.append(who, btn('accEdit', 'sec', openProfile), btn('accSignOut', 'sec', signOut));
+      if (!inName.readOnly) guestName = inName.value;
+      inName.value = me.display_name;
+      inName.readOnly = true;
+      inName.classList.add('locked');
+    } else if (session) {
+      bar.append(el('span', 'mut acc-hint', session.user.email || ''), btn('accSignOut', 'sec', signOut));
+    } else {
+      if (inName.readOnly) inName.value = guestName;
+      inName.readOnly = false;
+      inName.classList.remove('locked');
+      const h = el('p', 'mut acc-hint'); h.dataset.i18n = 'accGuestHint'; h.textContent = T('accGuestHint');
+      bar.append(h, btn('accSignIn', '', () => openAuth('in')));
+    }
+    if (typeof render === 'function') render();
+  }
+
+  async function signOut() {
+    release();
+    try { await sb.auth.signOut(); } catch (e) {}
+  }
+
+  /* ---------- diálogo de login / cadastro ---------- */
+  function buildOauth() {
+    const row = $('oauthRow');
+    row.textContent = '';
+    SB_OAUTH.filter(p => PROVIDERS[p]).forEach(p => {
+      const b = el('button', 'sec', T('accWith', { p: PROVIDERS[p] }));
+      b.type = 'button';
+      b.onclick = () => oauth(p);
+      row.append(b);
+    });
+  }
+
+  function setMode(m) {
+    mode = m;
+    $('tabIn').classList.toggle('on', m === 'in');
+    $('tabUp').classList.toggle('on', m === 'up');
+    $('authTabs').classList.toggle('hidden', m === 'reset');
+    const showOauth = m !== 'reset' && SB_OAUTH.some(p => PROVIDERS[p]);
+    $('oauthRow').classList.toggle('hidden', !showOauth);
+    $('oauthSep').classList.toggle('hidden', !showOauth);
+    $('lblUser').classList.toggle('hidden', m !== 'up');
+    $('lblEmail').classList.toggle('hidden', m === 'reset');
+    $('authForgot').classList.toggle('hidden', m !== 'in');
+    $('auPass').autocomplete = m === 'in' ? 'current-password' : 'new-password';
+    setI18n($('authTitle'), m === 'up' ? 'accTitleUp' : m === 'reset' ? 'accSetPass' : 'accTitleIn');
+    setI18n($('lblPass'), m === 'reset' ? 'accPassNew' : 'accPass');
+    setI18n($('authSubmit'), m === 'up' ? 'accSubmitUp' : m === 'reset' ? 'accSaveNewPass' : 'accSubmitIn');
+    msgTo('authMsg', null);
+  }
+
+  function openAuth(m) {
+    if (!sb) return;
+    setMode(m || 'in');
+    $('auPass').value = '';
+    if (!$('dlgAuth').open) $('dlgAuth').showModal();
+  }
+
+  const validEmail = s => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
+  function authError(error) {
+    const m = String(error && error.message || '').toLowerCase();
+    if (m.includes('invalid login')) return ['accBadCreds'];
+    if (m.includes('not confirmed')) return ['accNotConfirmed'];
+    if (m.includes('password') && (m.includes('least') || m.includes('weak') || m.includes('short'))) return ['accWeakPass'];
+    return ['accErr', { e: (error && error.message) || String(error) }];
+  }
+
+  async function oauth(provider) {
+    try { sessionStorage.setItem('sala-pending-room', $('inRoom').value); } catch (e) {}
+    const { error } = await sb.auth.signInWithOAuth({ provider, options: { redirectTo: redirectUrl() } });
+    if (error) { const [k, v] = authError(error); msgTo('authMsg', k, 'err', v); }
+  }
+
+  async function onAuthSubmit(e) {
+    e.preventDefault();
+    if (!sb) return;
+    const email = $('auEmail').value.trim();
+    const pass = $('auPass').value;
+    msgTo('authMsg', null);
+    if (mode !== 'reset' && !validEmail(email)) return msgTo('authMsg', 'accBadEmail', 'err');
+    if (pass.length < 8) return msgTo('authMsg', 'accWeakPass', 'err');
+    const un = $('auUser').value.trim().toLowerCase();
+    if (mode === 'up' && un && !USER_RE.test(un)) return msgTo('authMsg', 'accBadUser', 'err');
+
+    const submit = $('authSubmit');
+    submit.disabled = true;
+    try {
+      if (mode === 'reset') {
+        const { error } = await sb.auth.updateUser({ password: pass });
+        if (error) { const [k, v] = authError(error); return msgTo('authMsg', k, 'err', v); }
+        msgTo('authMsg', 'accPassChanged', 'ok');
+        setTimeout(() => $('dlgAuth').close(), 1200);
+      } else if (mode === 'up') {
+        const { data, error } = await sb.auth.signUp({
+          email, password: pass,
+          options: { data: un ? { username: un } : {}, emailRedirectTo: redirectUrl() }
+        });
+        if (error) { const [k, v] = authError(error); return msgTo('authMsg', k, 'err', v); }
+        if (!data.session) msgTo('authMsg', 'accConfirm', 'ok');
+        else $('dlgAuth').close();
+      } else {
+        const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+        if (error) { const [k, v] = authError(error); return msgTo('authMsg', k, 'err', v); }
+        $('dlgAuth').close();
+      }
+    } catch (err) {
+      msgTo('authMsg', 'accErr', 'err', { e: err && err.message || String(err) });
+    } finally {
+      submit.disabled = false;
+    }
+  }
+
+  async function onForgot() {
+    const email = $('auEmail').value.trim();
+    if (!validEmail(email)) return msgTo('authMsg', 'accBadEmail', 'err');
+    try {
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl() });
+      if (error) { const [k, v] = authError(error); msgTo('authMsg', k, 'err', v); }
+      else msgTo('authMsg', 'accResetSent', 'ok');   // mesma resposta exista a conta ou não
+    } catch (err) {
+      msgTo('authMsg', 'accErr', 'err', { e: err && err.message || String(err) });
+    }
+  }
+
+  /* ---------- editor de perfil ---------- */
+  function newPend() { return { avatar: null, banner: null, rmAvatar: false, rmBanner: false }; }
+  function dropPend() {
+    if (!pend) return;
+    ['avatar', 'banner'].forEach(k => { if (pend[k]) URL.revokeObjectURL(pend[k].url); });
+    pend = null;
+  }
+
+  function openProfile() {
+    if (!me) return;
+    dropPend(); pend = newPend();
+    $('pfName').value = me.display_name;
+    $('pfUser').value = me.username;
+    $('pfBio').value = me.bio;
+    $('pfBioN').textContent = me.bio.length + '/200';
+    msgTo('pfMsg', null);
+    paintPreview();
+    if (!$('dlgProfile').open) $('dlgProfile').showModal();
+  }
+
+  function paintPreview() {
+    if (!me || !pend) return;
+    const aUrl = pend.rmAvatar ? null : pend.avatar ? pend.avatar.url : imgUrl('avatars', me.avatar_path);
+    const bUrl = pend.rmBanner ? null : pend.banner ? pend.banner.url : imgUrl('banners', me.banner_path);
+    const bi = $('pfBannerImg');
+    if (bUrl) { bi.src = bUrl; bi.classList.remove('hidden'); }
+    else { bi.removeAttribute('src'); bi.classList.add('hidden'); }
+    const holder = $('pfAvatar');
+    holder.textContent = '';
+    holder.append(avatar(me, 76, aUrl));
+  }
+
+  async function sniff(file) {
+    const b = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+    const at = (i, str) => [...str].every((c, k) => b[i + k] === c.charCodeAt(0));
+    if (b[0] === 0x89 && at(1, 'PNG')) return { mime: 'image/png', ext: 'png' };
+    if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return { mime: 'image/jpeg', ext: 'jpg' };
+    if (at(0, 'GIF8')) return { mime: 'image/gif', ext: 'gif' };
+    if (at(0, 'RIFF') && at(8, 'WEBP')) return { mime: 'image/webp', ext: 'webp' };
+    return null;
+  }
+
+  async function pickFile(kind, file) {
+    if (!file || !pend) return;
+    const bucket = kind === 'avatar' ? 'avatars' : 'banners';
+    if (file.size > LIMITS[bucket]) return msgTo('pfMsg', 'pfTooBig', 'err', { mb: LIMITS[bucket] / 1048576 });
+    const type = await sniff(file);
+    if (!type) return msgTo('pfMsg', 'pfBadType', 'err');
+    if (pend[kind]) URL.revokeObjectURL(pend[kind].url);
+    pend[kind] = { file, type, url: URL.createObjectURL(file) };
+    pend[kind === 'avatar' ? 'rmAvatar' : 'rmBanner'] = false;
+    msgTo('pfMsg', null);
+    paintPreview();
+  }
+
+  function removeImage(kind) {
+    if (!pend) return;
+    if (pend[kind]) { URL.revokeObjectURL(pend[kind].url); pend[kind] = null; }
+    pend[kind === 'avatar' ? 'rmAvatar' : 'rmBanner'] = true;
+    paintPreview();
+  }
+
+  async function onProfileSave(e) {
+    e.preventDefault();
+    if (!sb || !session || !me || !pend) return;
+    const dn = cleanStr($('pfName').value, 24);
+    const un = $('pfUser').value.trim().toLowerCase();
+    const bio = $('pfBio').value.replace(/\r/g, '').replace(BIO_CTRL, '').trim().slice(0, 200);
+    if (!dn) return msgTo('pfMsg', 'pfNameReq', 'err');
+    if (!USER_RE.test(un)) return msgTo('pfMsg', 'accBadUser', 'err');
+
+    const save = $('pfSave');
+    save.disabled = true;
+    msgTo('pfMsg', 'pfSaving', '');
+    const uid = session.user.id;
+    const uploaded = [], toDelete = [];
+    try {
+      let avatar_path = me.avatar_path, banner_path = me.banner_path;
+      for (const kind of ['avatar', 'banner']) {
+        const bucket = kind === 'avatar' ? 'avatars' : 'banners';
+        const cur = kind === 'avatar' ? avatar_path : banner_path;
+        let next = cur;
+        if (pend[kind]) {
+          const f = pend[kind];
+          const path = uid + '/' + Date.now() + '-' + rndHex(4) + '.' + f.type.ext;
+          const { error } = await sb.storage.from(bucket).upload(path, f.file, { contentType: f.type.mime, cacheControl: '31536000', upsert: false });
+          if (error) throw Object.assign(new Error(error.message), { upload: true });
+          uploaded.push([bucket, path]);
+          next = path;
+        } else if (pend[kind === 'avatar' ? 'rmAvatar' : 'rmBanner']) next = null;
+        if (next !== cur && cur) toDelete.push([bucket, cur]);
+        if (kind === 'avatar') avatar_path = next; else banner_path = next;
+      }
+      const { error } = await sb.from('profiles')
+        .update({ display_name: dn, username: un, bio, avatar_path, banner_path }).eq('id', uid);
+      if (error) throw error;
+      toDelete.forEach(([b, p]) => bg(sb.storage.from(b).remove([p])));
+      await loadMe();
+      paint();
+      $('dlgProfile').close();
+    } catch (err) {
+      uploaded.forEach(([b, p]) => bg(sb.storage.from(b).remove([p])));
+      if (err && err.code === '23505') msgTo('pfMsg', 'pfUserTaken', 'err');
+      else if (err && err.upload) msgTo('pfMsg', 'pfUploadFail', 'err', { e: err.message });
+      else msgTo('pfMsg', 'accErr', 'err', { e: (err && err.message) || String(err) });
+    } finally {
+      save.disabled = false;
+    }
+  }
+
+  /* ---------- cartão de perfil (clicar em alguém na sala) ---------- */
+  function showCard(p) {
+    if (!p) return;
+    const body = $('cardBody');
+    body.textContent = '';
+    const ban = el('div', 'pc-banner');
+    const bu = imgUrl('banners', p.banner_path);
+    if (bu) {
+      const i = new Image();
+      i.alt = ''; i.decoding = 'async'; i.referrerPolicy = 'no-referrer';
+      i.onerror = () => i.remove();
+      i.src = bu;
+      ban.append(i);
+    }
+    const info = el('div', 'pc-body');
+    info.append(avatar(p, 84), el('h3', '', p.display_name));
+    if (p.username) info.append(el('span', 'mut', '@' + p.username));
+    const v = el('span', 'vf', '✓ ' + T('cardVerified'));
+    info.append(v, el('p', 'pc-bio', p.bio || T('cardNoBio')));
+    body.append(ban, info);
+    if (!$('dlgCard').open) $('dlgCard').showModal();
+  }
+
+  /* ---------- integração com a sala (prova de identidade) ---------- */
+  api.avatar = avatar;
+  api.showCard = showCard;
+  api.myProfile = () => me;
+  api.sigKey = () => me ? me.display_name + '|' + me.avatar_path : '';
+  api.newSid = () => { sid = rndHex(16); };
+  api.sid = () => (claimedId && claimedId === myId) ? sid : '';
+  api.whenClaimed = () => claimP ? Promise.race([claimP, sleep(4000)]) : null;
+
+  api.claim = id => {
+    clearInterval(hb);
+    claimedId = null; claimP = null;
+    if (!sb || !session || !me || !sid) return;
+    const run = async () => {
+      try {
+        const { data, error } = await sb.rpc('claim_peer', { p_peer_id: id, p_sid: sid });
+        if (!error) claimedId = data === true ? id : null;
+      } catch (e) {}
+    };
+    claimP = run();
+    hb = setInterval(run, 20000);
+  };
+
+  api.release = release;
+  function release() {
+    clearInterval(hb);
+    const id = claimedId;
+    claimedId = null; claimP = null;
+    if (!id || !session) return;
+    try {
+      fetch(base + '/rest/v1/rpc/release_peer', {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({ p_peer_id: id })
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
+  // Confere no servidor se aquele peer é mesmo da conta que ele diz ser.
+  api.verify = async (peerId, rawSid) => {
+    const s = cleanStr(rawSid, 64);
+    if (!enabled || s.length < 16) return;
+    await ready;
+    if (!sb) return;
+    const p0 = people.get(peerId);
+    if (!p0) return;
+    p0.sid = s;
+    for (const wait of [0, 800, 2500, 6000]) {
+      if (wait) await sleep(wait);
+      if (people.get(peerId) !== p0) return;
+      let row = null;
+      try {
+        const { data, error } = await sb.rpc('get_peer_profile', { p_peer_id: peerId, p_sid: s });
+        if (!error) row = Array.isArray(data) ? data[0] : data;
+      } catch (e) {}
+      const prof = cleanProfile(row);
+      if (prof) {
+        p0.prof = prof;
+        p0.name = prof.display_name;
+        render();
+        return;
+      }
+    }
+  };
+
+  api.refreshTexts = () => {
+    if (!sb) return;
+    buildOauth();
+    paint();
+    document.querySelectorAll('[data-close]').forEach(b => { b.setAttribute('aria-label', T('accClose')); b.title = T('accClose'); });
+  };
+
+  /* ---------- inicialização ---------- */
+  async function init() {
+    if (!enabled) { resolveReady(); return; }
+    $('eyebrowB').dataset.i18n = 'eyebrowB2';
+    $('eyebrowB').textContent = T('eyebrowB2');
+
+    $('tabIn').onclick = () => setMode('in');
+    $('tabUp').onclick = () => setMode('up');
+    $('frmAuth').addEventListener('submit', onAuthSubmit);
+    $('authForgot').onclick = onForgot;
+    $('frmProfile').addEventListener('submit', onProfileSave);
+    $('pfBannerPick').onclick = () => $('fileBanner').click();
+    $('pfAvatarPick').onclick = () => $('fileAvatar').click();
+    $('pfBannerDel').onclick = () => removeImage('banner');
+    $('pfAvatarDel').onclick = () => removeImage('avatar');
+    $('fileAvatar').onchange = async e => { await pickFile('avatar', e.target.files[0]); e.target.value = ''; };
+    $('fileBanner').onchange = async e => { await pickFile('banner', e.target.files[0]); e.target.value = ''; };
+    $('pfBio').addEventListener('input', () => { $('pfBioN').textContent = $('pfBio').value.length + '/200'; });
+    $('dlgProfile').addEventListener('close', dropPend);
+
+    const ok = await loadSDK();
+    if (!ok) { resolveReady(); return; }
+    sb = window.supabase.createClient(base, SB_KEY, {
+      auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
+
+    // volta do login social: recupera o nome da sala que a pessoa tinha digitado
+    try {
+      const r = sessionStorage.getItem('sala-pending-room');
+      if (r != null) { sessionStorage.removeItem('sala-pending-room'); if (!$('inRoom').value) $('inRoom').value = r.slice(0, 32); }
+    } catch (e) {}
+
+    sb.auth.onAuthStateChange((ev, s) => {
+      session = s;
+      // não chamar o Supabase direto aqui dentro (evita travar o cliente)
+      setTimeout(async () => {
+        if (ev === 'PASSWORD_RECOVERY') openAuth('reset');
+        await loadMe();
+        paint();
+        resolveReady();
+      }, 0);
+    });
+    setTimeout(resolveReady, 5000);
+    buildOauth();
+  }
+
+  // botões de fechar (funcionam para qualquer diálogo)
+  document.querySelectorAll('[data-close]').forEach(b => { b.onclick = () => $(b.dataset.close).close(); });
+  document.querySelectorAll('dialog.dlg').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
+
+  init();
+  return api;
+})();
 
 applyLang();
 </script>
