@@ -2798,7 +2798,7 @@ async function loadServers() {
   const { data, error } = r;
   if (error) return console.warn(error);
   servers = data || [];
-  if (cur) { cur = servers.find(s => s.id === cur.id) || null; if (!cur) closeView(); else { paintDesc(); renderMembers(); setSrvName(); } }
+  if (cur) { cur = servers.find(s => s.id === cur.id) || null; if (!cur) closeView(); else { paintDesc(); renderMembers(); setSrvName(); repaintNames(); } }
   renderRail();
 }
 /* estilo do nome do servidor (fonte, cor e efeito, igual ao do perfil) */
@@ -2909,7 +2909,21 @@ async function loadRoles() {
   renderMembers(); repaintNames(); paintDesc(); renderChans();   // as permissões podem ter mudado
 }
 function repaintNames() {
-  $('svMsgs').querySelectorAll('.msg').forEach(d => { const nm = d.querySelector('.mname'); if (nm) paintName(nm, d.dataset.uid, (memOf(d.dataset.uid) || {}).username); });
+  $('svMsgs').querySelectorAll('.msg').forEach(d => { const nm = d.querySelector('.mname'); if (nm) paintName(nm, d.dataset.uid, (memOf(d.dataset.uid) || {}).username); paintRoleTag(d); });
+}
+/* etiqueta do cargo mais alto (por posição) na frente do nome, em cada mensagem */
+function paintRoleTag(d) {
+  const h = d.querySelector('.mh'); if (!h) return;
+  let tg = h.querySelector('.mrole');
+  const u = d.dataset.uid, m = u ? memOf(u) : null;
+  let info = null;
+  if (m && m.role === 'owner' && !ownerHidden()) info = { text: ownerName(), color: ownerColor(), ns: ownerNs() };
+  else { const r = u ? topRole(u) : null; if (r) info = { text: r.name, color: r.color, ns: nsOfRole(r) }; }
+  if (!info) { if (tg) tg.remove(); return; }
+  if (!tg) { tg = el('span', 'gbadge mrole'); h.prepend(tg); }
+  tg.textContent = info.text;
+  tg.style.setProperty('--c', info.color);
+  NS.style(tg, info.ns, '');
 }
 
 /* ----- tags do site (aparecem só no cartão de perfil da pessoa) ----- */
@@ -3191,7 +3205,7 @@ function addMsg(r) {
   h.append(el('span', 'mut', new Date(r.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
   const mt = el('div', 'mt'); paintText(mt, r);
   b.append(h, mt, el('div', 'mre'));
-  d.append(av, b);
+  d.append(av, b); paintRoleTag(d);
 
   const act = el('div', 'mact');
   const rb = mk('😊', e => { e.stopPropagation(); openPicker(e.currentTarget, p => toggleReact(r.id, pickKey(p))); }, 'sec'); rb.title = t('react'); act.append(rb);
@@ -3681,6 +3695,17 @@ function dlgRoles() {
       if (error) return err(missingFn(error) ? t('needV9') : error);
       await loadServers(); draw();
     };
+    /* arrastar e soltar: leva o cargo até a posição escolhida (usa o mesmo "mover" das setas, passo a passo) */
+    let dragFrom = -1;
+    const moveTo = async (from, to) => {
+      const rid = roles[from] && roles[from].id; if (!rid) return;
+      const dir = to > from ? 1 : -1;
+      for (let k = 0; k < Math.abs(to - from); k++) {
+        const { error } = await sb().rpc('ns_move_role', { p_role: rid, p_dir: dir });
+        if (error) { err(error); break; }
+      }
+      await loadRoles(); draw();
+    };
     const ownerRow = () => {
       const row = el('div', 'lrow'), dot = el('span', 'rdot'); dot.style.setProperty('--c', ownerColor());
       const g = el('div', 'grow'), nmE = el('b', '', ownerName()); NS.style(nmE, ownerNs(), ownerColor());
@@ -3720,7 +3745,15 @@ function dlgRoles() {
           if (editing && editing.id === r.id) resetForm();
           await loadRoles(); draw();
         }, 'bad'); rm.title = t('del');
-        row.append(dot, g, up, dn, ed, rm); list.append(row);
+        const grip = el('span', 'mut', '⠿'); grip.style.cssText = 'cursor:grab;font-size:1.2rem;line-height:1;user-select:none';
+        grip.title = String(lang).startsWith('en') ? 'Drag to reorder' : 'Arraste para reordenar';
+        row.append(grip, dot, g, up, dn, ed, rm); list.append(row);
+        row.draggable = true;
+        row.ondragstart = e => { dragFrom = i; row.style.opacity = '.45'; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', String(i)); } catch (x) {} };
+        row.ondragend = () => { dragFrom = -1; draw(); };
+        row.ondragover = e => { if (dragFrom < 0) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; row.style.boxShadow = dragFrom < i ? '0 3px 0 var(--acc)' : '0 -3px 0 var(--acc)'; };
+        row.ondragleave = () => { row.style.boxShadow = ''; };
+        row.ondrop = e => { e.preventDefault(); const from = dragFrom; dragFrom = -1; row.style.boxShadow = ''; if (from >= 0 && from !== i) moveTo(from, i); else draw(); };
       });
     };
     w.append(list, head, ownerHint, form);
