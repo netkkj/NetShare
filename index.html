@@ -1594,15 +1594,17 @@ function doRender() {
 applyLang();
 </script>
 
+<script src="config.js"></script>
 <script>
 /* =====================================================================
    CONTAS (Supabase)  —  CONFIGURE AQUI
    No painel do Supabase: Project Settings → API
    ===================================================================== */
-const SB_URL = 'https://dekxgzfjjrwonwrehdcj.supabase.co';   // "Project URL"
-const SB_KEY = 'sb_publishable_mc8AyKOj4AEpZgdrv2B95g_zV_rriYu';            // chave "anon" / "publishable". NUNCA use a service_role aqui.
+const CFG = window.NETSHARE_CONFIG || {};            // vem do arquivo config.js (preencha lá, uma vez só)
+const SB_URL = CFG.supabaseUrl || 'https://SEU-PROJETO.supabase.co';
+const SB_KEY = CFG.supabaseKey || 'SUA-CHAVE-ANON-PUBLICA';   // chave pública (anon/publishable). NUNCA a secret/service_role.
 const SB_OAUTH = [];   // login só com e-mail e senha (sem botões de Google, Discord ou GitHub)
-const SB_HCAPTCHA = '';   // Site Key do hCaptcha (a chave PÚBLICA, em hcaptcha.com → Sites). Preencha se ativou o CAPTCHA no Supabase; senão deixe vazio.
+const SB_HCAPTCHA = CFG.hcaptchaSiteKey || '';   // Site Key do hCaptcha (a chave PÚBLICA, em hcaptcha.com → Sites). Preencha se ativou o CAPTCHA no Supabase; senão deixe vazio.
 
 /* ---------- Textos (pt-BR, en, pt-PT) ---------- */
 const ACC_I18N = {
@@ -2082,6 +2084,7 @@ window.Acc = (() => {
     if (p.username) info.append(el('span', 'mut', '@' + p.username));
     const v = el('span', 'vf', '✓ ' + T('cardVerified'));
     info.append(v, el('p', 'pc-bio', p.bio || T('cardNoBio')));
+    if (window.Srv) Srv.cardExtras(p, info);
     body.append(ban, info);
     if (!$('dlgCard').open) $('dlgCard').showModal();
   }
@@ -2219,7 +2222,16 @@ applyLang();
 </script>
 <style>
   /* =====================  SERVIDORES  ===================== */
-  :root { --rail: 72px; }
+  :root { --rail: 72px; --dock: 400px; }
+  body.hasrail #room { margin-left: var(--rail); width: calc(100vw - var(--rail)); }
+  body.dockopen #room { margin-left: calc(var(--rail) + var(--dock)); width: calc(100vw - var(--rail) - var(--dock)); }
+  #srvView.dock { inset: 0 auto 0 var(--rail); width: var(--dock); grid-template-columns: minmax(0, 1fr); border-right: 1px solid var(--line); box-shadow: 8px 0 30px rgba(0,0,0,.35); }
+  #srvView.dock .sv-mem { display: none; }
+  #srvView.dock .sv-side { position: absolute; z-index: 3; inset: 0 auto 0 0; width: 80%; transform: translateX(-102%); transition: transform .2s ease; background: var(--card-solid); }
+  #srvView.dock .sv-side.open { transform: none; }
+  #srvView.dock .sv-burger { display: inline-block; }
+  .mem-row.click, .msg .click { cursor: pointer; }
+  .mem-row.click:hover b, .msg strong.click:hover { text-decoration: underline; }
   #srvRail { position: fixed; left: 0; top: 0; bottom: 0; z-index: 30; width: var(--rail); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 0; overflow-y: auto; background: rgba(5, 9, 22, .86); border-right: 1px solid var(--line); backdrop-filter: blur(14px); }
   #srvRail .sbtn { position: relative; flex: 0 0 auto; width: 48px; min-height: 48px; height: 48px; padding: 0; border: 0; border-radius: 16px; background: var(--surface); box-shadow: none; color: var(--fg); overflow: hidden; transition: border-radius .18s ease, background .18s ease; }
   #srvRail .sbtn:hover:not(:disabled), #srvRail .sbtn.on { border-radius: 12px; transform: none; box-shadow: 0 0 0 2px var(--acc); }
@@ -2263,7 +2275,9 @@ applyLang();
   .mem-row b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
   @media (max-width: 860px) {
     :root { --rail: 60px; }
-    body.hasrail { padding-left: var(--rail); }
+    body.hasrail:not(.inroomview) { padding-left: var(--rail); }
+    #srvView.dock { width: calc(100vw - var(--rail)); }
+    body.dockopen #room { margin-left: var(--rail); width: calc(100vw - var(--rail)); }
     #srvView { grid-template-columns: minmax(0, 1fr); }
     .sv-mem { display: none; }
     .sv-side { position: absolute; z-index: 3; inset: 0 auto 0 0; width: 80%; max-width: 300px; transform: translateX(-102%); transition: transform .2s ease; background: var(--card-solid); }
@@ -2280,13 +2294,13 @@ const ST = {
    joinTitle:'Entrar com um convite', inviteCode:'Código ou link de convite', join:'Entrar', textCh:'Canais de texto', voiceCh:'Canais de voz', newCh:'Novo canal',
    chName:'Nome do canal', chKind:'Tipo', chText:'Texto', chVoice:'Voz (com compartilhamento de tela)', msgPh:'Escreva uma mensagem', del:'Apagar', close:'Fechar',
    save:'Salvar', icon:'Trocar ícone', rmIcon:'Remover ícone', invite:'Link de convite', copy:'Copiar', copied:'Copiado!', regen:'Gerar novo convite', members:'Membros',
-   owner:'Dono', admin:'Admin', member:'Membro', kick:'Expulsar e banir', badInvite:'Convite inválido ou expirado.', banned:'Banidos', unban:'Desbanir', leave:'Sair do servidor', delSrv:'Apagar servidor', confirmDel:'Apagar o servidor "{n}" e todos os canais e mensagens? Isso não pode ser desfeito.',
+   owner:'Dono', admin:'Admin', member:'Membro', kick:'Expulsar e banir', badInvite:'Convite inválido ou expirado.', banned:'Banidos', unban:'Desbanir', roleIn:'Cargo em {s}', leave:'Sair do servidor', delSrv:'Apagar servidor', confirmDel:'Apagar o servidor "{n}" e todos os canais e mensagens? Isso não pode ser desfeito.',
    confirmLeave:'Sair do servidor "{n}"?', confirmKick:'Expulsar e banir {n}? Ele não poderá voltar pelo convite nem pela sala de voz.', confirmCh:'Apagar o canal "{n}"?', rename:'Novo nome do canal:', tooBig:'A imagem passa de 2 MB.', badImg:'Use PNG, JPG, WebP ou GIF.', noText:'Este servidor ainda não tem canal de texto.' },
  en: { addServer:'Create or join a server', createTitle:'Create my server', srvName:'Server name', create:'Create', nameShort:'The name needs at least 2 letters.',
    joinTitle:'Join with an invite', inviteCode:'Invite code or link', join:'Join', textCh:'Text channels', voiceCh:'Voice channels', newCh:'New channel',
    chName:'Channel name', chKind:'Type', chText:'Text', chVoice:'Voice (with screen sharing)', msgPh:'Write a message', del:'Delete', close:'Close',
    save:'Save', icon:'Change icon', rmIcon:'Remove icon', invite:'Invite link', copy:'Copy', copied:'Copied!', regen:'New invite', members:'Members',
-   owner:'Owner', admin:'Admin', member:'Member', kick:'Kick and ban', badInvite:'Invalid or expired invite.', banned:'Banned', unban:'Unban', leave:'Leave server', delSrv:'Delete server', confirmDel:'Delete the server "{n}" with all channels and messages? This cannot be undone.',
+   owner:'Owner', admin:'Admin', member:'Member', kick:'Kick and ban', badInvite:'Invalid or expired invite.', banned:'Banned', unban:'Unban', roleIn:'Role in {s}', leave:'Leave server', delSrv:'Delete server', confirmDel:'Delete the server "{n}" with all channels and messages? This cannot be undone.',
    confirmLeave:'Leave the server "{n}"?', confirmKick:'Kick and ban {n}? They will not be able to come back through the invite or the voice room.', confirmCh:'Delete the channel "{n}"?', rename:'New channel name:', tooBig:'The image is over 2 MB.', badImg:'Use PNG, JPG, WebP or GIF.', noText:'This server has no text channel yet.' }
 };
 const t = (k, v) => { let s = (ST[String(lang).startsWith('en') ? 'en' : 'pt'][k]) ?? ST.pt[k] ?? k; for (const x in (v || {})) s = s.replace('{' + x + '}', v[x]); return s; };
@@ -2321,14 +2335,23 @@ function renderRail() {
   servers.forEach(s => { const b = mk('', () => openServer(s.id), 'sbtn' + (cur && cur.id === s.id ? ' on' : '')); b.title = s.name; b.append(icon(s)); rail.append(b); });
   const add = mk('+', () => dlgAdd(), 'sbtn sadd'); add.title = t('addServer'); rail.append(add);
 }
+function layout() {
+  const inRoom = !$('room').classList.contains('hidden');
+  view.classList.toggle('dock', inRoom);
+  document.body.classList.toggle('inroomview', inRoom);
+  document.body.classList.toggle('dockopen', inRoom && !view.classList.contains('hidden'));
+}
 function syncRail() {
   const inJoin = !$('join').classList.contains('hidden');
-  rail.classList.toggle('hidden', !uid || !inJoin);
-  document.body.classList.toggle('hasrail', !!uid && inJoin);
+  rail.classList.toggle('hidden', !uid);
+  document.body.classList.toggle('hasrail', !!uid);
   if (inJoin) voiceCh = null;
   if (inJoin && voiceJoin) { voiceJoin = false; $('inRoom').value = ''; $('inPass').value = ''; }
+  if (inJoin && cur && view.classList.contains('hidden')) closeView();
+  layout();
 }
-new MutationObserver(syncRail).observe($('join'), { attributes: true, attributeFilter: ['class'] });
+const railObs = new MutationObserver(syncRail);
+['join', 'room'].forEach(id => railObs.observe($(id), { attributes: true, attributeFilter: ['class'] }));
 
 async function loadServers() {
   const { data, error } = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code').order('created_at');
@@ -2351,8 +2374,10 @@ function onAuth(id) {
   if (q) { try { sessionStorage.setItem('sala-convite', q.slice(0, 40)); } catch (e) {} history.replaceState(null, '', location.pathname + location.hash); }
 })();
 
-function closeView() { view.classList.add('hidden'); unsub(); cur = null; chan = null; renderRail(); }
-$('svClose').onclick = closeView;
+function closeView() { view.classList.add('hidden'); unsub(); cur = null; chan = null; renderRail(); layout(); }
+// dentro da sala de voz só esconde o painel (mantém o servidor ativo); fora dela fecha de vez
+function hideView() { view.classList.add('hidden'); if ($('room').classList.contains('hidden')) closeView(); else layout(); }
+$('svClose').onclick = hideView;
 $('svBurger').onclick = () => $('svSide').classList.toggle('open');
 $('svName').onclick = () => cur && dlgSettings();
 
@@ -2360,7 +2385,7 @@ async function openServer(id) {
   const s = servers.find(x => x.id === id); if (!s) return;
   cur = s; chan = null; unsub(); renderRail();
   $('svName').textContent = s.name + ' ▾'; $('svTitle').textContent = ''; $('svMsgs').textContent = ''; $('svForm').classList.add('hidden');
-  view.classList.remove('hidden');
+  view.classList.remove('hidden'); layout();
   await Promise.all([loadChans(), loadMembers()]);
   if (cur !== s) return;
   renderChans();
@@ -2395,8 +2420,9 @@ function renderMembers() {
   const box = $('svMem'); box.textContent = '';
   box.append(el('div', 'sgrp', t('members') + ' — ' + mem.length));
   mem.forEach(m => {
-    const r = el('div', 'mem-row'); r.append(A().avatar(m, 30), el('b', '', m.display_name));
+    const r = el('div', 'mem-row click'); r.append(A().avatar(m, 30), el('b', '', m.display_name));
     if (m.role !== 'member') r.append(el('span', 'vf', m.role === 'owner' ? '👑' : '★'));
+    r.onclick = () => A().showCard(m);
     box.append(r);
   });
 }
@@ -2407,7 +2433,7 @@ function renderChans() {
     if (isAdm()) { const a = mk('+', () => dlgChannel(k)); a.title = t('newCh'); h.append(a); }
     box.append(h);
     chans.filter(c => c.kind === k).forEach(c => {
-      const r = el('div', 'crow' + (chan && chan.id === c.id ? ' on' : ''));
+      const r = el('div', 'crow' + ((chan && chan.id === c.id) || voiceCh === c.id ? ' on' : ''));
       r.append(mk((k === 'text' ? '# ' : '🔊 ') + c.name, () => pickChan(c), 'cbtn'));
       if (isAdm()) r.append(mk('✎', () => renameChan(c), 'cact'), mk('✕', () => delChan(c), 'cact'));
       box.append(r);
@@ -2428,7 +2454,12 @@ async function delChan(c) {
 /* ----- chat ----- */
 async function pickChan(c) {
   $('svSide').classList.remove('open');
-  if (c.kind === 'voice') return joinVoice(c);
+  if (c.kind === 'voice') {
+    const inRoom = !$('room').classList.contains('hidden');
+    if (inRoom && voiceCh === c.id) return;
+    if (inRoom) { leaveRoom(); setTimeout(() => joinVoice(c), 300); return; }
+    return joinVoice(c);
+  }
   chan = c; msgIds.clear(); renderChans();
   $('svTitle').textContent = '# ' + c.name; $('svMsgs').textContent = ''; $('svForm').classList.remove('hidden'); $('svInput').placeholder = t('msgPh');
   const { data, error } = await sb().rpc('list_messages', { p_channel: c.id });
@@ -2444,9 +2475,12 @@ function addMsg(r) {
   const box = $('svMsgs'), near = box.scrollHeight - box.scrollTop - box.clientHeight < 90;
   const d = el('div', 'msg'); d.id = 'm' + r.id;
   const b = el('div', 'mb'), h = el('div', 'mh');
-  h.append(el('strong', '', m.display_name), el('span', 'mut', new Date(r.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
+  const nm = el('strong', 'click', m.display_name), av = A().avatar(m, 36);
+  const openU = () => { const mm = mem.find(x => x.user_id === r.user_id); if (mm) A().showCard(mm); };
+  nm.onclick = openU; av.onclick = openU; av.classList.add('click');
+  h.append(nm, el('span', 'mut', new Date(r.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
   b.append(h, el('div', 'mt', r.content));
-  d.append(A().avatar(m, 36), b);
+  d.append(av, b);
   if (r.user_id === uid || isAdm()) {
     const x = mk('✕', async () => { const { error } = await sb().from('messages').delete().eq('id', r.id); if (error) err(error); else d.remove(); }, 'mdel sec');
     x.title = t('del'); d.append(x);
@@ -2479,11 +2513,10 @@ function unsub() { if (rt) { try { sb().removeChannel(rt); } catch (e) {} rt = n
 async function joinVoice(c) {
   const { data, error } = await sb().from('channels').select('voice_key').eq('id', c.id).single();   // chave sempre fresca; quem foi banido não consegue ler
   if (error || !data) return err(error || 'sem acesso');
-  voiceCh = c.id; voiceJoin = true;
+  voiceCh = c.id; voiceJoin = true; renderChans();
   $('inRoom').value = 'v' + c.id.replace(/-/g, '').slice(0, 20);
   $('inPass').value = data.voice_key;                   // só membros leem esta chave
   window.__roomLabel = '🔊 ' + c.name + ' · ' + cur.name;
-  view.classList.add('hidden');
   $('btnJoin').click();
 }
 
@@ -2619,7 +2652,35 @@ function dlgSettings() {
 }
 
 renderRail();
-return { onAuth };
+/* ----- extras do cartão de perfil: cargo e moderação ----- */
+function cardExtras(p, box) {
+  const m = cur && mem.find(x => (p.user_id && x.user_id === p.user_id) || (p.username && x.username === p.username));
+  if (!m) return;
+  const lab = k => k === 'owner' ? t('owner') : k === 'admin' ? t('admin') : t('member');
+  const sep = el('div', 'sgrp'); sep.append(el('span', '', t('roleIn', { s: cur.name })));
+  box.append(sep);
+  if (myRole === 'owner' && m.role !== 'owner') {
+    const sel = el('select');
+    [['member', t('member')], ['admin', t('admin')]].forEach(([v, x]) => { const o = el('option', '', x); o.value = v; sel.append(o); });
+    sel.value = m.role;
+    sel.onchange = async () => {
+      const { error } = await sb().rpc('set_member_role', { p_server: cur.id, p_user: m.user_id, p_role: sel.value });
+      if (error) { err(error); sel.value = m.role; return; }
+      m.role = sel.value; loadMembers();
+    };
+    box.append(sel);
+  } else box.append(el('strong', '', lab(m.role)));
+  if (isAdm() && m.user_id !== uid && m.role !== 'owner' && (myRole === 'owner' || m.role === 'member')) {
+    const b = mk(t('kick'), async () => {
+      if (!confirm(t('confirmKick', { n: m.display_name }))) return;
+      const { error } = await sb().rpc('kick_member', { p_server: cur.id, p_user: m.user_id });
+      if (error) return err(error);
+      $('dlgCard').close(); loadMembers();
+    }, 'sec');
+    b.style.marginTop = '10px'; box.append(b);
+  }
+}
+return { onAuth, cardExtras };
 })();
 </script>
 
