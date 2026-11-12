@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>NetShare</title>
+<title>NetShare — Compartilhamento simples e seguro</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
 
@@ -2589,6 +2589,10 @@ applyLang();
 
   .msg .mh .mname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .msg .mh { flex-wrap: wrap; row-gap: 2px; }
+  /* mensagens seguidas da mesma pessoa (menos de 5 min): sem foto e sem nome repetidos */
+  .msg.cont { margin-top: -8px; }
+  .msg.cont > .av { visibility: hidden; height: 0; }
+  .msg.cont .mh { display: none; }
   .msg .mact { position: absolute; right: 0; top: -6px; display: none; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--card-solid); box-shadow: 0 6px 18px rgba(0,0,0,.3); }
   .msg:hover .mact, .msg:focus-within .mact, .msg.sel .mact { display: flex; }
   .msg .mact button { min-height: 0; padding: 3px 8px; border-radius: 7px; font-size: .78rem; box-shadow: none; }
@@ -2785,15 +2789,23 @@ const railObs = new MutationObserver(syncRail);
 
 async function loadServers() {
   // se a migração v7 ainda não foi rodada, cai para a consulta antiga (sem descrição)
-  let r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path,owner_role_name,owner_role_color,owner_role_hidden').order('created_at');
+  let r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path,owner_role_name,owner_role_color,owner_role_hidden,name_font,name_color,name_color2,name_fx').order('created_at');
+  if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path,owner_role_name,owner_role_color,owner_role_hidden').order('created_at');   // v11 ainda não rodou
   if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path').order('created_at');   // v9 ainda não rodou
   if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description').order('created_at');
   if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code').order('created_at');
   const { data, error } = r;
   if (error) return console.warn(error);
   servers = data || [];
-  if (cur) { cur = servers.find(s => s.id === cur.id) || null; if (!cur) closeView(); else { paintDesc(); renderMembers(); } }
+  if (cur) { cur = servers.find(s => s.id === cur.id) || null; if (!cur) closeView(); else { paintDesc(); renderMembers(); setSrvName(); } }
   renderRail();
+}
+/* estilo do nome do servidor (fonte, cor e efeito, igual ao do perfil) */
+const nsOf = s => (window.NS && s) ? NS.clean({ font: s.name_font, color: s.name_color, color2: s.name_color2, fx: s.name_fx }) : { font: '', color: '', color2: '', fx: '' };
+function setSrvName() {
+  const b = $('svName'); if (!b || !cur) return;
+  b.textContent = cur.name + ' ▾';
+  if (window.NS) NS.style(b, nsOf(cur), '');
 }
 function paintBanner() {
   const b = $('svBanner'); if (!b) return;
@@ -2844,7 +2856,7 @@ $('svName').onclick = () => cur && dlgSettings();
 async function openServer(id) {
   const s = servers.find(x => x.id === id); if (!s) return;
   cur = s; chan = null; roles = []; mroles = new Map(); emojis = []; unsub(); closePicker(); renderRail();
-  $('svName').textContent = s.name + ' ▾'; $('svTitle').textContent = ''; $('svMsgs').textContent = ''; $('svForm').classList.add('hidden'); $('svMem').textContent = '';
+  setSrvName(); $('svTitle').textContent = ''; $('svMsgs').textContent = ''; $('svForm').classList.add('hidden'); $('svMem').textContent = '';
   paintDesc();
   view.classList.remove('hidden'); layout();
   await Promise.all([loadChans(), loadMembers(), loadRoles(), loadEmojis()]);
@@ -3164,6 +3176,7 @@ function addMsg(r) {
   if (!m) { m = { display_name: '?' }; loadMembers(); }
   const box = $('svMsgs'), near = box.scrollHeight - box.scrollTop - box.clientHeight < 90;
   const d = el('div', 'msg'); d.id = 'm' + r.id; d.dataset.uid = r.user_id || '';
+  d.dataset.ts = String(Date.parse(r.created_at) || Date.now());
   const b = el('div', 'mb'), h = el('div', 'mh');
   const nm = el('strong', 'click mname', m.display_name), av = A().avatar(m, 36);
   paintName(nm, r.user_id, (memOf(r.user_id) || m || {}).username);
@@ -3179,7 +3192,7 @@ function addMsg(r) {
   const rb = mk('😊', e => { e.stopPropagation(); openPicker(e.currentTarget, p => toggleReact(r.id, pickKey(p))); }, 'sec'); rb.title = t('react'); act.append(rb);
   if (r.user_id === uid) { const eb = mk('✎', e => { e.stopPropagation(); startEdit(d, r); }, 'sec'); eb.title = t('edit'); act.append(eb); }
   if (r.user_id === uid || can('manage_messages')) {
-    const x = mk('✕', async () => { const { error } = await sb().from('messages').delete().eq('id', r.id); if (error) err(error); else d.remove(); }, 'sec');
+    const x = mk('✕', async () => { const { error } = await sb().from('messages').delete().eq('id', r.id); if (error) err(error); else { d.remove(); regroup(); } }, 'sec');
     x.title = t('del'); act.append(x);
   }
   d.append(act);
@@ -3188,8 +3201,20 @@ function addMsg(r) {
     if (window.matchMedia('(hover: none)').matches && !e.target.closest('button, textarea, .click')) d.classList.toggle('sel');
   });
   box.append(d);
+  regroup();
   renderReacts(String(r.id));
   if (near || r.user_id === uid) box.scrollTop = box.scrollHeight;
+}
+/* junta mensagens seguidas da mesma pessoa; quebra se outra pessoa falou ou se passaram 5 min */
+const GROUP_MS = 5 * 60 * 1000;
+function regroup() {
+  let prev = null;
+  $('svMsgs').querySelectorAll('.msg').forEach(m => {
+    const ts = +m.dataset.ts || 0;
+    const cont = !!prev && !!m.dataset.uid && prev.dataset.uid === m.dataset.uid && ts - (+prev.dataset.ts || 0) >= 0 && ts - (+prev.dataset.ts || 0) < GROUP_MS;
+    m.classList.toggle('cont', cont);
+    prev = m;
+  });
 }
 function startEdit(d, r) {
   const mt = d.querySelector('.mt'); if (!mt || mt.querySelector('textarea')) return;
@@ -3260,7 +3285,7 @@ function subscribe() {
   const id = cur.id, f = 'server_id=eq.' + id;
   rt = sb().channel('srv:' + id)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: f }, p => { if (chan && p.new.channel_id === chan.id) addMsg(p.new); })
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, p => { const n = document.getElementById('m' + p.old.id); if (n) n.remove(); })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, p => { const n = document.getElementById('m' + p.old.id); if (n) { n.remove(); regroup(); } })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'channels', filter: f }, async () => { await loadChans(); renderChans(); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'server_members', filter: f }, () => loadMembers())
     .subscribe();
@@ -3373,6 +3398,7 @@ function dlgChannel(kind) {
 function dlgSettings() {
   const s = cur;
   modal(s.name, (w, close) => {
+    if (window.NS) { const h2 = w.querySelector('h2'); if (h2) NS.style(h2, nsOf(s), ''); }
     const reopen = async () => { close(); await loadMembers(); dlgSettings(); };
     const canEdit = can('manage_server');
     let paintB = () => {};
@@ -3431,6 +3457,26 @@ function dlgSettings() {
 
       /* --- nome e descrição: só valem depois de "Salvar alterações" --- */
       const n = fld(w, t('srvName'), { maxLength: 32 }); n.value = s.name;
+      /* estilo do nome: fonte, cor e efeito (vale depois de "Salvar alterações") */
+      let pendNs = null, saveStyle = async () => {};
+      if (window.NS) {
+        const nsHost = el('div'); w.append(nsHost);
+        const ed = NS.editor(nsHost, nsOf(s), () => n.value, v => { pendNs = v; });
+        n.addEventListener('input', () => ed.refresh());
+        const en = String(lang).startsWith('en');
+        const ttl = nsHost.querySelector('.nsed > strong'), hint = nsHost.querySelector('.nsed > p');
+        if (ttl) ttl.textContent = en ? 'Server name style' : 'Estilo do nome do servidor';
+        if (hint) hint.textContent = en ? 'Pick a font, color and effect for the server name. It shows at the top of the server.' : 'Escolha fonte, cor e efeito do nome do servidor. Ele aparece assim no topo do servidor.';
+        saveStyle = async () => {
+          if (!pendNs) return true;
+          const v = NS.clean(pendNs), o = nsOf(s);
+          if (v.font === o.font && v.color === o.color && v.color2 === o.color2 && v.fx === o.fx) return true;
+          const { error } = await sb().rpc('ns_set_server_style', { p_server: s.id, p_font: v.font || null, p_color: v.color || null, p_color2: v.color2 || null, p_fx: v.fx || null });
+          if (error) { err(missingFn(error) ? (en ? 'The v11 SQL migration still needs to be run in Supabase to use this.' : 'Falta rodar a migração SQL v11 no Supabase para usar isso.') : error); return false; }
+          s.name_font = v.font || null; s.name_color = v.color || null; s.name_color2 = v.color2 || null; s.name_fx = v.fx || null;
+          return true;
+        };
+      }
       const dl = el('label'), dt = el('textarea'); dt.maxLength = 300; dt.value = s.description || ''; dt.placeholder = t('descPh');
       const cnt = el('span', 'mut'); const upd = () => { cnt.textContent = dt.value.length + '/300'; }; dt.oninput = upd; upd();
       dl.append(el('span', '', t('desc')), dt, cnt); w.append(dl);
@@ -3450,6 +3496,7 @@ function dlgSettings() {
             if (error) return hintErr(error);
             s.description = desc;
           }
+          await saveStyle();
         } finally { saveBtn.disabled = false; }
         await loadServers(); if (cur) $('svName').textContent = cur.name + ' ▾';
         saveBtn.textContent = t('saved'); setTimeout(() => { saveBtn.textContent = t('saveChanges'); }, 1800);
