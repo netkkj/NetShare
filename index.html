@@ -726,6 +726,7 @@ $('inRoom').value = (() => { try { return decodeURIComponent(location.hash.slice
   $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('btnJoin').click(); }));
 
 $('btnJoin').onclick = async () => {
+  const isVoice = window.__roomNs === 'v'; window.__roomNs = '';   // canal de voz de servidor? (lido e limpo na hora, antes de qualquer await)
   const name = cleanName($('inName').value);
   const room = $('inRoom').value.trim();
   setJoinErr(null);
@@ -742,10 +743,14 @@ $('btnJoin').onclick = async () => {
   } catch (e) { $('btnJoin').disabled = false; setJoinErr('eSecure'); return; }
   myName = name;
   if (window.Acc) Acc.newSid();
-  baseId = 'ss3-' + rs;
+  // Espaços de nome SEPARADOS: sala avulsa (sem conta) = 'ss3-…'; canal de voz de servidor = 'ss3v-…'.
+  // Assim, mesmo que alguém digite exatamente o mesmo nome (ou o mesmo código) numa sala avulsa,
+  // nunca cai na sala do servidor: cria uma sala independente.
+  baseId = (isVoice ? 'ss3v-' : 'ss3-') + rs;
   roomKey = key;
   $('btnJoin').disabled = false;
   $('roomName').textContent = window.__roomLabel || room; window.__roomLabel = '';
+  $('btnLink').classList.toggle('hidden', isVoice);   // canal de voz: o acesso é pelo servidor, não por link de sala
   $('join').classList.add('hidden');
   $('room').classList.remove('hidden');
   start();
@@ -1531,7 +1536,6 @@ function renderPeople() {
       const who = document.createElement('span'); who.className = 'who';
       who.append(Acc.avatar(prof || { display_name: name }, 28), n);
       if (prof) {
-        if (prof.username && window.Srv && Srv.badgeEl) who.append(Srv.badgeEl(prof.username));
         const vf = document.createElement('span'); vf.className = 'vf'; vf.textContent = '✓';
         who.append(vf);
         who.setAttribute('role', 'button'); who.tabIndex = 0; who.title = T('cardVerified');
@@ -2561,7 +2565,7 @@ function repaintNames() {
   $('svMsgs').querySelectorAll('.msg').forEach(d => { const nm = d.querySelector('.mname'); if (nm) nm.style.color = nameColor(d.dataset.uid) || ''; });
 }
 
-/* ----- tags do site (aparecem ao lado do nome) ----- */
+/* ----- tags do site (aparecem só no cartão de perfil da pessoa) ----- */
 const bcache = new Map(), bpend = new Set(); let btimer = 0;
 const ULOW = /^[a-z0-9_]{3,20}$/;
 function fillBadge(n) {
@@ -2610,7 +2614,7 @@ function memRow(m) {
   const r = el('div', 'mem-row click'); r.append(A().avatar(m, 30));
   const col = el('div', 'mcol'), nm = el('b', 'mname', m.display_name);
   const c = nameColor(m.user_id); if (c) nm.style.color = c;
-  col.append(nm); if (m.username) col.append(badgeEl(m.username));
+  col.append(nm);
   r.append(col); r.onclick = () => A().showCard(m);
   return r;
 }
@@ -2628,7 +2632,6 @@ function renderMembers() {
   section(t('grpAdmin'), take(m => m.role === 'admin'));
   roles.filter(r => r.hoist).forEach(r => section(r.name, take(m => hasRole(m.user_id, r.id)), r.color));
   section(t('grpMembers'), take(() => true));
-  wantBadges(mem.map(m => m.username));
 }
 
 function renderChans() {
@@ -2797,7 +2800,6 @@ function addMsg(r) {
   const openU = () => { const mm = memOf(r.user_id); if (mm) A().showCard(mm); };
   nm.onclick = openU; av.onclick = openU; av.classList.add('click');
   h.append(nm);
-  if (m.username) h.append(badgeEl(m.username));
   h.append(el('span', 'mut', new Date(r.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
   const mt = el('div', 'mt'); paintText(mt, r);
   b.append(h, mt, el('div', 'mre'));
@@ -2919,6 +2921,7 @@ async function joinVoice(c) {
   $('inRoom').value = 'v' + c.id.replace(/-/g, '').slice(0, 20);
   $('inPass').value = data.voice_key;                   // só membros leem esta chave
   window.__roomLabel = '🔊 ' + c.name + ' · ' + cur.name;
+  window.__roomNs = 'v';                                // entra no espaço de nome de voz (separado das salas avulsas)
   $('btnJoin').click();
 }
 
@@ -3386,27 +3389,29 @@ function cardExtras(p, box) {
   const m = cur && mem.find(x => (p.user_id && x.user_id === p.user_id) || (p.username && x.username === p.username));
   if (!m) return;
   const lab = k => k === 'owner' ? t('owner') : k === 'admin' ? t('admin') : t('member');
+  /* uma única seção "Cargos": cargo base (Dono/Admin/Membro) + cargos personalizados */
   const rs = roles.filter(r => hasRole(m.user_id, r.id));
-  if (rs.length) {
-    const chips = el('div', 'rchips');
-    rs.forEach(r => { const c = el('span', 'gbadge', r.name); c.style.setProperty('--c', r.color); chips.append(c); });
-    box.append(chips);
-  }
-  const sep = el('div', 'sgrp'); sep.append(el('span', '', t('roleIn', { s: cur.name })));
+  const sep = el('div', 'sgrp'); sep.append(el('span', '', t('roles')));
   box.append(sep);
+  const chips = el('div', 'rchips');
+  const base = el('span', 'gbadge', lab(m.role));
+  base.style.setProperty('--c', m.role === 'owner' ? '#ffd166' : m.role === 'admin' ? '#6c7cff' : '#9da8c2');
+  chips.append(base);
+  rs.forEach(r => { const c = el('span', 'gbadge', r.name); c.style.setProperty('--c', r.color); chips.append(c); });
+  box.append(chips);
   if (myRole === 'owner' && m.role !== 'owner') {
-    const sel = el('select');
+    const sel = el('select'); sel.style.marginTop = '8px';
     [['member', t('member')], ['admin', t('admin')]].forEach(([v, x]) => { const o = el('option', '', x); o.value = v; sel.append(o); });
     sel.value = m.role;
     sel.onchange = async () => {
       const { error } = await sb().rpc('set_member_role', { p_server: cur.id, p_user: m.user_id, p_role: sel.value });
       if (error) { err(error); sel.value = m.role; return; }
       m.role = sel.value; loadMembers();
+      base.textContent = lab(m.role); base.style.setProperty('--c', m.role === 'admin' ? '#6c7cff' : '#9da8c2');
     };
     box.append(sel);
-  } else box.append(el('strong', '', lab(m.role)));
-  if (isAdm()) {
-    const h = el('div', 'sgrp'); h.append(el('span', '', t('roles'))); box.append(h);
+  }
+  if (isAdm() && roles.length) {
     const host = el('div', 'rpick'); box.append(host); rolePicker(m, host);
   }
   if (isAdm() && m.user_id !== uid && m.role !== 'owner' && (myRole === 'owner' || m.role === 'member')) {
