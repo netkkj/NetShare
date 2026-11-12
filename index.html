@@ -1518,7 +1518,7 @@ let lastSig = '';
 function renderPeople() {
   $('count').textContent = people.size + 1;
   const list = [...people].map(([id, p]) => [id, p.name, p.sharing ? 1 : 0, p.kind || '', p.prof ? [p.prof.username, p.prof.avatar_path, p.prof.bio] : 0]);
-  const sig = JSON.stringify([lang, own.id, myId, myName, !!myStream, myKind, [...hidden], list, isOwner(), window.Acc ? Acc.sigKey() : '']);
+  const sig = JSON.stringify([lang, own.id, myId, myName, !!myStream, myKind, [...hidden], list, isOwner(), window.Acc ? Acc.sigKey() : '', window.Srv && Srv.colorSig ? Srv.colorSig() : '']);
   if (sig === lastSig) return;
   lastSig = sig;
 
@@ -1533,6 +1533,9 @@ function renderPeople() {
     if (crown) n.title = T('owner');
     if (window.Acc && Acc.enabled) {
       const prof = you ? Acc.myProfile() : (people.get(id) || {}).prof;
+      const tagC = window.Srv && Srv.colorOfUser ? Srv.colorOfUser(prof && prof.username) : '';
+      if (tagC) n.style.color = tagC;
+      if (window.NS) NS.apply(n, prof && prof.username, tagC);
       const who = document.createElement('span'); who.className = 'who';
       who.append(Acc.avatar(prof || { display_name: name }, 28), n);
       if (prof) {
@@ -1599,6 +1602,200 @@ function doRender() {
 applyLang();
 </script>
 
+<script>
+/* =====================  ESTILO DO NOME (fonte, cor e efeito, como no Discord)  ===================== */
+window.NS = (() => {
+const FONTS = {
+  pacifico:  { n: 'Pacifico',   fam: "'Pacifico', cursive",            q: 'Pacifico',                    fw: 400 },
+  lobster:   { n: 'Lobster',    fam: "'Lobster', cursive",             q: 'Lobster',                     fw: 400 },
+  righteous: { n: 'Righteous',  fam: "'Righteous', sans-serif",        q: 'Righteous',                   fw: 400 },
+  orbitron:  { n: 'Orbitron',   fam: "'Orbitron', sans-serif",         q: 'Orbitron:wght@700',           fw: 700, sz: .92 },
+  pixel:     { n: '8-Bit',      fam: "'Press Start 2P', monospace",    q: 'Press+Start+2P',              fw: 400, sz: .68 },
+  cinzel:    { n: 'Medieval',   fam: "'Cinzel Decorative', serif",     q: 'Cinzel+Decorative:wght@700',  fw: 700, sz: .92 },
+  creepster: { n: 'Vampiro',    fam: "'Creepster', cursive",           q: 'Creepster',                   fw: 400, sz: 1.1 },
+  fredoka:   { n: 'Balão',      fam: "'Fredoka', sans-serif",          q: 'Fredoka:wght@600',            fw: 600 },
+  bebas:     { n: 'Tempo',      fam: "'Bebas Neue', sans-serif",       q: 'Bebas+Neue',                  fw: 400, sz: 1.15, ls: '.04em' },
+  caveat:    { n: 'Caderno',    fam: "'Caveat', cursive",              q: 'Caveat:wght@700',             fw: 700, sz: 1.2 },
+  playfair:  { n: 'Elegante',   fam: "'Playfair Display', serif",      q: 'Playfair+Display:wght@700',   fw: 700 },
+  bungee:    { n: 'Bungee',     fam: "'Bungee', sans-serif",           q: 'Bungee',                      fw: 400, sz: .85 },
+  marker:    { n: 'Marcador',   fam: "'Permanent Marker', cursive",    q: 'Permanent+Marker',            fw: 400, sz: .95 }
+};
+const FX = ['gradient', 'shimmer', 'glow', 'neon'];
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const okHex = c => (typeof c === 'string' && HEX.test(c)) ? c.toLowerCase() : '';
+const clean = s => { s = s || {}; return { font: FONTS[s.font] ? s.font : '', color: okHex(s.color), color2: okHex(s.color2), fx: FX.includes(s.fx) ? s.fx : '' }; };
+const ULOW = /^[a-z0-9_]{3,20}$/;
+
+const L = {
+  pt: { title: 'Estilo do nome', hint: 'Escolha fonte, cor e efeito do seu nome. Ele aparece assim no chat, na lista de membros e nas chamadas.',
+        sample: 'Seu nome', font: 'Fonte', def: 'Padrão', fx: 'Efeito', fxNone: 'Sólido', fxGradient: 'Degradê', fxShimmer: 'Brilhante', fxGlow: 'Brilho', fxNeon: 'Neon',
+        c1: 'Cor', c2: 'Segunda cor', none: 'Sem cor', themes: 'Temas prontos', reset: 'Restaurar padrão',
+        needV10: 'Seu perfil foi salvo, mas o estilo do nome só funciona depois de rodar a migração SQL v10 no Supabase.' },
+  en: { title: 'Name style', hint: 'Pick a font, color and effect for your name. It shows up in chat, the member list and calls.',
+        sample: 'Your name', font: 'Font', def: 'Default', fx: 'Effect', fxNone: 'Solid', fxGradient: 'Gradient', fxShimmer: 'Shimmer', fxGlow: 'Glow', fxNeon: 'Neon',
+        c1: 'Color', c2: 'Second color', none: 'No color', themes: 'Ready-made themes', reset: 'Reset to default',
+        needV10: 'Your profile was saved, but the name style only works after you run the v10 SQL migration in Supabase.' }
+};
+const tr = k => { const d = L[(typeof lang !== 'undefined' && String(lang).startsWith('en')) ? 'en' : 'pt']; return d[k] ?? L.pt[k] ?? k; };
+
+/* ----- fontes (carregadas só quando alguém usa) ----- */
+const loaded = new Set();
+function ensureFont(id) {
+  const f = FONTS[id]; if (!f || loaded.has(id)) return; loaded.add(id);
+  const l = document.createElement('link'); l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=' + f.q + '&display=swap';
+  document.head.append(l);
+}
+
+/* ----- aplica o estilo num elemento de texto ----- */
+const PROPS = ['color', 'background-image', 'background-size', 'background-position', '-webkit-background-clip', 'background-clip', '-webkit-text-fill-color', 'text-shadow', 'font-family', 'font-weight', 'font-size', 'letter-spacing'];
+function style(node, s, fb) {
+  const st = node.style;
+  PROPS.forEach(p => st.removeProperty(p));
+  node.classList.remove('ns-shimmer');
+  s = s ? clean(s) : null;
+  const base = (s && s.color) || fb || '';
+  if (s && s.font) {
+    const f = FONTS[s.font]; ensureFont(s.font);
+    st.fontFamily = f.fam + ", 'DM Sans', sans-serif"; st.fontWeight = String(f.fw);
+    if (f.sz) st.fontSize = f.sz + 'em';
+    if (f.ls) st.letterSpacing = f.ls;
+  }
+  if (!s || !s.fx) { if (base) st.color = base; return; }
+  const c1 = base || '#6c7cff', c2 = s.color2;
+  if ((s.fx === 'gradient' || s.fx === 'shimmer') && c2) {
+    st.color = c1;
+    st.setProperty('-webkit-text-fill-color', 'transparent');
+    st.setProperty('-webkit-background-clip', 'text'); st.backgroundClip = 'text';
+    if (s.fx === 'gradient') st.backgroundImage = 'linear-gradient(90deg,' + c1 + ',' + c2 + ')';
+    else { st.backgroundImage = 'linear-gradient(90deg,' + c1 + ',' + c2 + ',' + c1 + ')'; st.backgroundSize = '200% 100%'; node.classList.add('ns-shimmer'); }
+  } else if (s.fx === 'neon') {
+    st.color = '#fff';
+    st.textShadow = '0 0 3px #fff, 0 0 8px ' + c1 + ', 0 0 16px ' + c1 + ', 0 0 28px ' + c1;
+  } else if (s.fx === 'glow') {
+    st.color = c1; st.textShadow = '0 0 6px ' + c1 + '99, 0 0 14px ' + c1 + '66';
+  } else st.color = c1;
+}
+
+/* ----- estilos de outras pessoas (busca em lote, com cache) ----- */
+const cache = new Map(), pend = new Set(); let timer = 0;
+const TTL = 120000;
+function want(u) {
+  const e = cache.get(u), now = Date.now();
+  if (e && (e.own || now - e.t < TTL)) return;
+  cache.set(u, { t: now, s: e ? e.s : null });
+  pend.add(u);
+  if (!timer) timer = setTimeout(flush, 150);
+}
+async function flush() {
+  timer = 0;
+  const names = [...pend].slice(0, 100); names.forEach(n => pend.delete(n));
+  if (pend.size) timer = setTimeout(flush, 150);
+  const sb = window.Acc && Acc.sb && Acc.sb();
+  if (!names.length || !sb) return;
+  let rows = null;
+  try { const { data, error } = await sb.rpc('ns_get_name_styles', { p_usernames: names }); if (!error) rows = data || []; } catch (e) {}
+  const now = Date.now(), by = new Map();
+  (rows || []).forEach(r => by.set(String(r.username || '').toLowerCase(), clean({ font: r.name_font, color: r.name_color, color2: r.name_color2, fx: r.name_fx })));
+  names.forEach(n => {
+    const old = cache.get(n); if (old && old.own) return;
+    cache.set(n, { t: rows ? now : now - TTL + 60000, s: rows ? (by.get(n) || null) : (old ? old.s : null) });   // falhou: tenta de novo em ~1 min
+  });
+  paintAll();
+}
+function paint(node) {
+  const e = cache.get(node.dataset.nsu || '');
+  style(node, e && e.s, node.dataset.nsf || '');
+}
+function paintAll() { document.querySelectorAll('[data-nsu]').forEach(paint); }
+function apply(node, username, fallback) {
+  if (!node) return;
+  const u = String(username || '').toLowerCase();
+  node.dataset.nsu = u;
+  if (fallback) node.dataset.nsf = fallback; else delete node.dataset.nsf;
+  if (ULOW.test(u)) want(u);
+  paint(node);
+}
+function setMine(username, s) {
+  const u = String(username || '').toLowerCase(); if (!ULOW.test(u)) return;
+  cache.set(u, { own: true, t: Infinity, s: clean(s) });
+  paintAll();
+}
+
+/* ----- editor (dentro do perfil) ----- */
+const PAL = ['#ff5e5e', '#ff9f43', '#ffd166', '#2ecc71', '#1abc9c', '#49d9ff', '#6c7cff', '#a77bff', '#ff6fa5', '#ffffff'];
+const PRESETS = [
+  [['Pôr do sol', 'Sunset'], { color: '#ff5e62', color2: '#ffc371', fx: 'gradient' }],
+  [['Oceano', 'Ocean'], { color: '#36d1dc', color2: '#5b86e5', fx: 'gradient' }],
+  [['Aurora', 'Aurora'], { color: '#43e97b', color2: '#38f9d7', fx: 'shimmer' }],
+  [['Fogo', 'Fire'], { color: '#f12711', color2: '#f5af19', fx: 'shimmer' }],
+  [['Sakura', 'Sakura'], { font: 'pacifico', color: '#ffb7d5', color2: '#ff6fa5', fx: 'gradient' }],
+  [['Neon rosa', 'Pink neon'], { font: 'orbitron', color: '#ff2e93', fx: 'neon' }],
+  [['Ouro', 'Gold'], { font: 'cinzel', color: '#ffd166', color2: '#fff1b8', fx: 'shimmer' }],
+  [['Matrix', 'Matrix'], { font: 'pixel', color: '#2ecc71', fx: 'glow' }]
+];
+function editor(host, init, getName, onChange) {
+  host.textContent = '';
+  let cur = clean(init);
+  const en = typeof lang !== 'undefined' && String(lang).startsWith('en');
+  const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+  const btn = (txt, fn, cls) => { const b = h('button', cls == null ? 'sec' : cls, txt); b.type = 'button'; b.onclick = fn; return b; };
+  const box = h('div', 'nsed');
+  box.append(h('strong', '', tr('title')), h('p', 'mut', tr('hint')));
+  const prev = h('div', 'ns-prev'), pn = h('span', 'ns-pn'); prev.append(pn); box.append(prev);
+
+  const emit = () => { cur = clean(cur); refresh(); onChange(cur); };
+  const group = (label, el2) => { const g = h('div', 'ns-grp'); g.append(h('span', 'mut', label), el2); box.append(g); return g; };
+
+  const themes = h('div', 'chips');
+  PRESETS.forEach(([nm, p]) => themes.append(btn(nm[en ? 1 : 0], () => { cur = clean(p); emit(); }, 'sec fch')));
+  group(tr('themes'), themes);
+
+  const fonts = h('div', 'chips'), fbtn = {};
+  const addFont = (id, label) => {
+    const b = btn(label, () => { cur.font = id; emit(); }, 'sec fch');
+    if (id) { ensureFont(id); style(b, { font: id }, ''); }
+    fbtn[id] = b; fonts.append(b);
+  };
+  addFont('', tr('def')); Object.keys(FONTS).forEach(id => addFont(id, FONTS[id].n));
+  group(tr('font'), fonts);
+
+  const fxs = h('div', 'chips'), xbtn = {};
+  [['', tr('fxNone')], ['gradient', tr('fxGradient')], ['shimmer', tr('fxShimmer')], ['glow', tr('fxGlow')], ['neon', tr('fxNeon')]].forEach(([id, label]) => {
+    const b = btn(label, () => { cur.fx = id; emit(); }, 'sec'); xbtn[id] = b; fxs.append(b);
+  });
+  group(tr('fx'), fxs);
+
+  const rows = {};
+  const colorRow = (key, label) => {
+    const wrap = h('div', 'ns-grp'), sw = h('div', 'swatches'), ctl = h('div', 'ns-ctl');
+    PAL.forEach(c => { const b = btn('', () => { cur[key] = c; emit(); }, 'swatch'); b.style.setProperty('--c', c); b.dataset.c = c; b.title = c; sw.append(b); });
+    const ci = h('input'); ci.type = 'color'; ci.value = '#6c7cff'; ci.oninput = () => { cur[key] = ci.value; emit(); };
+    ctl.append(ci, btn(tr('none'), () => { cur[key] = ''; emit(); }));
+    wrap.append(h('span', 'mut', label), sw, ctl); box.append(wrap);
+    rows[key] = { wrap, sw, ci };
+  };
+  colorRow('color', tr('c1')); colorRow('color2', tr('c2'));
+  box.append(btn(tr('reset'), () => { cur = clean({}); emit(); }));
+
+  function refresh() {
+    pn.textContent = String(getName() || '').trim() || tr('sample');
+    style(pn, cur, '');
+    Object.keys(fbtn).forEach(id => fbtn[id].classList.toggle('on', cur.font === id));
+    Object.keys(xbtn).forEach(id => xbtn[id].classList.toggle('on', cur.fx === id));
+    ['color', 'color2'].forEach(k => {
+      rows[k].sw.querySelectorAll('.swatch').forEach(b => b.classList.toggle('on', b.dataset.c === cur[k]));
+      if (cur[k]) rows[k].ci.value = cur[k];
+    });
+    rows.color2.wrap.classList.toggle('hidden', !(cur.fx === 'gradient' || cur.fx === 'shimmer'));
+  }
+  host.append(box); refresh();
+  return { refresh, get: () => cur };
+}
+
+return { clean, apply, setMine, editor, style, tr, paintAll };
+})();
+</script>
 <script src="config.js"></script>
 <script>
 /* =====================================================================
@@ -1706,7 +1903,8 @@ window.Acc = (() => {
       display_name: dn,
       bio: (typeof r.bio === 'string' ? r.bio : '').replace(BIO_CTRL, '').slice(0, 200),
       avatar_path: PATH_RE.test(r.avatar_path || '') ? r.avatar_path : null,
-      banner_path: PATH_RE.test(r.banner_path || '') ? r.banner_path : null
+      banner_path: PATH_RE.test(r.banner_path || '') ? r.banner_path : null,
+      ns: window.NS ? NS.clean({ font: r.name_font, color: r.name_color, color2: r.name_color2, fx: r.name_fx }) : null
     };
   }
 
@@ -1773,9 +1971,12 @@ window.Acc = (() => {
   async function loadMe() {
     if (!session) { me = null; return; }
     try {
-      const { data, error } = await sb.from('profiles')
-        .select('username,display_name,bio,avatar_path,banner_path')
+      let { data, error } = await sb.from('profiles')
+        .select('username,display_name,bio,avatar_path,banner_path,name_font,name_color,name_color2,name_fx')
         .eq('id', session.user.id).maybeSingle();
+      if (error) ({ data, error } = await sb.from('profiles')                       // v10 ainda não rodou
+        .select('username,display_name,bio,avatar_path,banner_path')
+        .eq('id', session.user.id).maybeSingle());
       me = error ? null : cleanProfile(data);
     } catch (e) { me = null; }
   }
@@ -1789,7 +1990,9 @@ window.Acc = (() => {
     if (session && me) {
       const who = el('div', 'acc-who');
       const t = el('div', 'acc-txt');
-      t.append(el('strong', '', me.display_name), el('span', 'mut', me.username ? '@' + me.username : ''));
+      const nmS = el('strong', '', me.display_name);
+      if (window.NS) { NS.setMine(me.username, me.ns); NS.apply(nmS, me.username); }
+      t.append(nmS, el('span', 'mut', me.username ? '@' + me.username : ''));
       who.append(avatar(me, 40), t);
       bar.append(who, btn('accEdit', 'sec', openProfile), btn('accSignOut', 'sec', signOut));
       if (!inName.readOnly) guestName = inName.value;
@@ -1961,13 +2164,14 @@ window.Acc = (() => {
   }
 
   /* ---------- editor de perfil ---------- */
-  function newPend() { return { avatar: null, banner: null, rmAvatar: false, rmBanner: false }; }
+  function newPend() { return { avatar: null, banner: null, rmAvatar: false, rmBanner: false, ns: null }; }
   function dropPend() {
     if (!pend) return;
     ['avatar', 'banner'].forEach(k => { if (pend[k]) URL.revokeObjectURL(pend[k].url); });
     pend = null;
   }
 
+  let nsEd = null;
   function openProfile() {
     if (!me) return;
     dropPend(); pend = newPend();
@@ -1977,6 +2181,11 @@ window.Acc = (() => {
     $('pfBioN').textContent = me.bio.length + '/200';
     msgTo('pfMsg', null);
     paintPreview();
+    if (window.NS) {
+      let host = $('pfNS');
+      if (!host) { host = document.createElement('div'); host.id = 'pfNS'; $('pfName').closest('label').after(host); $('pfName').addEventListener('input', () => { if (nsEd) nsEd.refresh(); }); }
+      nsEd = NS.editor(host, me.ns, () => $('pfName').value, v => { if (pend) pend.ns = v; });
+    }
     if (!$('dlgProfile').open) $('dlgProfile').showModal();
   }
 
@@ -2036,6 +2245,7 @@ window.Acc = (() => {
     msgTo('pfMsg', 'pfSaving', '');
     const uid = session.user.id;
     const uploaded = [], toDelete = [];
+    let nsMissing = false;
     try {
       let avatar_path = me.avatar_path, banner_path = me.banner_path;
       for (const kind of ['avatar', 'banner']) {
@@ -2053,13 +2263,20 @@ window.Acc = (() => {
         if (next !== cur && cur) toDelete.push([bucket, cur]);
         if (kind === 'avatar') avatar_path = next; else banner_path = next;
       }
-      const { error } = await sb.from('profiles')
-        .update({ display_name: dn, username: un, bio, avatar_path, banner_path }).eq('id', uid);
+      const baseCols = { display_name: dn, username: un, bio, avatar_path, banner_path };
+      const nsv = pend.ns;
+      const nsCols = nsv ? { name_font: nsv.font || null, name_color: nsv.color || null, name_color2: nsv.color2 || null, name_fx: nsv.fx || null } : null;
+      let { error } = await sb.from('profiles').update(nsCols ? { ...baseCols, ...nsCols } : baseCols).eq('id', uid);
+      if (error && nsCols && (error.code === 'PGRST204' || error.code === '42703' || /name_(font|color|fx)/.test(error.message || ''))) {
+        ({ error } = await sb.from('profiles').update(baseCols).eq('id', uid));    // v10 ainda não rodou: salva o resto
+        nsMissing = true;
+      }
       if (error) throw error;
       toDelete.forEach(([b, p]) => bg(sb.storage.from(b).remove([p])));
       await loadMe();
       paint();
       $('dlgProfile').close();
+      if (nsMissing) alert(NS.tr('needV10'));
     } catch (err) {
       uploaded.forEach(([b, p]) => bg(sb.storage.from(b).remove([p])));
       if (err && err.code === '23505') msgTo('pfMsg', 'pfUserTaken', 'err');
@@ -2085,7 +2302,9 @@ window.Acc = (() => {
       ban.append(i);
     }
     const info = el('div', 'pc-body');
-    info.append(avatar(p, 84), el('h3', '', p.display_name));
+    const h3 = el('h3', '', p.display_name);
+    if (window.NS) NS.apply(h3, p.username);
+    info.append(avatar(p, 84), h3);
     if (p.username) info.append(el('span', 'mut', '@' + p.username));
     const v = el('span', 'vf', '✓ ' + T('cardVerified'));
     info.append(v, el('p', 'pc-bio', p.bio || T('cardNoBio')));
@@ -2308,6 +2527,18 @@ applyLang();
   .mcol { display: grid; gap: 2px; min-width: 0; }
   .mem-row.click { padding: 4px 6px; border-radius: 9px; }
   .mem-row.click:hover { background: var(--surface-hover); }
+  /* estilo do nome */
+  .ns-shimmer { animation: nsShimmer 4s linear infinite; }
+  @keyframes nsShimmer { from { background-position: 0% 0; } to { background-position: 200% 0; } }
+  @media (prefers-reduced-motion: reduce) { .ns-shimmer { animation: none; } }
+  .nsed { display: grid; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255, 255, 255, .03); }
+  .nsed p { margin: 0; }
+  .ns-prev { display: flex; align-items: center; justify-content: center; min-height: 64px; padding: 10px; border-radius: 12px; background: rgba(0, 0, 0, .25); font: 800 1.5rem/1.3 'Manrope', sans-serif; text-align: center; overflow-wrap: anywhere; }
+  .ns-grp { display: grid; gap: 7px; }
+  .ns-ctl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .nsed .chips button.on { border-color: var(--acc); background: rgba(108, 124, 255, .22); background: color-mix(in srgb, var(--acc) 24%, transparent); }
+  .nsed .chips button.fch { font-size: .92rem; }
+  .nsed input[type=color] { width: 40px; min-height: 30px; height: 30px; padding: 2px; border-radius: 8px; flex: 0 0 auto; }
   .sv-mem .sgrp { text-transform: none; }
   .sv-mem .sgrp span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rdot { --c: #99aab5; width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%; background: var(--c); }
@@ -2461,6 +2692,11 @@ const hasRole = (u, rid) => { const s = mroles.get(u); return !!s && s.has(rid);
 const can = p => isAdm() || roles.some(r => hasRole(uid, r.id) && (r.perms.includes('administrator') || r.perms.includes(p)));
 const topRole = u => roles.find(r => hasRole(u, r.id)) || null;
 const nameColor = u => { const r = u ? topRole(u) : null; return r ? r.color : ''; };
+// cor da tag de uma pessoa: cargo de dono (se a etiqueta aparece) ou o cargo mais alto
+const colorOf = u => (!ownerHidden() && (memOf(u) || {}).role === 'owner') ? ownerColor() : nameColor(u);
+const colorOfUser = un => { if (!cur || !un) return ''; const m = mem.find(x => x.username === un); return m ? colorOf(m.user_id) : ''; };
+const paintName = (node, u, uname) => { const c = colorOf(u); if (window.NS) NS.apply(node, uname, c); else if (c) node.style.color = c; };
+const colorSig = () => cur ? mem.map(m => (m.username || '') + colorOf(m.user_id)).join('|') : '';
 const emojiById = id => emojis.find(e => e.id === id);
 const emojiByName = n => emojis.find(e => e.name === n);
 const PERMS = [
@@ -2601,7 +2837,7 @@ async function loadMembers() {
   const m = mem.find(x => x.user_id === uid);
   if (!m) { closeView(); loadServers(); return; }   // fui expulso
   const before = myRole; myRole = m.role;
-  renderMembers();
+  renderMembers(); repaintNames();
   if (before !== myRole) { renderChans(); paintDesc(); }
 }
 
@@ -2620,7 +2856,7 @@ async function loadRoles() {
   renderMembers(); repaintNames(); paintDesc(); renderChans();   // as permissões podem ter mudado
 }
 function repaintNames() {
-  $('svMsgs').querySelectorAll('.msg').forEach(d => { const nm = d.querySelector('.mname'); if (nm) nm.style.color = nameColor(d.dataset.uid) || ''; });
+  $('svMsgs').querySelectorAll('.msg').forEach(d => { const nm = d.querySelector('.mname'); if (nm) paintName(nm, d.dataset.uid, (memOf(d.dataset.uid) || {}).username); });
 }
 
 /* ----- tags do site (aparecem só no cartão de perfil da pessoa) ----- */
@@ -2671,7 +2907,7 @@ function badgeEl(username) {
 function memRow(m) {
   const r = el('div', 'mem-row click'); r.append(A().avatar(m, 30));
   const col = el('div', 'mcol'), nm = el('b', 'mname', m.display_name);
-  const c = nameColor(m.user_id); if (c) nm.style.color = c;
+  paintName(nm, m.user_id, m.username);
   col.append(nm);
   r.append(col); r.onclick = () => A().showCard(m);
   return r;
@@ -2690,6 +2926,7 @@ function renderMembers() {
   section(t('grpAdmin'), take(m => m.role === 'admin'));
   roles.filter(r => r.hoist).forEach(r => section(r.name, take(m => hasRole(m.user_id, r.id)), r.color));
   section(t('grpMembers'), take(() => true));
+  try { render(); } catch (e) {}                 // lista de participantes da call usa as mesmas cores
 }
 
 function renderChans() {
@@ -2892,7 +3129,7 @@ function addMsg(r) {
   const d = el('div', 'msg'); d.id = 'm' + r.id; d.dataset.uid = r.user_id || '';
   const b = el('div', 'mb'), h = el('div', 'mh');
   const nm = el('strong', 'click mname', m.display_name), av = A().avatar(m, 36);
-  const col = nameColor(r.user_id); if (col) nm.style.color = col;
+  paintName(nm, r.user_id, (memOf(r.user_id) || m || {}).username);
   const openU = () => { const mm = memOf(r.user_id); if (mm) A().showCard(mm); };
   nm.onclick = openU; av.onclick = openU; av.classList.add('click');
   h.append(nm);
@@ -3200,7 +3437,7 @@ function dlgSettings() {
     }, 'sec'));
     w.append(r2, el('strong', '', t('members') + ' — ' + mem.length));
     mem.forEach(m => {
-      const r = el('div', 'mem-row'); const nmE = el('b', '', m.display_name); const col = nameColor(m.user_id); if (col) nmE.style.color = col;
+      const r = el('div', 'mem-row'); const nmE = el('b', '', m.display_name); paintName(nmE, m.user_id, m.username);
       r.append(A().avatar(m, 30), nmE);
       const lab = m.role === 'owner' ? (ownerHidden() ? t('owner') : ownerName()) : m.role === 'admin' ? t('admin') : t('member');
       if (myRole === 'owner' && m.role !== 'owner') {
@@ -3627,7 +3864,7 @@ function cardExtras(p, box) {
     b.style.marginTop = '10px'; box.append(b);
   }
 }
-return { onAuth, cardExtras, badgeEl };
+return { onAuth, cardExtras, badgeEl, colorOfUser, colorSig };
 })();
 </script>
 
