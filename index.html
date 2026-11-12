@@ -2298,9 +2298,9 @@ applyLang();
   .sv-bpreview img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .permbox { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255, 255, 255, .03); }
   .permbox p { margin: 0 0 4px; }
-  .permrow { display: flex; gap: 10px; align-items: flex-start; padding: 7px 6px; border-radius: 10px; cursor: pointer; }
+  .dlg label.permrow { display: flex; gap: 12px; align-items: center; padding: 7px 6px; border-radius: 10px; cursor: pointer; }
   .permrow:hover { background: var(--surface); }
-  .permrow input { width: auto; min-height: 0; padding: 0; margin-top: 3px; flex: 0 0 auto; accent-color: var(--acc); }
+  .permrow input { width: 18px; height: 18px; min-height: 0; padding: 0; margin: 0; flex: 0 0 auto; accent-color: var(--acc); }
   .permrow b { font-size: .9rem; }
   .permrow .mut { font-size: .78rem; }
   .permrow input:disabled + div { opacity: .45; }
@@ -2308,6 +2308,7 @@ applyLang();
   .mcol { display: grid; gap: 2px; min-width: 0; }
   .mem-row.click { padding: 4px 6px; border-radius: 9px; }
   .mem-row.click:hover { background: var(--surface-hover); }
+  .sv-mem .sgrp { text-transform: none; }
   .sv-mem .sgrp span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rdot { --c: #99aab5; width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%; background: var(--c); }
 
@@ -2396,6 +2397,9 @@ const ST = {
    permChannels:'Gerenciar canais', permChannelsD:'Criar, renomear e apagar canais.', permRoles:'Gerenciar cargos', permRolesD:'Criar, editar e apagar cargos e dar cargos às pessoas (só com permissões que você mesmo tem).',
    permEmojis:'Gerenciar emojis', permEmojisD:'Adicionar e apagar emojis do servidor.', permMsgs:'Gerenciar mensagens', permMsgsD:'Apagar mensagens de outras pessoas.',
    permCount:'{n} permissão(ões)', permAll:'todas as permissões',
+   ownerRoleAuto:'cargo automático do dono', ownerRoleOff:'etiqueta oculta', editOwnerH:'Editar cargo de dono', ownerRoleHide:'Tirar a etiqueta de dono', ownerRoleShow:'Mostrar a etiqueta de dono',
+   ownerRoleHint:'Este é o cargo automático de quem criou o servidor. Mude o nome e a cor (deixe o nome vazio para voltar ao padrão). Se você tirar a etiqueta, continua sendo o dono, com todos os poderes.',
+   confirmOwnerHide:'Tirar a etiqueta de dono? Você continua sendo o dono do servidor, só some o nome do cargo.', needV9:'Falta rodar a migração SQL v9 no Supabase para usar isso.',
    emojis:'Emojis', emojisTitle:'Emojis do servidor', emojiAdd:'Adicionar emoji', emojiName:'Nome do emoji', emojiPick:'Escolher imagem',
    emojiHint:'PNG, JPG, WebP ou GIF de até 256 KB. No chat, use pelo botão de emojis ou digitando :nome:', emojiBadName:'Nome do emoji: 2 a 24 caracteres, só letras minúsculas, números e _.',
    emojiTooBig:'A imagem passa de 256 KB.', emojiNoFile:'Escolha uma imagem.', emojiEmpty:'Nenhum emoji personalizado ainda.', emojiDel:'Apagar o emoji :{n}:?',
@@ -2420,6 +2424,9 @@ const ST = {
    permChannels:'Manage channels', permChannelsD:'Create, rename and delete channels.', permRoles:'Manage roles', permRolesD:'Create, edit and delete roles and give roles to people (only permissions you have yourself).',
    permEmojis:'Manage emojis', permEmojisD:'Add and delete server emojis.', permMsgs:'Manage messages', permMsgsD:'Delete other people’s messages.',
    permCount:'{n} permission(s)', permAll:'all permissions',
+   ownerRoleAuto:'automatic owner role', ownerRoleOff:'tag hidden', editOwnerH:'Edit owner role', ownerRoleHide:'Remove the owner tag', ownerRoleShow:'Show the owner tag',
+   ownerRoleHint:'This is the automatic role of whoever created the server. Change its name and color (leave the name empty to go back to the default). If you remove the tag, you are still the owner with all the powers.',
+   confirmOwnerHide:'Remove the owner tag? You are still the server owner, only the role name disappears.', needV9:'The v9 SQL migration still needs to be run in Supabase to use this.',
    emojis:'Emojis', emojisTitle:'Server emojis', emojiAdd:'Add emoji', emojiName:'Emoji name', emojiPick:'Choose image',
    emojiHint:'PNG, JPG, WebP or GIF up to 256 KB. In chat, use the emoji button or type :name:', emojiBadName:'Emoji name: 2 to 24 characters, lowercase letters, numbers and _ only.',
    emojiTooBig:'The image is over 256 KB.', emojiNoFile:'Choose an image.', emojiEmpty:'No custom emojis yet.', emojiDel:'Delete the emoji :{n}:?',
@@ -2444,6 +2451,10 @@ let voiceCh = null, uid = null, servers = [], cur = null, chans = [], mem = [], 
 let roles = [], mroles = new Map(), emojis = [], siteOwner = false;
 const msgIds = new Set(), msgData = new Map(), reacts = new Map();
 const isAdm = () => myRole === 'owner' || myRole === 'admin';
+// cargo de dono: nome/cor definidos pelo dono (ou o padrão); a posse não depende disso
+const ownerName = () => cleanStr(cur && cur.owner_role_name, 24) || t('owner');
+const ownerColor = () => okHex(cur && cur.owner_role_color) || '#ffd166';
+const ownerHidden = () => !!(cur && cur.owner_role_hidden);
 const memOf = id => mem.find(x => x.user_id === id);
 const hasRole = (u, rid) => { const s = mroles.get(u); return !!s && s.has(rid); };
 // dono e admin podem tudo; os demais, o que os cargos deles permitirem (o servidor confere de novo)
@@ -2501,13 +2512,14 @@ const railObs = new MutationObserver(syncRail);
 
 async function loadServers() {
   // se a migração v7 ainda não foi rodada, cai para a consulta antiga (sem descrição)
-  let r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path').order('created_at');
+  let r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path,owner_role_name,owner_role_color,owner_role_hidden').order('created_at');
+  if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path').order('created_at');   // v9 ainda não rodou
   if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description').order('created_at');
   if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code').order('created_at');
   const { data, error } = r;
   if (error) return console.warn(error);
   servers = data || [];
-  if (cur) { cur = servers.find(s => s.id === cur.id) || null; if (!cur) closeView(); else paintDesc(); }
+  if (cur) { cur = servers.find(s => s.id === cur.id) || null; if (!cur) closeView(); else { paintDesc(); renderMembers(); } }
   renderRail();
 }
 function paintBanner() {
@@ -2674,7 +2686,7 @@ function renderMembers() {
     if (color) sp.style.color = color;
     h.append(sp); box.append(h); list.forEach(m => box.append(memRow(m)));
   };
-  section(t('grpOwner'), take(m => m.role === 'owner'));
+  if (!ownerHidden()) section(ownerName(), take(m => m.role === 'owner'), ownerColor());
   section(t('grpAdmin'), take(m => m.role === 'admin'));
   roles.filter(r => r.hoist).forEach(r => section(r.name, take(m => hasRole(m.user_id, r.id)), r.color));
   section(t('grpMembers'), take(() => true));
@@ -3190,7 +3202,7 @@ function dlgSettings() {
     mem.forEach(m => {
       const r = el('div', 'mem-row'); const nmE = el('b', '', m.display_name); const col = nameColor(m.user_id); if (col) nmE.style.color = col;
       r.append(A().avatar(m, 30), nmE);
-      const lab = m.role === 'owner' ? t('owner') : m.role === 'admin' ? t('admin') : t('member');
+      const lab = m.role === 'owner' ? (ownerHidden() ? t('owner') : ownerName()) : m.role === 'admin' ? t('admin') : t('member');
       if (myRole === 'owner' && m.role !== 'owner') {
         const sel = el('select'); [['member', t('member')], ['admin', t('admin')]].forEach(([v, x]) => { const o = el('option', '', x); o.value = v; sel.append(o); });
         sel.value = m.role; sel.style.marginLeft = 'auto'; sel.style.width = 'auto';
@@ -3265,7 +3277,7 @@ function dlgRoles() {
     const refreshPrev = () => { prev.textContent = cleanStr(nameIn.value, 24) || t('preview'); prev.style.setProperty('--c', cp.get() || '#99aab5'); };
     const cl = el('div'); cl.style.cssText = 'display:grid;gap:8px'; cl.append(el('span', 'mut', t('roleColor')));
     const cp = colorPicker('#6c7cff', refreshPrev); cl.append(cp.node); form.append(cl);
-    const hoist = chk(form, t('roleHoist'), true);
+    const hoist = chk(form, t('roleHoist'), true), hoistRow = hoist.parentElement;
     const pr = el('div'); pr.style.cssText = 'display:flex;gap:8px;align-items:center'; pr.append(el('span', 'mut', t('preview')), prev); form.append(pr);
     nameIn.oninput = refreshPrev;
     /* permissões do cargo (cada uma é ligada/desligada) */
@@ -3287,9 +3299,18 @@ function dlgRoles() {
     const setPerms = list => { PERM_KEYS.forEach(k => { permIn[k].checked = list.includes(k); }); syncPerms(); };
     const getPerms = () => permIn.administrator.checked ? ['administrator'] : PERM_KEYS.filter(k => permIn[k].checked);
     form.append(permBox);
+    const ownerHint = el('p', 'mut hidden', t('ownerRoleHint'));
+    const setMode = on => { hoistRow.classList.toggle('hidden', on); permBox.classList.toggle('hidden', on); ownerHint.classList.toggle('hidden', !on); };
     const acts = el('div', 'pe-actions');
     const okBtn = mk(t('createRole'), async e => {
-      const name = cleanStr(nameIn.value, 24); if (!name) return err(t('roleNameReq'));
+      const name = cleanStr(nameIn.value, 24);
+      if (editing && editing.owner) {                       // cargo de dono: só nome e cor (nome vazio = padrão)
+        e.target.disabled = true;
+        const { error } = await sb().rpc('ns_set_owner_role', { p_server: s.id, p_name: name, p_color: cp.get(), p_hidden: null });
+        e.target.disabled = false; if (error) return err(missingFn(error) ? t('needV9') : error);
+        resetForm(); await loadServers(); draw(); return;
+      }
+      if (!name) return err(t('roleNameReq'));
       e.target.disabled = true;
       const args = { p_name: name, p_color: cp.get(), p_hoist: hoist.checked, p_perms: getPerms() };
       const { error } = editing ? await sb().rpc('ns_update_role', { p_role: editing.id, ...args }) : await sb().rpc('ns_create_role', { p_server: s.id, ...args });
@@ -3299,11 +3320,34 @@ function dlgRoles() {
     const cancelBtn = mk(t('cancel'), () => resetForm(), 'sec');
     acts.append(okBtn, cancelBtn); form.append(acts);
     const resetForm = () => {
-      editing = null; nameIn.value = ''; cp.set('#6c7cff'); hoist.checked = true; setPerms([]);
+      editing = null; setMode(false); nameIn.placeholder = ''; nameIn.value = ''; cp.set('#6c7cff'); hoist.checked = true; setPerms([]);
       head.textContent = t('newRoleH'); okBtn.textContent = t('createRole'); cancelBtn.classList.add('hidden'); refreshPrev();
+    };
+    const setOwnerHidden = async h => {
+      const { error } = await sb().rpc('ns_set_owner_role', { p_server: s.id, p_name: null, p_color: null, p_hidden: h });
+      if (error) return err(missingFn(error) ? t('needV9') : error);
+      await loadServers(); draw();
+    };
+    const ownerRow = () => {
+      const row = el('div', 'lrow'), dot = el('span', 'rdot'); dot.style.setProperty('--c', ownerColor());
+      const g = el('div', 'grow'), nmE = el('b', '', ownerName()); nmE.style.color = ownerColor();
+      g.append(nmE, el('div', 'mut', t('ownerRoleAuto') + (ownerHidden() ? ' · ' + t('ownerRoleOff') : '')));
+      row.append(dot, g);
+      if (myRole === 'owner') {
+        const ed = mk('✎', () => {
+          editing = { owner: true }; setMode(true); nameIn.value = cleanStr(cur && cur.owner_role_name, 24); nameIn.placeholder = t('owner'); cp.set(ownerColor());
+          head.textContent = t('editOwnerH'); okBtn.textContent = t('saveRole'); cancelBtn.classList.remove('hidden'); refreshPrev(); nameIn.focus();
+        }, 'sec'); ed.title = t('edit');
+        const tg = ownerHidden() ? mk('👁', () => setOwnerHidden(false), 'sec') : mk('✕', () => { if (confirm(t('confirmOwnerHide'))) setOwnerHidden(true); }, 'bad');
+        tg.title = ownerHidden() ? t('ownerRoleShow') : t('ownerRoleHide');
+        row.append(ed, tg);
+      }
+      if (ownerHidden()) row.style.opacity = '.6';
+      return row;
     };
     const draw = () => {
       list.textContent = '';
+      list.append(ownerRow());
       if (!roles.length) list.append(el('p', 'mut', t('noRoles')));
       roles.forEach((r, i) => {
         const row = el('div', 'lrow'), dot = el('span', 'rdot'); dot.style.setProperty('--c', r.color);
@@ -3326,7 +3370,7 @@ function dlgRoles() {
         row.append(dot, g, up, dn, ed, rm); list.append(row);
       });
     };
-    w.append(list, head, form);
+    w.append(list, head, ownerHint, form);
     resetForm(); draw();
   }, true);
 }
@@ -3553,9 +3597,9 @@ function cardExtras(p, box) {
   const sep = el('div', 'sgrp'); sep.append(el('span', '', t('roles')));
   box.append(sep);
   const chips = el('div', 'rchips');
-  const base = el('span', 'gbadge', lab(m.role));
-  base.style.setProperty('--c', m.role === 'owner' ? '#ffd166' : m.role === 'admin' ? '#6c7cff' : '#9da8c2');
-  chips.append(base);
+  const base = el('span', 'gbadge', m.role === 'owner' ? ownerName() : lab(m.role));
+  base.style.setProperty('--c', m.role === 'owner' ? ownerColor() : m.role === 'admin' ? '#6c7cff' : '#9da8c2');
+  if (!(m.role === 'owner' && ownerHidden())) chips.append(base);
   rs.forEach(r => { const c = el('span', 'gbadge', r.name); c.style.setProperty('--c', r.color); chips.append(c); });
   box.append(chips);
   if (myRole === 'owner' && m.role !== 'owner') {
