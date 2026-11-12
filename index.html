@@ -745,7 +745,7 @@ $('btnJoin').onclick = async () => {
   baseId = 'ss3-' + rs;
   roomKey = key;
   $('btnJoin').disabled = false;
-  $('roomName').textContent = room;
+  $('roomName').textContent = window.__roomLabel || room; window.__roomLabel = '';
   $('join').classList.add('hidden');
   $('room').classList.remove('hidden');
   start();
@@ -1798,6 +1798,7 @@ window.Acc = (() => {
       const h = el('p', 'mut acc-hint'); h.dataset.i18n = 'accGuestHint'; h.textContent = T('accGuestHint');
       bar.append(h, btn('accSignIn', '', () => openAuth('in')));
     }
+    if (window.Srv) Srv.onAuth(session && me ? session.user.id : null);
     if (typeof render === 'function') render();
   }
 
@@ -2087,6 +2088,9 @@ window.Acc = (() => {
 
   /* ---------- integração com a sala (prova de identidade) ---------- */
   api.avatar = avatar;
+  api.sb = () => sb;
+  api.imgUrl = imgUrl;
+  api.sniff = sniff;
   api.showCard = showCard;
   api.myProfile = () => me;
   api.sigKey = () => me ? me.display_name + '|' + me.avatar_path : '';
@@ -2213,5 +2217,411 @@ window.Acc = (() => {
 
 applyLang();
 </script>
+<style>
+  /* =====================  SERVIDORES  ===================== */
+  :root { --rail: 72px; }
+  body.hasrail #join { margin-left: var(--rail); }
+  #srvRail { position: fixed; left: 0; top: 0; bottom: 0; z-index: 30; width: var(--rail); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 0; overflow-y: auto; background: rgba(5, 9, 22, .86); border-right: 1px solid var(--line); backdrop-filter: blur(14px); }
+  #srvRail .sbtn { position: relative; flex: 0 0 auto; width: 48px; min-height: 48px; height: 48px; padding: 0; border: 0; border-radius: 16px; background: var(--surface); box-shadow: none; color: var(--fg); overflow: hidden; transition: border-radius .18s ease, background .18s ease; }
+  #srvRail .sbtn:hover:not(:disabled), #srvRail .sbtn.on { border-radius: 12px; transform: none; box-shadow: 0 0 0 2px var(--acc); }
+  #srvRail .sadd { font-size: 1.5rem; color: var(--ok); }
+  .sicon { display: grid; place-items: center; width: 100%; height: 100%; font: 800 .95rem/1 'Manrope', sans-serif; }
+  .sicon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  #srvView { position: fixed; inset: 0 0 0 var(--rail); z-index: 25; display: grid; grid-template-columns: 240px minmax(0, 1fr) 220px; background: var(--card-solid); color: var(--fg); }
+  .sv-side, .sv-mem { display: flex; flex-direction: column; min-height: 0; background: rgba(6, 10, 24, .7); }
+  .sv-side { border-right: 1px solid var(--line); }
+  .sv-mem { border-left: 1px solid var(--line); overflow-y: auto; padding: 12px; gap: 6px; }
+  .sv-head { min-height: 52px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; color: var(--fg); font: 800 1rem/1 'Manrope', sans-serif; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sv-head:hover:not(:disabled) { transform: none; box-shadow: none; background: var(--surface-hover); }
+  .sv-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .sgrp { display: flex; align-items: center; justify-content: space-between; margin: 12px 4px 4px; color: var(--mut); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .crow { display: flex; align-items: center; border-radius: 9px; }
+  .crow.on, .crow:hover { background: var(--surface-hover); }
+  .crow button, .sgrp button { min-height: 0; padding: 6px 8px; border: 0; background: none; box-shadow: none; color: var(--mut); font-size: .9rem; font-weight: 600; }
+  .crow.on .cbtn { color: var(--fg); }
+  .crow .cbtn { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .crow .cact { display: none; padding: 4px 6px; font-size: .75rem; }
+  .crow:hover .cact { display: inline-block; }
+  .crow button:hover:not(:disabled), .sgrp button:hover:not(:disabled) { transform: none; box-shadow: none; color: var(--fg); }
+  .sv-main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; }
+  .sv-top { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+  .sv-top strong { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sv-top .x { width: 36px; min-height: 36px; padding: 0; }
+  .sv-burger { display: none; width: 36px; min-height: 36px; padding: 0; }
+  #svMsgs { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; overflow-y: auto; }
+  .msg { position: relative; display: flex; gap: 11px; }
+  .msg .mb { min-width: 0; }
+  .msg .mh { display: flex; align-items: baseline; gap: 8px; font-size: .9rem; }
+  .msg .mh span { font-size: .72rem; }
+  .msg .mt { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; color: #dbe2f4; font-size: .93rem; }
+  .msg .mdel { position: absolute; right: 0; top: 0; display: none; min-height: 0; padding: 3px 7px; font-size: .72rem; }
+  .msg:hover .mdel { display: block; }
+  #svForm { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
+  #svForm input { flex: 1; }
+  #svForm button { min-width: 48px; padding: 0 14px; }
+  .mem-row { display: flex; align-items: center; gap: 9px; min-width: 0; font-size: .88rem; }
+  .mem-row b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  @media (max-width: 860px) {
+    :root { --rail: 60px; }
+    #srvView { grid-template-columns: minmax(0, 1fr); }
+    .sv-mem { display: none; }
+    .sv-side { position: absolute; z-index: 3; inset: 0 auto 0 0; width: 80%; max-width: 300px; transform: translateX(-102%); transition: transform .2s ease; background: var(--card-solid); }
+    .sv-side.open { transform: none; }
+    .sv-burger { display: inline-block; }
+  }
+</style>
+
+<script>
+/* =====================  SERVIDORES (estilo Discord)  ===================== */
+window.Srv = (() => {
+const ST = {
+ pt: { addServer:'Criar ou entrar em um servidor', createTitle:'Criar meu servidor', srvName:'Nome do servidor', create:'Criar', nameShort:'O nome precisa ter pelo menos 2 letras.',
+   joinTitle:'Entrar com um convite', inviteCode:'Código ou link de convite', join:'Entrar', textCh:'Canais de texto', voiceCh:'Canais de voz', newCh:'Novo canal',
+   chName:'Nome do canal', chKind:'Tipo', chText:'Texto', chVoice:'Voz (com compartilhamento de tela)', msgPh:'Escreva uma mensagem', del:'Apagar', close:'Fechar',
+   save:'Salvar', icon:'Trocar ícone', rmIcon:'Remover ícone', invite:'Link de convite', copy:'Copiar', copied:'Copiado!', regen:'Gerar novo convite', members:'Membros',
+   owner:'Dono', admin:'Admin', member:'Membro', kick:'Expulsar e banir', badInvite:'Convite inválido ou expirado.', banned:'Banidos', unban:'Desbanir', leave:'Sair do servidor', delSrv:'Apagar servidor', confirmDel:'Apagar o servidor "{n}" e todos os canais e mensagens? Isso não pode ser desfeito.',
+   confirmLeave:'Sair do servidor "{n}"?', confirmKick:'Expulsar e banir {n}? Ele não poderá voltar pelo convite nem pela sala de voz.', confirmCh:'Apagar o canal "{n}"?', rename:'Novo nome do canal:', tooBig:'A imagem passa de 2 MB.', badImg:'Use PNG, JPG, WebP ou GIF.', noText:'Este servidor ainda não tem canal de texto.' },
+ en: { addServer:'Create or join a server', createTitle:'Create my server', srvName:'Server name', create:'Create', nameShort:'The name needs at least 2 letters.',
+   joinTitle:'Join with an invite', inviteCode:'Invite code or link', join:'Join', textCh:'Text channels', voiceCh:'Voice channels', newCh:'New channel',
+   chName:'Channel name', chKind:'Type', chText:'Text', chVoice:'Voice (with screen sharing)', msgPh:'Write a message', del:'Delete', close:'Close',
+   save:'Save', icon:'Change icon', rmIcon:'Remove icon', invite:'Invite link', copy:'Copy', copied:'Copied!', regen:'New invite', members:'Members',
+   owner:'Owner', admin:'Admin', member:'Member', kick:'Kick and ban', badInvite:'Invalid or expired invite.', banned:'Banned', unban:'Unban', leave:'Leave server', delSrv:'Delete server', confirmDel:'Delete the server "{n}" with all channels and messages? This cannot be undone.',
+   confirmLeave:'Leave the server "{n}"?', confirmKick:'Kick and ban {n}? They will not be able to come back through the invite or the voice room.', confirmCh:'Delete the channel "{n}"?', rename:'New channel name:', tooBig:'The image is over 2 MB.', badImg:'Use PNG, JPG, WebP or GIF.', noText:'This server has no text channel yet.' }
+};
+const t = (k, v) => { let s = (ST[String(lang).startsWith('en') ? 'en' : 'pt'][k]) ?? ST.pt[k] ?? k; for (const x in (v || {})) s = s.replace('{' + x + '}', v[x]); return s; };
+const A = () => window.Acc, sb = () => A().sb();
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const mk = (txt, fn, cls) => { const b = el('button', cls || '', txt); b.type = 'button'; b.onclick = fn; return b; };
+const err = e => alert(String((e && e.message) || e));
+const CTRL = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g;
+const ini = n => [...String(n).trim()].slice(0, 2).join('').toUpperCase();
+const normCh = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
+
+let voiceCh = null, uid = null, servers = [], cur = null, chans = [], mem = [], chan = null, rt = null, myRole = 'member', voiceJoin = false, lastSend = 0;
+const msgIds = new Set();
+const isAdm = () => myRole === 'owner' || myRole === 'admin';
+
+const rail = el('aside', 'hidden'); rail.id = 'srvRail';
+const view = el('section', 'hidden'); view.id = 'srvView';
+view.innerHTML = '<div class="sv-side" id="svSide"><button type="button" class="sv-head" id="svName"></button><div class="sv-list" id="svChans"></div></div>' +
+  '<div class="sv-main"><div class="sv-top"><button type="button" class="sec sv-burger" id="svBurger">☰</button><strong id="svTitle"></strong><button type="button" class="sec x" id="svClose">✕</button></div>' +
+  '<div id="svMsgs"></div><form id="svForm" class="hidden"><input id="svInput" maxlength="1000" autocomplete="off"><button type="submit">➤</button></form></div>' +
+  '<div class="sv-mem" id="svMem"></div>';
+document.body.append(rail, view);
+
+function icon(s) {
+  const d = el('span', 'sicon'), u = A().imgUrl('server-icons', s.icon_path);
+  if (u) { const i = new Image(); i.alt = ''; i.referrerPolicy = 'no-referrer'; i.onerror = () => { i.remove(); d.textContent = ini(s.name); }; i.src = u; d.append(i); }
+  else d.textContent = ini(s.name);
+  return d;
+}
+function renderRail() {
+  rail.textContent = '';
+  servers.forEach(s => { const b = mk('', () => openServer(s.id), 'sbtn' + (cur && cur.id === s.id ? ' on' : '')); b.title = s.name; b.append(icon(s)); rail.append(b); });
+  const add = mk('+', () => dlgAdd(), 'sbtn sadd'); add.title = t('addServer'); rail.append(add);
+}
+function syncRail() {
+  const inJoin = !$('join').classList.contains('hidden');
+  rail.classList.toggle('hidden', !uid || !inJoin);
+  document.body.classList.toggle('hasrail', !!uid && inJoin);
+  if (inJoin) voiceCh = null;
+  if (inJoin && voiceJoin) { voiceJoin = false; $('inRoom').value = ''; $('inPass').value = ''; }
+}
+new MutationObserver(syncRail).observe($('join'), { attributes: true, attributeFilter: ['class'] });
+
+async function loadServers() {
+  const { data, error } = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code').order('created_at');
+  if (error) return console.warn(error);
+  servers = data || [];
+  if (cur) { cur = servers.find(s => s.id === cur.id) || null; if (!cur) closeView(); }
+  renderRail();
+}
+function onAuth(id) {
+  if (id === uid) return;
+  uid = id; closeView(); servers = []; renderRail(); syncRail();
+  if (!id) return;
+  loadServers().then(() => {
+    const c = sessionStorage.getItem('sala-convite');
+    if (c) { sessionStorage.removeItem('sala-convite'); dlgAdd(c); }
+  });
+}
+(() => {
+  const q = new URLSearchParams(location.search).get('convite');
+  if (q) { try { sessionStorage.setItem('sala-convite', q.slice(0, 40)); } catch (e) {} history.replaceState(null, '', location.pathname + location.hash); }
+})();
+
+function closeView() { view.classList.add('hidden'); unsub(); cur = null; chan = null; renderRail(); }
+$('svClose').onclick = closeView;
+$('svBurger').onclick = () => $('svSide').classList.toggle('open');
+$('svName').onclick = () => cur && dlgSettings();
+
+async function openServer(id) {
+  const s = servers.find(x => x.id === id); if (!s) return;
+  cur = s; chan = null; unsub(); renderRail();
+  $('svName').textContent = s.name + ' ▾'; $('svTitle').textContent = ''; $('svMsgs').textContent = ''; $('svForm').classList.add('hidden');
+  view.classList.remove('hidden');
+  await Promise.all([loadChans(), loadMembers()]);
+  if (cur !== s) return;
+  renderChans();
+  const first = chans.find(c => c.kind === 'text');
+  if (first) pickChan(first); else $('svMsgs').textContent = t('noText');
+  subscribe();
+}
+async function loadChans() {
+  const { data } = await sb().from('channels').select('id,name,kind,voice_key,position').eq('server_id', cur.id).order('position').order('created_at');
+  const old = new Map(chans.map(c => [c.id, c.voice_key]));
+  chans = data || [];
+  const inRoom = !$('room').classList.contains('hidden');
+  const v = voiceCh && chans.find(c => c.id === voiceCh);
+  if (voiceCh && inRoom) {
+    if (!v) { voiceCh = null; leaveRoom(); }                                            // canal apagado ou perdi o acesso
+    else if (old.has(v.id) && old.get(v.id) !== v.voice_key) { leaveRoom(); setTimeout(() => joinVoice(v), 300); }   // chave trocada: entra de novo com a nova
+  }
+  if (chan && !chans.some(c => c.id === chan.id)) { chan = null; $('svMsgs').textContent = ''; $('svTitle').textContent = ''; $('svForm').classList.add('hidden'); }
+}
+async function loadMembers() {
+  const s = cur; if (!s) return;
+  const { data } = await sb().rpc('list_members', { p_server: s.id });
+  if (cur !== s) return;
+  mem = data || [];
+  const m = mem.find(x => x.user_id === uid);
+  if (!m) { closeView(); loadServers(); return; }   // fui expulso
+  const before = myRole; myRole = m.role;
+  renderMembers();
+  if (before !== myRole) renderChans();
+}
+function renderMembers() {
+  const box = $('svMem'); box.textContent = '';
+  box.append(el('div', 'sgrp', t('members') + ' — ' + mem.length));
+  mem.forEach(m => {
+    const r = el('div', 'mem-row'); r.append(A().avatar(m, 30), el('b', '', m.display_name));
+    if (m.role !== 'member') r.append(el('span', 'vf', m.role === 'owner' ? '👑' : '★'));
+    box.append(r);
+  });
+}
+function renderChans() {
+  const box = $('svChans'); box.textContent = '';
+  [['text', t('textCh')], ['voice', t('voiceCh')]].forEach(([k, label]) => {
+    const h = el('div', 'sgrp'); h.append(el('span', '', label));
+    if (isAdm()) { const a = mk('+', () => dlgChannel(k)); a.title = t('newCh'); h.append(a); }
+    box.append(h);
+    chans.filter(c => c.kind === k).forEach(c => {
+      const r = el('div', 'crow' + (chan && chan.id === c.id ? ' on' : ''));
+      r.append(mk((k === 'text' ? '# ' : '🔊 ') + c.name, () => pickChan(c), 'cbtn'));
+      if (isAdm()) r.append(mk('✎', () => renameChan(c), 'cact'), mk('✕', () => delChan(c), 'cact'));
+      box.append(r);
+    });
+  });
+}
+async function renameChan(c) {
+  const n = normCh(prompt(t('rename'), c.name) || ''); if (!n || n === c.name) return;
+  const { error } = await sb().from('channels').update({ name: n }).eq('id', c.id); if (error) return err(error);
+  await loadChans(); renderChans();
+}
+async function delChan(c) {
+  if (!confirm(t('confirmCh', { n: c.name }))) return;
+  const { error } = await sb().from('channels').delete().eq('id', c.id); if (error) return err(error);
+  await loadChans(); renderChans();
+}
+
+/* ----- chat ----- */
+async function pickChan(c) {
+  $('svSide').classList.remove('open');
+  if (c.kind === 'voice') return joinVoice(c);
+  chan = c; msgIds.clear(); renderChans();
+  $('svTitle').textContent = '# ' + c.name; $('svMsgs').textContent = ''; $('svForm').classList.remove('hidden'); $('svInput').placeholder = t('msgPh');
+  const { data, error } = await sb().rpc('list_messages', { p_channel: c.id });
+  if (chan !== c) return;
+  if (error) return err(error);
+  (data || []).reverse().forEach(r => addMsg(r));
+  $('svMsgs').scrollTop = $('svMsgs').scrollHeight;
+}
+function addMsg(r) {
+  if (msgIds.has(r.id)) return; msgIds.add(r.id);
+  let m = r.display_name ? r : mem.find(x => x.user_id === r.user_id);
+  if (!m) { m = { display_name: '?' }; loadMembers(); }
+  const box = $('svMsgs'), near = box.scrollHeight - box.scrollTop - box.clientHeight < 90;
+  const d = el('div', 'msg'); d.id = 'm' + r.id;
+  const b = el('div', 'mb'), h = el('div', 'mh');
+  h.append(el('strong', '', m.display_name), el('span', 'mut', new Date(r.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
+  b.append(h, el('div', 'mt', r.content));
+  d.append(A().avatar(m, 36), b);
+  if (r.user_id === uid || isAdm()) {
+    const x = mk('✕', async () => { const { error } = await sb().from('messages').delete().eq('id', r.id); if (error) err(error); else d.remove(); }, 'mdel sec');
+    x.title = t('del'); d.append(x);
+  }
+  box.append(d);
+  if (near || r.user_id === uid) box.scrollTop = box.scrollHeight;
+}
+$('svForm').onsubmit = async e => {
+  e.preventDefault();
+  const inp = $('svInput'), c = inp.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000);
+  if (!c || !chan || Date.now() - lastSend < 500) return;
+  lastSend = Date.now(); inp.value = '';
+  const { data, error } = await sb().from('messages').insert({ channel_id: chan.id, server_id: cur.id, content: c }).select('id,user_id,content,created_at').single();
+  if (error) { inp.value = c; return err(error); }
+  addMsg(data);
+};
+function subscribe() {
+  unsub();
+  const id = cur.id;
+  rt = sb().channel('srv:' + id)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: 'server_id=eq.' + id }, p => { if (chan && p.new.channel_id === chan.id) addMsg(p.new); })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, p => { const n = document.getElementById('m' + p.old.id); if (n) n.remove(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'channels', filter: 'server_id=eq.' + id }, async () => { await loadChans(); renderChans(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'server_members', filter: 'server_id=eq.' + id }, () => loadMembers())
+    .subscribe();
+}
+function unsub() { if (rt) { try { sb().removeChannel(rt); } catch (e) {} rt = null; } }
+
+/* ----- voz: reaproveita a sala (e o compartilhamento de tela) de sempre ----- */
+async function joinVoice(c) {
+  const { data, error } = await sb().from('channels').select('voice_key').eq('id', c.id).single();   // chave sempre fresca; quem foi banido não consegue ler
+  if (error || !data) return err(error || 'sem acesso');
+  voiceCh = c.id; voiceJoin = true;
+  $('inRoom').value = 'v' + c.id.replace(/-/g, '').slice(0, 20);
+  $('inPass').value = data.voice_key;                   // só membros leem esta chave
+  window.__roomLabel = '🔊 ' + c.name + ' · ' + cur.name;
+  view.classList.add('hidden');
+  $('btnJoin').click();
+}
+
+/* ----- janelas ----- */
+function modal(title, build) {
+  const d = el('dialog', 'dlg'), w = el('div', 'dlg-in'), h = el('div', 'dlg-head');
+  const x = mk('✕', () => d.close(), 'sec x'); x.title = t('close');
+  h.append(el('h2', '', title), x); w.append(h); d.append(w);
+  d.addEventListener('close', () => d.remove());
+  d.addEventListener('click', e => { if (e.target === d) d.close(); });
+  document.body.append(d);
+  build(w, () => d.close());
+  d.showModal();
+}
+function fld(w, label, attrs) {
+  const l = el('label'), i = el('input'); Object.assign(i, attrs || {}); i.autocomplete = 'off';
+  l.append(el('span', '', label), i); w.append(l); return i;
+}
+function dlgAdd(code) {
+  modal(t('addServer'), (w, close) => {
+    w.append(el('strong', '', t('createTitle')));
+    const n = fld(w, t('srvName'), { maxLength: 32 });
+    w.append(mk(t('create'), async e => {
+      const name = cleanStr(n.value, 32); if (name.length < 2) return err(t('nameShort'));
+      e.target.disabled = true;
+      const { data, error } = await sb().rpc('create_server', { p_name: name });
+      e.target.disabled = false; if (error) return err(error);
+      close(); await loadServers(); openServer(data);
+    }));
+    w.append(el('strong', '', t('joinTitle')));
+    const c = fld(w, t('inviteCode'), { maxLength: 120 }); c.value = code || '';
+    w.append(mk(t('join'), async e => {
+      const v = c.value.trim().split(/[=\/]/).pop(); if (!v) return;
+      e.target.disabled = true;
+      const { data, error } = await sb().rpc('join_server', { p_code: v });
+      e.target.disabled = false; if (error) return err(error);
+      if (!data) return err(t('badInvite'));
+      close(); await loadServers(); openServer(data);
+    }, 'sec'));
+  });
+}
+function dlgChannel(kind) {
+  modal(t('newCh'), (w, close) => {
+    const n = fld(w, t('chName'), { maxLength: 30 });
+    const l = el('label'), s = el('select'); [['text', t('chText')], ['voice', t('chVoice')]].forEach(([v, x]) => { const o = el('option', '', x); o.value = v; s.append(o); });
+    s.value = kind; l.append(el('span', '', t('chKind')), s); w.append(l);
+    w.append(mk(t('create'), async () => {
+      const name = normCh(n.value); if (!name) return;
+      const { error } = await sb().from('channels').insert({ server_id: cur.id, name, kind: s.value, position: chans.length });
+      if (error) return err(error);
+      close(); await loadChans(); renderChans();
+    }));
+  });
+}
+function dlgSettings() {
+  const s = cur;
+  modal(s.name, (w, close) => {
+    const reopen = async () => { close(); await loadMembers(); dlgSettings(); };
+    if (isAdm()) {
+      const n = fld(w, t('srvName'), { maxLength: 32 }); n.value = s.name;
+      const file = el('input'); file.type = 'file'; file.hidden = true; file.accept = 'image/png,image/jpeg,image/webp,image/gif';
+      const setIcon = async path => {
+        const old = s.icon_path;
+        const { error } = await sb().from('servers').update({ icon_path: path }).eq('id', s.id); if (error) return err(error);
+        if (old) sb().storage.from('server-icons').remove([old]);
+        await loadServers(); close(); if (cur) { $('svName').textContent = cur.name + ' ▾'; dlgSettings(); }
+      };
+      file.onchange = async () => {
+        const f = file.files[0]; file.value = ''; if (!f) return;
+        if (f.size > 2097152) return err(t('tooBig'));
+        const ty = await A().sniff(f); if (!ty) return err(t('badImg'));
+        const path = s.id + '/' + Date.now() + '-' + rndHex(4) + '.' + ty.ext;
+        const up = await sb().storage.from('server-icons').upload(path, f, { contentType: ty.mime, cacheControl: '31536000', upsert: false });
+        if (up.error) return err(up.error);
+        setIcon(path);
+      };
+      const row = el('div', 'pe-actions');
+      row.append(mk(t('save'), async () => {
+        const name = cleanStr(n.value, 32); if (name.length < 2) return err(t('nameShort'));
+        const { error } = await sb().from('servers').update({ name }).eq('id', s.id); if (error) return err(error);
+        await loadServers(); $('svName').textContent = name + ' ▾'; close();
+      }), mk(t('icon'), () => file.click(), 'sec'));
+      if (s.icon_path) row.append(mk(t('rmIcon'), () => setIcon(null), 'sec'));
+      w.append(row, file);
+    }
+    const link = location.origin + location.pathname + '?convite=' + s.invite_code;
+    const li = fld(w, t('invite'), { readOnly: true }); li.value = link;
+    const r2 = el('div', 'pe-actions');
+    r2.append(mk(t('copy'), async e => { try { await navigator.clipboard.writeText(link); e.target.textContent = t('copied'); } catch (x) { li.select(); } }, 'sec'));
+    if (isAdm()) r2.append(mk(t('regen'), async () => {
+      const { data, error } = await sb().rpc('regen_invite', { p_server: s.id }); if (error) return err(error);
+      s.invite_code = data; close(); dlgSettings();
+    }, 'sec'));
+    w.append(r2, el('strong', '', t('members') + ' — ' + mem.length));
+    mem.forEach(m => {
+      const r = el('div', 'mem-row'); r.append(A().avatar(m, 30), el('b', '', m.display_name));
+      const lab = m.role === 'owner' ? t('owner') : m.role === 'admin' ? t('admin') : t('member');
+      if (myRole === 'owner' && m.role !== 'owner') {
+        const sel = el('select'); [['member', t('member')], ['admin', t('admin')]].forEach(([v, x]) => { const o = el('option', '', x); o.value = v; sel.append(o); });
+        sel.value = m.role; sel.style.marginLeft = 'auto'; sel.style.width = 'auto';
+        sel.onchange = async () => { const { error } = await sb().rpc('set_member_role', { p_server: s.id, p_user: m.user_id, p_role: sel.value }); if (error) err(error); reopen(); };
+        r.append(sel);
+      } else { const sp = el('span', 'mut', lab); sp.style.marginLeft = 'auto'; r.append(sp); }
+      if (isAdm() && m.user_id !== uid && m.role !== 'owner' && (myRole === 'owner' || m.role === 'member')) {
+        r.append(mk('✕', async () => { if (!confirm(t('confirmKick', { n: m.display_name }))) return; const { error } = await sb().rpc('kick_member', { p_server: s.id, p_user: m.user_id }); if (error) err(error); reopen(); }, 'sec'));
+        r.lastChild.title = t('kick');
+      }
+      w.append(r);
+    });
+    if (isAdm()) {
+      const bb = el('div'); w.append(bb);
+      sb().rpc('list_bans', { p_server: s.id }).then(({ data }) => {
+        if (!data || !data.length) return;
+        bb.append(el('strong', '', t('banned') + ' — ' + data.length));
+        data.forEach(u => {
+          const r = el('div', 'mem-row'); r.style.marginTop = '8px'; r.append(el('b', '', u.display_name));
+          const b = mk(t('unban'), async () => { const { error } = await sb().rpc('unban_member', { p_server: s.id, p_user: u.user_id }); if (error) err(error); else r.remove(); }, 'sec');
+          b.style.marginLeft = 'auto'; r.append(b); bb.append(r);
+        });
+      });
+    }
+    if (myRole === 'owner') w.append(mk(t('delSrv'), async () => {
+      if (!confirm(t('confirmDel', { n: s.name }))) return;
+      const { error } = await sb().from('servers').delete().eq('id', s.id); if (error) return err(error);
+      close(); closeView(); loadServers();
+    }, 'sec'));
+    else w.append(mk(t('leave'), async () => {
+      if (!confirm(t('confirmLeave', { n: s.name }))) return;
+      const { error } = await sb().rpc('leave_server', { p_server: s.id }); if (error) return err(error);
+      close(); closeView(); loadServers();
+    }, 'sec'));
+  });
+}
+
+renderRail();
+return { onAuth };
+})();
+</script>
+
 </body>
 </html>
