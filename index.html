@@ -2745,7 +2745,7 @@ const PERMS = [
   ['manage_roles', 'permRoles', 'permRolesD'], ['manage_emojis', 'permEmojis', 'permEmojisD'], ['manage_messages', 'permMsgs', 'permMsgsD']
 ];
 const PERM_KEYS = PERMS.map(x => x[0]);
-const cleanRole = r => ({ id: String(r.id), name: cleanStr(r.name, 24), color: okHex(r.color) || '#99aab5', hoist: !!r.hoist, position: +r.position || 0,
+const cleanRole = r => ({ id: String(r.id), name: cleanStr(r.name, 24), color: okHex(r.color) || '#99aab5', hoist: !!r.hoist, position: +r.position || 0, name_font: r.name_font || '', name_color2: r.name_color2 || '', name_fx: r.name_fx || '',
   perms: Array.isArray(r.perms) ? r.perms.filter(x => PERM_KEYS.includes(x)) : [] });
 const cleanEmoji = e => ({ id: String(e.id), name: String(e.name || '').replace(/[^a-z0-9_]/g, '').slice(0, 24), path: String(e.path || '') });
 
@@ -2789,7 +2789,8 @@ const railObs = new MutationObserver(syncRail);
 
 async function loadServers() {
   // se a migração v7 ainda não foi rodada, cai para a consulta antiga (sem descrição)
-  let r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path,owner_role_name,owner_role_color,owner_role_hidden,name_font,name_color,name_color2,name_fx').order('created_at');
+  let r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path,owner_role_name,owner_role_color,owner_role_hidden,name_font,name_color,name_color2,name_fx,owner_role_font,owner_role_color2,owner_role_fx').order('created_at');
+  if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path,owner_role_name,owner_role_color,owner_role_hidden,name_font,name_color,name_color2,name_fx').order('created_at');   // v12 ainda não rodou
   if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path,owner_role_name,owner_role_color,owner_role_hidden').order('created_at');   // v11 ainda não rodou
   if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path').order('created_at');   // v9 ainda não rodou
   if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description').order('created_at');
@@ -2802,6 +2803,8 @@ async function loadServers() {
 }
 /* estilo do nome do servidor (fonte, cor e efeito, igual ao do perfil) */
 const nsOf = s => (window.NS && s) ? NS.clean({ font: s.name_font, color: s.name_color, color2: s.name_color2, fx: s.name_fx }) : { font: '', color: '', color2: '', fx: '' };
+const nsOfRole = r => NS.clean({ font: r.name_font, color: r.color, color2: r.name_color2, fx: r.name_fx });
+const ownerNs = () => NS.clean({ font: cur && cur.owner_role_font, color: ownerColor(), color2: cur && cur.owner_role_color2, fx: cur && cur.owner_role_fx });
 function setSrvName() {
   const b = $('svName'); if (!b || !cur) return;
   b.textContent = cur.name + ' ▾';
@@ -2894,9 +2897,10 @@ async function loadMembers() {
 async function loadRoles() {
   const s = cur; if (!s) return;
   let [a, b] = await Promise.all([
-    sb().from('server_roles').select('id,name,color,hoist,position,perms').eq('server_id', s.id).order('position'),
+    sb().from('server_roles').select('id,name,color,hoist,position,perms,name_font,name_color2,name_fx').eq('server_id', s.id).order('position'),
     sb().from('member_roles').select('role_id,user_id').eq('server_id', s.id)
   ]);
+  if (a.error) a = await sb().from('server_roles').select('id,name,color,hoist,position,perms').eq('server_id', s.id).order('position');   // v12 ainda não rodou
   if (a.error) a = await sb().from('server_roles').select('id,name,color,hoist,position').eq('server_id', s.id).order('position');   // v8 ainda não rodou
   if (cur !== s) return;
   roles = a.error ? [] : (a.data || []).map(cleanRole).filter(r => r.name).sort((x, y) => x.position - y.position);
@@ -2965,15 +2969,16 @@ function renderMembers() {
   const box = $('svMem'); box.textContent = '';
   const used = new Set();
   const take = fn => mem.filter(m => !used.has(m.user_id) && fn(m)).map(m => (used.add(m.user_id), m));
-  const section = (label, list, color) => {
+  const section = (label, list, color, ns) => {
     if (!list.length) return;
     const h = el('div', 'sgrp'), sp = el('span', '', label + ' — ' + list.length);
     if (color) sp.style.color = color;
+    if (ns && window.NS) NS.style(sp, ns, color);
     h.append(sp); box.append(h); list.forEach(m => box.append(memRow(m)));
   };
-  if (!ownerHidden()) section(ownerName(), take(m => m.role === 'owner'), ownerColor());
+  if (!ownerHidden()) section(ownerName(), take(m => m.role === 'owner'), ownerColor(), ownerNs());
   section(t('grpAdmin'), take(m => m.role === 'admin'));
-  roles.filter(r => r.hoist).forEach(r => section(r.name, take(m => hasRole(m.user_id, r.id)), r.color));
+  roles.filter(r => r.hoist).forEach(r => section(r.name, take(m => hasRole(m.user_id, r.id)), r.color, nsOfRole(r)));
   section(t('grpMembers'), take(() => true));
   try { render(); } catch (e) {}                 // lista de participantes da call usa as mesmas cores
 }
@@ -3595,9 +3600,30 @@ function dlgRoles() {
     const form = el('div', 'box');
     const nameIn = fld(form, t('roleName'), { maxLength: 24 });
     const prev = el('span', 'gbadge', '—');
-    const refreshPrev = () => { prev.textContent = cleanStr(nameIn.value, 24) || t('preview'); prev.style.setProperty('--c', cp.get() || '#99aab5'); };
-    const cl = el('div'); cl.style.cssText = 'display:grid;gap:8px'; cl.append(el('span', 'mut', t('roleColor')));
-    const cp = colorPicker('#6c7cff', refreshPrev); cl.append(cp.node); form.append(cl);
+    let pendRole = null;
+    const styleHost = el('div');
+    const roleColor = () => (pendRole && pendRole.color) || '#99aab5';
+    const refreshPrev = () => { prev.textContent = cleanStr(nameIn.value, 24) || t('preview'); prev.style.setProperty('--c', roleColor()); NS.style(prev, pendRole, ''); };
+    /* editor de estilo (fonte, cor e efeito), igual ao do perfil; a cor do cargo é a cor principal dele */
+    const loadStyle = init => {
+      pendRole = NS.clean(init || {});
+      NS.editor(styleHost, pendRole, () => nameIn.value, v => { pendRole = v; refreshPrev(); });
+      const en = String(lang).startsWith('en');
+      const ttl = styleHost.querySelector('.nsed > strong'), hint = styleHost.querySelector('.nsed > p');
+      if (ttl) ttl.textContent = en ? 'Role style' : 'Estilo do cargo';
+      if (hint) hint.textContent = en ? 'Pick a font, color and effect for the role name.' : 'Escolha fonte, cor e efeito do nome do cargo.';
+      refreshPrev();
+    };
+    const needV12 = () => String(lang).startsWith('en') ? 'The v12 SQL migration still needs to be run in Supabase to use the role style.' : 'Falta rodar a migração SQL v12 no Supabase para usar o estilo do cargo.';
+    const saveRoleStyle = async (rid, name) => {
+      const ps = NS.clean(pendRole || {});
+      let id = editing ? editing.id : (typeof rid === 'string' ? rid : (rid && rid.id) || null);
+      if (!id) { await loadRoles(); const f = roles.filter(x => x.name === name).pop(); id = f && f.id; }   // cargo recém-criado
+      if (!id) return;
+      const { error } = await sb().rpc('ns_set_role_style', { p_role: String(id), p_font: ps.font || null, p_color2: ps.color2 || null, p_fx: ps.fx || null });
+      if (error) err(missingFn(error) ? needV12() : error);
+    };
+    form.append(styleHost);
     const hoist = chk(form, t('roleHoist'), true), hoistRow = hoist.parentElement;
     const pr = el('div'); pr.style.cssText = 'display:flex;gap:8px;align-items:center'; pr.append(el('span', 'mut', t('preview')), prev); form.append(pr);
     nameIn.oninput = refreshPrev;
@@ -3627,21 +3653,27 @@ function dlgRoles() {
       const name = cleanStr(nameIn.value, 24);
       if (editing && editing.owner) {                       // cargo de dono: só nome e cor (nome vazio = padrão)
         e.target.disabled = true;
-        const { error } = await sb().rpc('ns_set_owner_role', { p_server: s.id, p_name: name, p_color: cp.get(), p_hidden: null });
+        const { error } = await sb().rpc('ns_set_owner_role', { p_server: s.id, p_name: name, p_color: roleColor(), p_hidden: null });
+        if (!error) {
+          const ps = NS.clean(pendRole || {});
+          const r2 = await sb().rpc('ns_set_owner_role_style', { p_server: s.id, p_font: ps.font || null, p_color2: ps.color2 || null, p_fx: ps.fx || null });
+          if (r2.error) { e.target.disabled = false; err(missingFn(r2.error) ? needV12() : r2.error); }
+        }
         e.target.disabled = false; if (error) return err(missingFn(error) ? t('needV9') : error);
         resetForm(); await loadServers(); draw(); return;
       }
       if (!name) return err(t('roleNameReq'));
       e.target.disabled = true;
-      const args = { p_name: name, p_color: cp.get(), p_hoist: hoist.checked, p_perms: getPerms() };
-      const { error } = editing ? await sb().rpc('ns_update_role', { p_role: editing.id, ...args }) : await sb().rpc('ns_create_role', { p_server: s.id, ...args });
+      const args = { p_name: name, p_color: roleColor(), p_hoist: hoist.checked, p_perms: getPerms() };
+      const { data: rid, error } = editing ? await sb().rpc('ns_update_role', { p_role: editing.id, ...args }) : await sb().rpc('ns_create_role', { p_server: s.id, ...args });
       e.target.disabled = false; if (error) return err(missingFn(error) ? t('needV8') : error);
+      await saveRoleStyle(rid, name);
       resetForm(); await loadRoles(); draw();
     });
     const cancelBtn = mk(t('cancel'), () => resetForm(), 'sec');
     acts.append(okBtn, cancelBtn); form.append(acts);
     const resetForm = () => {
-      editing = null; setMode(false); nameIn.placeholder = ''; nameIn.value = ''; cp.set('#6c7cff'); hoist.checked = true; setPerms([]);
+      editing = null; setMode(false); nameIn.placeholder = ''; nameIn.value = ''; loadStyle({ color: '#6c7cff' }); hoist.checked = true; setPerms([]);
       head.textContent = t('newRoleH'); okBtn.textContent = t('createRole'); cancelBtn.classList.add('hidden'); refreshPrev();
     };
     const setOwnerHidden = async h => {
@@ -3651,12 +3683,12 @@ function dlgRoles() {
     };
     const ownerRow = () => {
       const row = el('div', 'lrow'), dot = el('span', 'rdot'); dot.style.setProperty('--c', ownerColor());
-      const g = el('div', 'grow'), nmE = el('b', '', ownerName()); nmE.style.color = ownerColor();
+      const g = el('div', 'grow'), nmE = el('b', '', ownerName()); NS.style(nmE, ownerNs(), ownerColor());
       g.append(nmE, el('div', 'mut', t('ownerRoleAuto') + (ownerHidden() ? ' · ' + t('ownerRoleOff') : '')));
       row.append(dot, g);
       if (myRole === 'owner') {
         const ed = mk('✎', () => {
-          editing = { owner: true }; setMode(true); nameIn.value = cleanStr(cur && cur.owner_role_name, 24); nameIn.placeholder = t('owner'); cp.set(ownerColor());
+          editing = { owner: true }; setMode(true); nameIn.value = cleanStr(cur && cur.owner_role_name, 24); nameIn.placeholder = t('owner'); loadStyle(ownerNs());
           head.textContent = t('editOwnerH'); okBtn.textContent = t('saveRole'); cancelBtn.classList.remove('hidden'); refreshPrev(); nameIn.focus();
         }, 'sec'); ed.title = t('edit');
         const tg = ownerHidden() ? mk('👁', () => setOwnerHidden(false), 'sec') : mk('✕', () => { if (confirm(t('confirmOwnerHide'))) setOwnerHidden(true); }, 'bad');
@@ -3672,14 +3704,14 @@ function dlgRoles() {
       if (!roles.length) list.append(el('p', 'mut', t('noRoles')));
       roles.forEach((r, i) => {
         const row = el('div', 'lrow'), dot = el('span', 'rdot'); dot.style.setProperty('--c', r.color);
-        const g = el('div', 'grow'), nmE = el('b', '', r.name); nmE.style.color = r.color;
+        const g = el('div', 'grow'), nmE = el('b', '', r.name); NS.style(nmE, nsOfRole(r), r.color);
         const cnt = mem.filter(m => hasRole(m.user_id, r.id)).length;
         g.append(nmE, el('div', 'mut', t('roleMembers', { n: cnt }) + (r.hoist ? ' · ' + t('hoisted') : '') + (r.perms.includes('administrator') ? ' · ' + t('permAll') : r.perms.length ? ' · ' + t('permCount', { n: r.perms.length }) : '')));
         const move = dir => async () => { const { error } = await sb().rpc('ns_move_role', { p_role: r.id, p_dir: dir }); if (error) return err(error); await loadRoles(); draw(); };
         const up = mk('▲', move(-1), 'sec'), dn = mk('▼', move(1), 'sec');
         up.title = t('up'); dn.title = t('down'); up.disabled = i === 0; dn.disabled = i === roles.length - 1;
         const ed = mk('✎', () => {
-          editing = r; nameIn.value = r.name; cp.set(r.color); hoist.checked = r.hoist; setPerms(r.perms);
+          editing = r; nameIn.value = r.name; loadStyle({ font: r.name_font, color: r.color, color2: r.name_color2, fx: r.name_fx }); hoist.checked = r.hoist; setPerms(r.perms);
           head.textContent = t('editRoleH'); okBtn.textContent = t('saveRole'); cancelBtn.classList.remove('hidden'); refreshPrev(); nameIn.focus();
         }, 'sec'); ed.title = t('edit');
         const rm = mk('✕', async () => {
@@ -3920,8 +3952,9 @@ function cardExtras(p, box) {
   const chips = el('div', 'rchips');
   const base = el('span', 'gbadge', m.role === 'owner' ? ownerName() : lab(m.role));
   base.style.setProperty('--c', m.role === 'owner' ? ownerColor() : m.role === 'admin' ? '#6c7cff' : '#9da8c2');
+  if (m.role === 'owner') NS.style(base, ownerNs(), '');
   if (!(m.role === 'owner' && ownerHidden())) chips.append(base);
-  rs.forEach(r => { const c = el('span', 'gbadge', r.name); c.style.setProperty('--c', r.color); chips.append(c); });
+  rs.forEach(r => { const c = el('span', 'gbadge', r.name); c.style.setProperty('--c', r.color); NS.style(c, nsOfRole(r), ''); chips.append(c); });
   box.append(chips);
   if (myRole === 'owner' && m.role !== 'owner') {
     const sel = el('select'); sel.style.marginTop = '8px';
