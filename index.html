@@ -3564,10 +3564,16 @@ function dlgAdd(code) {
   });
 }
 /* ----- editar canal: nome, ícone, estilo do nome e limite de pessoas (voz) ----- */
-function dlgEditChannel(c) {
+function dlgEditChannel(c, isNew) {
   const en = String(lang).startsWith('en'), L = (a, b) => en ? b : a;
-  modal(L('Editar canal', 'Edit channel'), (w, close) => {
-    const nameIn = fld(w, t('chName'), { maxLength: 30 }); nameIn.value = c.name;
+  modal(isNew ? L('Novo canal', 'New channel') : L('Editar canal', 'Edit channel'), (w, close) => {
+    const nameIn = fld(w, t('chName'), { maxLength: 30 }); nameIn.value = c.name || '';
+    let kindSel = null;
+    if (isNew) {
+      const kl = el('label'); kindSel = el('select');
+      [['text', t('chText')], ['voice', t('chVoice')]].forEach(([v, x]) => { const o = el('option', '', x); o.value = v; kindSel.append(o); });
+      kindSel.value = c.kind; kl.append(el('span', '', t('chKind')), kindSel); w.append(kl);
+    }
     const catSel = catSelect(w, c.category_id);
 
     /* ícone: emoji comum ou emoji deste servidor */
@@ -3593,18 +3599,18 @@ function dlgEditChannel(c) {
     if (hint) hint.textContent = L('Escolha fonte, cor e efeito do nome do canal.', 'Pick a font, color and effect for the channel name.');
 
     /* limite de pessoas (só canal de voz) */
-    let limSel = null;
-    if (c.kind === 'voice') {
-      const l = el('label'); limSel = el('select');
+    let limSel = null, limL = null, limP = null;
+    if (c.kind === 'voice' || isNew) {
+      const l = limL = el('label'); limSel = el('select');
       const o0 = el('option', '', L('Ilimitado (até 12)', 'Unlimited (up to 12)')); o0.value = '0'; limSel.append(o0);
       for (let n = 1; n <= 12; n++) { const o = el('option', '', String(n)); o.value = String(n); limSel.append(o); }
       limSel.value = String(c.user_limit > 0 ? Math.min(12, c.user_limit) : 0);
       l.append(el('span', '', L('Limite de pessoas no canal de voz', 'Voice channel user limit')), limSel);
-      w.append(l, el('p', 'mut', L('A conexão é direta entre as pessoas, então o máximo é 12 por canal. Quem tentar entrar com o canal cheio recebe um aviso.', 'The connection is direct between people, so the maximum is 12 per channel. Anyone trying to join a full channel gets a notice.')));
+      w.append(l, limP = el('p', 'mut', L('A conexão é direta entre as pessoas, então o máximo é 12 por canal. Quem tentar entrar com o canal cheio recebe um aviso.', 'The connection is direct between people, so the maximum is 12 per channel. Anyone trying to join a full channel gets a notice.')));
     }
 
     /* acesso: canal privado e quem pode escrever (texto) ou falar (voz) */
-    const isV = c.kind === 'voice';
+    let isV = c.kind === 'voice';
     const viewSet = new Set((c.view_roles || []).map(String)), writeSet = new Set((c.write_roles || []).map(String));
     const accBox = el('div', 'box');
     accBox.append(el('strong', '', L('Acesso e permissões', 'Access and permissions')),
@@ -3627,6 +3633,14 @@ function dlgEditChannel(c) {
     const writeHost = roleList(writeSet); accBox.append(writeHost);
     const syncAcc = () => { viewHost.classList.toggle('hidden', !privChk.checked); writeHost.classList.toggle('hidden', !lockChk.checked); };
     privChk.onchange = syncAcc; lockChk.onchange = syncAcc; syncAcc();
+    const syncKind = () => {
+      isV = c.kind === 'voice'; paintIcon();
+      if (limL) { limL.classList.toggle('hidden', !isV); limP.classList.toggle('hidden', !isV); }
+      privChk.parentNode.lastChild.textContent = isV ? L('Canal de voz privado (só os cargos escolhidos entram)', 'Private voice channel (only the chosen roles can join)') : L('Canal privado (só os cargos escolhidos veem)', 'Private channel (only the chosen roles can see it)');
+      lockChk.parentNode.lastChild.textContent = isV ? L('Restringir quem pode falar (transmitir tela e câmera); os demais só assistem', 'Restrict who can talk (share screen and camera); others only watch') : L('Restringir quem pode escrever; os demais só leem', 'Restrict who can write; others can only read');
+    };
+    if (kindSel) kindSel.onchange = () => { c.kind = kindSel.value; syncKind(); };
+    syncKind();
     w.append(accBox);
     const sameSet = (a, b) => { const x = new Set((a || []).map(String)), y = new Set((b || []).map(String)); return x.size === y.size && [...x].every(v => y.has(v)); };
     const accessChanged = () => privChk.checked !== !!c.is_private || lockChk.checked !== !!c.locked || !sameSet([...viewSet], c.view_roles) || !sameSet([...writeSet], c.write_roles);
@@ -3637,6 +3651,13 @@ function dlgEditChannel(c) {
       const ps = NS.clean(pend);
       saveBtn.disabled = true;
       try {
+        if (isNew) {   // cria o canal e em seguida aplica todas as opções abaixo
+          const row = { server_id: cur.id, name, kind: c.kind, position: chans.length };
+          if (catSel && catSel.value) row.category_id = catSel.value;
+          const ins = await sb().from('channels').insert(row).select('id').single();
+          if (ins.error || !ins.data) return err(missingFn(ins.error) || /category_id/.test(String((ins.error || {}).message || '')) ? needV15() : (ins.error || 'erro'));
+          c = { ...c, id: ins.data.id, category_id: catSel && catSel.value ? catSel.value : null }; isNew = false;   // se der erro adiante, salvar de novo só edita
+        }
         if (accessChanged()) {
           const ra = await sb().rpc('ns_set_channel_access', { p_channel: c.id, p_private: privChk.checked, p_view_roles: [...viewSet], p_locked: lockChk.checked, p_write_roles: [...writeSet] });
           if (ra.error) err(missingFn(ra.error) ? L('Falta rodar a migração SQL v14 no Supabase para usar privacidade e permissões.', 'The v14 SQL migration still needs to be run in Supabase to use privacy and permissions.') : ra.error);
@@ -3662,22 +3683,7 @@ function dlgEditChannel(c) {
     w.append(acts);
   }, true);
 }
-function dlgChannel(kind, catId) {
-  modal(t('newCh'), (w, close) => {
-    const n = fld(w, t('chName'), { maxLength: 30 });
-    const l = el('label'), s = el('select'); [['text', t('chText')], ['voice', t('chVoice')]].forEach(([v, x]) => { const o = el('option', '', x); o.value = v; s.append(o); });
-    s.value = kind; l.append(el('span', '', t('chKind')), s); w.append(l);
-    const catSel = catSelect(w, catId);
-    w.append(mk(t('create'), async () => {
-      const name = normCh(n.value); if (!name) return;
-      const row = { server_id: cur.id, name, kind: s.value, position: chans.length };
-      if (catSel && catSel.value) row.category_id = catSel.value;
-      const { error } = await sb().from('channels').insert(row);
-      if (error) return err(missingFn(error) || /category_id/.test(String(error.message || '')) ? needV15() : error);
-      close(); await loadChans(); renderChans();
-    }));
-  });
-}
+function dlgChannel(kind, catId) { dlgEditChannel({ kind, name: '', category_id: catId || null }, true); }
 
 /* ----- configurações do servidor ----- */
 function dlgSettings() {
