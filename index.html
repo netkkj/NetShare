@@ -676,6 +676,7 @@ let myName, baseId, roomKey = null, leaving = false;
 let myId = null, mySlot = -1, joinedAt = 0, probeTimer = 0, searchTimer = 0, heirTimer = 0, statusTimer = 0, kickTimer = 0, ownerWindow = 0;
 let myStream = null, myKind = null;
 const MAX_SLOTS = 12;
+let roomLimit = 0;   // limite de pessoas do canal de voz atual (0 = sem limite além do máximo de conexões)
 const conns = new Map();
 const spare = new Map();
 const dialing = new Map();
@@ -726,7 +727,8 @@ $('inRoom').value = (() => { try { return decodeURIComponent(location.hash.slice
   $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('btnJoin').click(); }));
 
 $('btnJoin').onclick = async () => {
-  const isVoice = window.__roomNs === 'v'; window.__roomNs = '';   // canal de voz de servidor? (lido e limpo na hora, antes de qualquer await)
+  const isVoice = window.__roomNs === 'v'; window.__roomNs = '';
+  roomLimit = isVoice ? ((+window.__roomLimit | 0) || 0) : 0; window.__roomLimit = 0;   // canal de voz de servidor? (lido e limpo na hora, antes de qualquer await)
   const name = cleanName($('inName').value);
   const room = $('inRoom').value.trim();
   setJoinErr(null);
@@ -783,7 +785,7 @@ function start() {
 
 function claimSlot(i) {
   if (leaving) return;
-  if (i >= MAX_SLOTS) { kickOut('full'); return; }
+  if (i >= (roomLimit > 0 ? Math.min(roomLimit, MAX_SLOTS) : MAX_SLOTS)) { kickOut('full'); return; }
   let opened = false;
   const me = new Peer(baseId + '_' + i, PEER_OPTS);
   peer = me;
@@ -1082,7 +1084,7 @@ function onState(c, d) {
 function kickOut(reason) {
   const map = { name:'eName', required:'eRequired', open:'eOpen', full:'eFull', banned:'eBanned', kicked:'eKicked', wrong:'eWrong' };
   leaveRoom();
-  setJoinErr(map[reason] || 'eWrong', { n: MAX_SLOTS });
+  setJoinErr(map[reason] || 'eWrong', { n: roomLimit > 0 ? roomLimit : MAX_SLOTS });
 }
 
 function broadcast(m) { connIds().forEach(id => { const c = verifiedConn(id); if (c) { try { c.send(m); } catch (e) {} } }); }
@@ -2805,6 +2807,13 @@ async function loadServers() {
 const nsOf = s => (window.NS && s) ? NS.clean({ font: s.name_font, color: s.name_color, color2: s.name_color2, fx: s.name_fx }) : { font: '', color: '', color2: '', fx: '' };
 const nsOfRole = r => NS.clean({ font: r.name_font, color: r.color, color2: r.name_color2, fx: r.name_fx });
 const ownerNs = () => NS.clean({ font: cur && cur.owner_role_font, color: ownerColor(), color2: cur && cur.owner_role_color2, fx: cur && cur.owner_role_fx });
+const nsOfChan = c => NS.clean({ font: c.name_font, color: c.name_color, color2: c.name_color2, fx: c.name_fx });
+function paintTitle(c) {
+  const ti = $('svTitle'); ti.textContent = '';
+  if (c.icon) ti.append(emoNode(c.icon)); else ti.append('#');
+  ti.append(' ');
+  const s = el('span', '', c.name); NS.style(s, nsOfChan(c), ''); ti.append(s);
+}
 function setSrvName() {
   const b = $('svName'); if (!b || !cur) return;
   b.textContent = cur.name + ' ▾';
@@ -2870,7 +2879,9 @@ async function openServer(id) {
   subscribe();
 }
 async function loadChans() {
-  const { data } = await sb().from('channels').select('id,name,kind,voice_key,position').eq('server_id', cur.id).order('position').order('created_at');
+  const qc = cols => sb().from('channels').select(cols).eq('server_id', cur.id).order('position').order('created_at');
+  let { data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit');
+  if (error) ({ data } = await qc('id,name,kind,voice_key,position'));   // v13 ainda não rodou
   const old = new Map(chans.map(c => [c.id, c.voice_key]));
   chans = data || [];
   const inRoom = !$('room').classList.contains('hidden');
@@ -2879,6 +2890,7 @@ async function loadChans() {
     if (!v) { voiceCh = null; leaveRoom(); }                                            // canal apagado ou perdi o acesso
     else if (old.has(v.id) && old.get(v.id) !== v.voice_key) { leaveRoom(); setTimeout(() => joinVoice(v), 300); }   // chave trocada: entra de novo com a nova
   }
+  if (chan) { const nc = chans.find(x => x.id === chan.id); if (nc) { Object.assign(chan, nc); paintTitle(chan); } }   // canal aberto foi editado
   if (chan && !chans.some(c => c.id === chan.id)) { chan = null; $('svMsgs').textContent = ''; $('svTitle').textContent = ''; $('svForm').classList.add('hidden'); }
 }
 async function loadMembers() {
@@ -3005,8 +3017,13 @@ function renderChans() {
     box.append(h);
     chans.filter(c => c.kind === k).forEach(c => {
       const r = el('div', 'crow' + ((chan && chan.id === c.id) || voiceCh === c.id ? ' on' : ''));
-      r.append(mk((k === 'text' ? '# ' : '🔊 ') + c.name, () => pickChan(c), 'cbtn'));
-      if (can('manage_channels')) r.append(mk('✎', () => renameChan(c), 'cact'), mk('✕', () => delChan(c), 'cact'));
+      const cb = mk('', () => pickChan(c), 'cbtn');
+      if (c.icon) cb.append(emoNode(c.icon)); else cb.append(k === 'text' ? '#' : '🔊');
+      cb.append(' ');
+      const nmS = el('span', '', c.name); NS.style(nmS, nsOfChan(c), ''); cb.append(nmS);
+      if (k === 'voice' && c.user_limit > 0) { const lm = el('span', 'mut', ' 👥' + c.user_limit); lm.style.fontSize = '.72rem'; cb.append(lm); }
+      r.append(cb);
+      if (can('manage_channels')) r.append(mk('✎', () => dlgEditChannel(c), 'cact'), mk('✕', () => delChan(c), 'cact'));
       box.append(r);
     });
   });
@@ -3029,6 +3046,7 @@ async function loadEmojis() {
   if (cur !== s) return;
   emojis = error ? [] : (data || []).map(cleanEmoji).filter(e => e.name && A().imgUrl('server-emojis', e.path));
   repaintMessages();
+  renderChans();   // ícones de emoji do servidor nos canais
 }
 function emojiImg(e) {
   const i = new Image(); i.className = 'cemoji'; i.alt = ':' + e.name + ':'; i.title = ':' + e.name + ':';
@@ -3136,7 +3154,7 @@ function openPicker(anchor, onPick) {
     grid.scrollTop = 0;
   };
   cats.forEach((c, i) => { const b = mk(c.icon, () => show(i), ''); b.title = c.title; tabs.append(b); });
-  document.body.append(box);
+  (anchor.closest('dialog') || document.body).append(box);   // dentro de uma janela, senão ela cobre o seletor
   show(0);                                                   // enche a grade antes de medir (antes media só as abas e a caixa crescia pra fora da tela)
   const r = anchor.getBoundingClientRect(), vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
   const w = box.offsetWidth, h = box.offsetHeight;
@@ -3174,7 +3192,7 @@ async function pickChan(c) {
     return joinVoice(c);
   }
   chan = c; msgIds.clear(); msgData.clear(); reacts.clear(); renderChans(); closePicker();
-  $('svTitle').textContent = '# ' + c.name; $('svMsgs').textContent = ''; $('svForm').classList.remove('hidden'); $('svInput').placeholder = t('msgPh'); $('svEmoji').title = t('emojiBtn');
+  paintTitle(c); $('svMsgs').textContent = ''; $('svForm').classList.remove('hidden'); $('svInput').placeholder = t('msgPh'); $('svEmoji').title = t('emojiBtn');
   let res = await sb().rpc('ns_list_messages', { p_channel: c.id });
   if (res.error) res = await sb().rpc('list_messages', { p_channel: c.id });   // migração v7 ainda não rodou
   if (chan !== c) return;
@@ -3329,8 +3347,10 @@ function unsub() {
 
 /* ----- voz: reaproveita a sala (e o compartilhamento de tela) de sempre ----- */
 async function joinVoice(c) {
-  const { data, error } = await sb().from('channels').select('voice_key').eq('id', c.id).single();   // chave sempre fresca; quem foi banido não consegue ler
+  let { data, error } = await sb().from('channels').select('voice_key,user_limit').eq('id', c.id).single();   // chave sempre fresca; quem foi banido não consegue ler
+  if (error) ({ data, error } = await sb().from('channels').select('voice_key').eq('id', c.id).single());   // v13 ainda não rodou
   if (error || !data) return err(error || 'sem acesso');
+  window.__roomLimit = data.user_limit > 0 ? Math.min(12, data.user_limit) : 0;   // limite de pessoas do canal (0 = ilimitado)
   voiceCh = c.id; voiceJoin = true; renderChans();
   $('inRoom').value = 'v' + c.id.replace(/-/g, '').slice(0, 20);
   $('inPass').value = data.voice_key;                   // só membros leem esta chave
@@ -3398,6 +3418,68 @@ function dlgAdd(code) {
       close(); await loadServers(); openServer(data);
     }, 'sec'));
   });
+}
+/* ----- editar canal: nome, ícone, estilo do nome e limite de pessoas (voz) ----- */
+function dlgEditChannel(c) {
+  const en = String(lang).startsWith('en'), L = (a, b) => en ? b : a;
+  modal(L('Editar canal', 'Edit channel'), (w, close) => {
+    const nameIn = fld(w, t('chName'), { maxLength: 30 }); nameIn.value = c.name;
+
+    /* ícone: emoji comum ou emoji deste servidor */
+    let icon = c.icon || '';
+    const prevI = el('span'); prevI.style.cssText = 'display:inline-grid;place-items:center;width:38px;height:38px;font-size:1.4rem;border:1px solid var(--line);border-radius:10px;background:var(--surface)';
+    const paintIcon = () => { prevI.textContent = ''; if (icon) prevI.append(emoNode(icon)); else prevI.append(c.kind === 'voice' ? '🔊' : '#'); };
+    paintIcon();
+    const irow = el('div', 'pe-actions'); irow.style.alignItems = 'center';
+    irow.append(prevI,
+      mk(L('Escolher ícone', 'Choose icon'), e => openPicker(e.currentTarget, p => { icon = pickKey(p); paintIcon(); }), 'sec'),
+      mk(L('Remover', 'Remove'), () => { icon = ''; paintIcon(); }, 'sec'));
+    const il = el('div'); il.style.cssText = 'display:grid;gap:8px';
+    il.append(el('span', 'mut', L('Ícone do canal (emoji ou emoji do servidor)', 'Channel icon (emoji or server emoji)')), irow);
+    w.append(il);
+
+    /* estilo do nome: fonte, cor e efeito */
+    let pend = nsOfChan(c);
+    const nsHost = el('div'); w.append(nsHost);
+    const ed = NS.editor(nsHost, pend, () => nameIn.value, v => { pend = v; });
+    nameIn.addEventListener('input', () => ed.refresh());
+    const ttl = nsHost.querySelector('.nsed > strong'), hint = nsHost.querySelector('.nsed > p');
+    if (ttl) ttl.textContent = L('Estilo do nome do canal', 'Channel name style');
+    if (hint) hint.textContent = L('Escolha fonte, cor e efeito do nome do canal.', 'Pick a font, color and effect for the channel name.');
+
+    /* limite de pessoas (só canal de voz) */
+    let limSel = null;
+    if (c.kind === 'voice') {
+      const l = el('label'); limSel = el('select');
+      const o0 = el('option', '', L('Ilimitado (até 12)', 'Unlimited (up to 12)')); o0.value = '0'; limSel.append(o0);
+      for (let n = 1; n <= 12; n++) { const o = el('option', '', String(n)); o.value = String(n); limSel.append(o); }
+      limSel.value = String(c.user_limit > 0 ? Math.min(12, c.user_limit) : 0);
+      l.append(el('span', '', L('Limite de pessoas no canal de voz', 'Voice channel user limit')), limSel);
+      w.append(l, el('p', 'mut', L('A conexão é direta entre as pessoas, então o máximo é 12 por canal. Quem tentar entrar com o canal cheio recebe um aviso.', 'The connection is direct between people, so the maximum is 12 per channel. Anyone trying to join a full channel gets a notice.')));
+    }
+
+    const acts = el('div', 'dlg-actions');
+    const saveBtn = mk(L('Salvar', 'Save'), async () => {
+      const name = normCh(nameIn.value); if (!name) return err(L('Digite um nome para o canal.', 'Type a channel name.'));
+      const ps = NS.clean(pend);
+      saveBtn.disabled = true;
+      try {
+        const { error } = await sb().rpc('ns_update_channel', {
+          p_channel: c.id, p_name: name, p_icon: icon || null,
+          p_font: ps.font || null, p_color: ps.color || null, p_color2: ps.color2 || null, p_fx: ps.fx || null,
+          p_limit: limSel ? ((+limSel.value) || null) : null
+        });
+        if (error) {
+          if (!missingFn(error)) return err(error);
+          if (name !== c.name) { const r = await sb().from('channels').update({ name }).eq('id', c.id); if (r.error) return err(r.error); }   // v13 ainda não rodou: salva só o nome
+          err(L('Falta rodar a migração SQL v13 no Supabase para usar ícone, estilo e limite.', 'The v13 SQL migration still needs to be run in Supabase to use icon, style and limit.'));
+        }
+        close(); await loadChans(); renderChans();
+      } finally { saveBtn.disabled = false; }
+    });
+    acts.append(mk(t('cancel'), () => close(), 'sec'), saveBtn);
+    w.append(acts);
+  }, true);
 }
 function dlgChannel(kind) {
   modal(t('newCh'), (w, close) => {
