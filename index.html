@@ -2653,6 +2653,10 @@ applyLang();
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chips button { min-height: 30px; padding: 3px 10px; border-radius: 999px; font-size: .76rem; }
   @media (max-width: 520px) { .fgrid { grid-template-columns: 1fr; } .tabs.t4 button { padding: 4px; font-size: .78rem; } }
+.sgrp .cattog { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .sgrp.cat .cact { display: none; padding: 2px 5px !important; font-size: .75rem !important; }
+  .sgrp.cat:hover .cact { display: inline-block; }
+  .crow.incat { margin-left: 8px; }
 </style>
 
 <script>
@@ -2730,6 +2734,10 @@ const fmtDate = iso => new Date(iso).toLocaleString([], { day: '2-digit', month:
 
 let voiceCh = null, uid = null, servers = [], cur = null, chans = [], mem = [], chan = null, rt = null, rt2 = null, myRole = 'member', voiceJoin = false, lastSend = 0;
 let roles = [], mroles = new Map(), emojis = [], siteOwner = false;
+let cats = [];   // categorias de canais do servidor aberto
+let collapsed = new Set(); try { collapsed = new Set(JSON.parse(localStorage.getItem('sala-cat-off') || '[]')); } catch (e) {}
+const saveCollapsed = () => { try { localStorage.setItem('sala-cat-off', JSON.stringify([...collapsed])); } catch (e) {} };
+const needV15 = () => String(lang).startsWith('en') ? 'The v15 SQL migration still needs to be run in Supabase to use categories.' : 'Falta rodar a migração SQL v15 no Supabase para usar categorias.';
 const msgIds = new Set(), msgData = new Map(), reacts = new Map();
 const isAdm = () => myRole === 'owner' || myRole === 'admin';
 // cargo de dono: nome/cor definidos pelo dono (ou o padrão); a posse não depende disso
@@ -2873,7 +2881,7 @@ function onAuth(id) {
   if (q) { try { sessionStorage.setItem('sala-convite', q.slice(0, 40)); } catch (e) {} history.replaceState(null, '', location.pathname + location.hash); }
 })();
 
-function closeView() { view.classList.add('hidden'); unsub(); closePicker(); cur = null; chan = null; roles = []; mroles = new Map(); emojis = []; renderRail(); layout(); }
+function closeView() { view.classList.add('hidden'); unsub(); closePicker(); cur = null; cats = []; chan = null; roles = []; mroles = new Map(); emojis = []; renderRail(); layout(); }
 // dentro da sala de voz só esconde o painel (mantém o servidor ativo); fora dela fecha de vez
 function hideView() { view.classList.add('hidden'); closePicker(); if ($('room').classList.contains('hidden')) closeView(); else layout(); }
 $('svClose').onclick = hideView;
@@ -2895,11 +2903,13 @@ async function openServer(id) {
 }
 async function loadChans() {
   const qc = cols => sb().from('channels').select(cols).eq('server_id', cur.id).order('position').order('created_at');
-  let { data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles');
+  let { data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles,category_id');
+  if (error) ({ data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles'));   // v15 ainda não rodou
   if (error) ({ data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit'));   // v14 ainda não rodou
   if (error) ({ data } = await qc('id,name,kind,voice_key,position'));   // v13 ainda não rodou
   const old = new Map(chans.map(c => [c.id, c.voice_key]));
   chans = data || [];
+  await loadCats();
   const inRoom = !$('room').classList.contains('hidden');
   const v = voiceCh && chans.find(c => c.id === voiceCh);
   if (voiceCh && inRoom) {
@@ -2908,6 +2918,11 @@ async function loadChans() {
   }
   if (chan) { const nc = chans.find(x => x.id === chan.id); if (nc) { Object.assign(chan, nc); paintTitle(chan); applyWriteState(); } }   // canal aberto foi editado
   if (chan && !chans.some(c => c.id === chan.id)) { chan = null; $('svMsgs').textContent = ''; $('svTitle').textContent = ''; $('svForm').classList.add('hidden'); }
+}
+async function loadCats() {
+  const s = cur; if (!s) { cats = []; return; }
+  const { data, error } = await sb().from('channel_categories').select('id,name,position,icon,name_font,name_color,name_color2,name_fx,is_private,view_roles').eq('server_id', s.id).order('position').order('created_at');
+  if (cur === s) cats = error ? [] : (data || []);   // v15 ainda não rodou: sem categorias
 }
 async function loadMembers() {
   const s = cur; if (!s) return;
@@ -3028,26 +3043,131 @@ function renderMembers() {
 
 function renderChans() {
   const box = $('svChans'); box.textContent = '';
+  const en0 = String(lang).startsWith('en'), L = (x, y) => en0 ? y : x, mng = can('manage_channels');
+  const row = (c, inCat) => {
+    const k = c.kind;
+    const r = el('div', 'crow' + (inCat ? ' incat' : '') + ((chan && chan.id === c.id) || voiceCh === c.id ? ' on' : ''));
+    const cb = mk('', () => pickChan(c), 'cbtn');
+    if (c.icon) cb.append(emoNode(c.icon)); else cb.append(k === 'text' ? '#' : '🔊');
+    cb.append(' ');
+    const nmS = el('span', '', c.name); NS.style(nmS, nsOfChan(c), ''); cb.append(nmS);
+    if (k === 'voice' && c.user_limit > 0) { const lm = el('span', 'mut', ' 👥' + c.user_limit); lm.style.fontSize = '.72rem'; cb.append(lm); }
+    const mark = (txt, title) => { const m = el('span', 'mut', ' ' + txt); m.style.fontSize = '.72rem'; m.title = title; cb.append(m); };
+    if (c.is_private) mark('🔒', en0 ? 'Private' : 'Privado');
+    if (c.locked) mark(k === 'text' ? '📖' : '🔇', k === 'text' ? (en0 ? 'Only some roles can write' : 'Só alguns cargos podem escrever') : (en0 ? 'Only some roles can talk' : 'Só alguns cargos podem falar'));
+    r.append(cb);
+    if (mng) r.append(mk('✎', () => dlgEditChannel(c), 'cact'), mk('✕', () => delChan(c), 'cact'));
+    return r;
+  };
+  const ids = new Set(cats.map(x => x.id));
+  // canais sem categoria (como era antes)
   [['text', t('textCh')], ['voice', t('voiceCh')]].forEach(([k, label]) => {
     const h = el('div', 'sgrp'); h.append(el('span', '', label));
-    if (can('manage_channels')) { const a = mk('+', () => dlgChannel(k)); a.title = t('newCh'); h.append(a); }
+    if (mng) { const a = mk('+', () => dlgChannel(k)); a.title = t('newCh'); h.append(a); }
     box.append(h);
-    chans.filter(c => c.kind === k).forEach(c => {
-      const r = el('div', 'crow' + ((chan && chan.id === c.id) || voiceCh === c.id ? ' on' : ''));
-      const cb = mk('', () => pickChan(c), 'cbtn');
-      if (c.icon) cb.append(emoNode(c.icon)); else cb.append(k === 'text' ? '#' : '🔊');
-      cb.append(' ');
-      const nmS = el('span', '', c.name); NS.style(nmS, nsOfChan(c), ''); cb.append(nmS);
-      if (k === 'voice' && c.user_limit > 0) { const lm = el('span', 'mut', ' 👥' + c.user_limit); lm.style.fontSize = '.72rem'; cb.append(lm); }
-      const en0 = String(lang).startsWith('en');
-      const mark = (txt, title) => { const m = el('span', 'mut', ' ' + txt); m.style.fontSize = '.72rem'; m.title = title; cb.append(m); };
-      if (c.is_private) mark('🔒', en0 ? 'Private' : 'Privado');
-      if (c.locked) mark(k === 'text' ? '📖' : '🔇', k === 'text' ? (en0 ? 'Only some roles can write' : 'Só alguns cargos podem escrever') : (en0 ? 'Only some roles can talk' : 'Só alguns cargos podem falar'));
-      r.append(cb);
-      if (can('manage_channels')) r.append(mk('✎', () => dlgEditChannel(c), 'cact'), mk('✕', () => delChan(c), 'cact'));
-      box.append(r);
-    });
+    chans.filter(c => c.kind === k && !(c.category_id && ids.has(c.category_id))).forEach(c => box.append(row(c, false)));
   });
+  // categorias
+  if (mng || cats.length) {
+    const h = el('div', 'sgrp'); h.append(el('span', '', L('Categorias', 'Categories')));
+    if (mng) { const a = mk('+', () => dlgCategory()); a.title = L('Nova categoria', 'New category'); h.append(a); }
+    box.append(h);
+  }
+  cats.forEach((g, i) => {
+    const off = collapsed.has(g.id), h = el('div', 'sgrp cat');
+    const tg = mk('', () => { if (off) collapsed.delete(g.id); else collapsed.add(g.id); saveCollapsed(); renderChans(); }, 'cattog');
+    tg.append(off ? '▸ ' : '▾ ');
+    if (g.icon) { tg.append(emoNode(g.icon)); tg.append(' '); }
+    const nm = el('span', '', g.name); NS.style(nm, nsOfChan(g), ''); tg.append(nm);
+    if (g.is_private) { const lk = el('span', 'mut', ' 🔒'); lk.title = L('Categoria privada', 'Private category'); tg.append(lk); }
+    h.append(tg);
+    if (mng) {
+      const up = mk('▲', () => moveCat(g, -1), 'cact'), dn = mk('▼', () => moveCat(g, 1), 'cact'), add = mk('+', () => dlgChannel('text', g.id), 'cact');
+      add.title = t('newCh'); up.title = t('up'); dn.title = t('down'); up.disabled = i === 0; dn.disabled = i === cats.length - 1;
+      h.append(add, up, dn, mk('✎', () => dlgCategory(g), 'cact'), mk('✕', () => delCat(g), 'cact'));
+    }
+    box.append(h);
+    chans.filter(c => c.category_id === g.id)
+      .filter(c => !off || (chan && chan.id === c.id) || voiceCh === c.id)   // fechada: só mostra o canal em uso
+      .forEach(c => box.append(row(c, true)));
+  });
+}
+async function moveCat(g, dir) {
+  const { error } = await sb().rpc('ns_move_category', { p_category: g.id, p_dir: dir }); if (error) return err(missingFn(error) ? needV15() : error);
+  await loadChans(); renderChans();
+}
+async function delCat(g) {
+  const en = String(lang).startsWith('en');
+  if (!confirm(en ? 'Delete the category "' + g.name + '"? Its channels are kept, just without a category.' : 'Apagar a categoria "' + g.name + '"? Os canais dela continuam, só ficam sem categoria.')) return;
+  const { error } = await sb().rpc('ns_delete_category', { p_category: g.id }); if (error) return err(missingFn(error) ? needV15() : error);
+  await loadChans(); renderChans();
+}
+/* seletor de categoria (criar e editar canal) */
+function catSelect(w, val) {
+  if (!cats.length) return null;
+  const en = String(lang).startsWith('en'), l = el('label'), s = el('select');
+  const o0 = el('option', '', en ? 'No category' : 'Sem categoria'); o0.value = ''; s.append(o0);
+  cats.forEach(g => { const o = el('option', '', g.name); o.value = g.id; s.append(o); });
+  s.value = cats.some(g => g.id === val) ? val : '';
+  l.append(el('span', '', en ? 'Category' : 'Categoria'), s); w.append(l); return s;
+}
+/* criar ou editar categoria: nome, ícone, estilo do nome e privacidade por cargo (igual ao canal) */
+function dlgCategory(g) {
+  const en = String(lang).startsWith('en'), L = (a, b) => en ? b : a, edit = !!g;
+  modal(edit ? L('Editar categoria', 'Edit category') : L('Nova categoria', 'New category'), (w, close) => {
+    const nameIn = fld(w, L('Nome da categoria', 'Category name'), { maxLength: 30 }); nameIn.value = edit ? g.name : '';
+    let icon = edit ? (g.icon || '') : '';
+    const prevI = el('span'); prevI.style.cssText = 'display:inline-grid;place-items:center;width:38px;height:38px;font-size:1.4rem;border:1px solid var(--line);border-radius:10px;background:var(--surface)';
+    const paintIcon = () => { prevI.textContent = ''; if (icon) prevI.append(emoNode(icon)); else prevI.append('📁'); };
+    paintIcon();
+    const irow = el('div', 'pe-actions'); irow.style.alignItems = 'center';
+    irow.append(prevI, mk(L('Escolher ícone', 'Choose icon'), e => openPicker(e.currentTarget, p => { icon = pickKey(p); paintIcon(); }), 'sec'), mk(L('Remover', 'Remove'), () => { icon = ''; paintIcon(); }, 'sec'));
+    const il = el('div'); il.style.cssText = 'display:grid;gap:8px';
+    il.append(el('span', 'mut', L('Ícone da categoria (emoji ou emoji do servidor)', 'Category icon (emoji or server emoji)')), irow); w.append(il);
+
+    let pend = edit ? nsOfChan(g) : NS.clean({});
+    const nsHost = el('div'); w.append(nsHost);
+    const ed = NS.editor(nsHost, pend, () => nameIn.value, v => { pend = v; });
+    nameIn.addEventListener('input', () => ed.refresh());
+    const ttl = nsHost.querySelector('.nsed > strong'), hint = nsHost.querySelector('.nsed > p');
+    if (ttl) ttl.textContent = L('Estilo do nome da categoria', 'Category name style');
+    if (hint) hint.textContent = L('Escolha fonte, cor e efeito do nome da categoria.', 'Pick a font, color and effect for the category name.');
+
+    const viewSet = new Set(((edit && g.view_roles) || []).map(String));
+    const accBox = el('div', 'box');
+    accBox.append(el('strong', '', L('Acesso', 'Access')), el('p', 'mut', L('Categoria privada: só os cargos escolhidos (além do dono e de quem gerencia canais) veem a categoria e os canais dentro dela.', 'Private category: only the chosen roles (plus the owner and channel managers) can see the category and the channels in it.')));
+    const privChk = chk(accBox, L('Categoria privada', 'Private category'), edit && g.is_private);
+    const host = el('div', 'rpick');
+    if (!roles.length) host.append(el('p', 'mut', L('Este servidor ainda não tem cargos. Crie em 🏷️ Cargos nas configurações do servidor.', 'This server has no roles yet. Create them in 🏷️ Roles in the server settings.')));
+    roles.forEach(r => {
+      const l = el('label', 'chk'), ck = el('input'); ck.type = 'checkbox'; ck.checked = viewSet.has(r.id);
+      const dot = el('span', 'rdot'); dot.style.setProperty('--c', r.color);
+      l.append(ck, dot, el('span', '', r.name));
+      ck.onchange = () => { if (ck.checked) viewSet.add(r.id); else viewSet.delete(r.id); };
+      host.append(l);
+    });
+    accBox.append(host);
+    const sync = () => host.classList.toggle('hidden', !privChk.checked); privChk.onchange = sync; sync();
+    w.append(accBox);
+
+    const acts = el('div', 'dlg-actions');
+    const save = mk(L('Salvar', 'Save'), async () => {
+      const name = cleanStr(nameIn.value, 30); if (!name) return err(L('Digite um nome para a categoria.', 'Type a category name.'));
+      const ps = NS.clean(pend); save.disabled = true;
+      try {
+        let id = edit ? g.id : null;
+        if (!edit) {
+          const r = await sb().rpc('ns_create_category', { p_server: cur.id, p_name: name, p_icon: icon || null });
+          if (r.error) return err(missingFn(r.error) ? needV15() : r.error);
+          id = r.data;
+        }
+        const { error } = await sb().rpc('ns_update_category', { p_category: id, p_name: name, p_icon: icon || null, p_font: ps.font || null, p_color: ps.color || null, p_color2: ps.color2 || null, p_fx: ps.fx || null, p_private: privChk.checked, p_view_roles: [...viewSet] });
+        if (error) return err(missingFn(error) ? needV15() : error);
+        close(); await loadChans(); renderChans();
+      } finally { save.disabled = false; }
+    });
+    acts.append(mk(t('cancel'), () => close(), 'sec'), save); w.append(acts);
+  }, true);
 }
 async function renameChan(c) {
   const n = normCh(prompt(t('rename'), c.name) || ''); if (!n || n === c.name) return;
@@ -3358,6 +3478,8 @@ function subscribe() {
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'member_roles' }, () => loadRoles())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'server_emojis', filter: f }, () => loadEmojis())
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'server_emojis' }, () => loadEmojis())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'channel_categories', filter: f }, async () => { await loadChans(); renderChans(); })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'channel_categories' }, async () => { await loadChans(); renderChans(); })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'servers', filter: 'id=eq.' + id }, async () => { await loadServers(); if (cur) $('svName').textContent = cur.name + ' ▾'; })
     .subscribe();
 }
@@ -3446,6 +3568,7 @@ function dlgEditChannel(c) {
   const en = String(lang).startsWith('en'), L = (a, b) => en ? b : a;
   modal(L('Editar canal', 'Edit channel'), (w, close) => {
     const nameIn = fld(w, t('chName'), { maxLength: 30 }); nameIn.value = c.name;
+    const catSel = catSelect(w, c.category_id);
 
     /* ícone: emoji comum ou emoji deste servidor */
     let icon = c.icon || '';
@@ -3528,6 +3651,10 @@ function dlgEditChannel(c) {
           if (name !== c.name) { const r = await sb().from('channels').update({ name }).eq('id', c.id); if (r.error) return err(r.error); }   // v13 ainda não rodou: salva só o nome
           err(L('Falta rodar a migração SQL v13 no Supabase para usar ícone, estilo e limite.', 'The v13 SQL migration still needs to be run in Supabase to use icon, style and limit.'));
         }
+        if (catSel && catSel.value !== (c.category_id || '')) {
+          const rc = await sb().rpc('ns_set_channel_category', { p_channel: c.id, p_category: catSel.value || null });
+          if (rc.error) err(missingFn(rc.error) ? needV15() : rc.error);
+        }
         close(); await loadChans(); renderChans();
       } finally { saveBtn.disabled = false; }
     });
@@ -3535,15 +3662,18 @@ function dlgEditChannel(c) {
     w.append(acts);
   }, true);
 }
-function dlgChannel(kind) {
+function dlgChannel(kind, catId) {
   modal(t('newCh'), (w, close) => {
     const n = fld(w, t('chName'), { maxLength: 30 });
     const l = el('label'), s = el('select'); [['text', t('chText')], ['voice', t('chVoice')]].forEach(([v, x]) => { const o = el('option', '', x); o.value = v; s.append(o); });
     s.value = kind; l.append(el('span', '', t('chKind')), s); w.append(l);
+    const catSel = catSelect(w, catId);
     w.append(mk(t('create'), async () => {
       const name = normCh(n.value); if (!name) return;
-      const { error } = await sb().from('channels').insert({ server_id: cur.id, name, kind: s.value, position: chans.length });
-      if (error) return err(error);
+      const row = { server_id: cur.id, name, kind: s.value, position: chans.length };
+      if (catSel && catSel.value) row.category_id = catSel.value;
+      const { error } = await sb().from('channels').insert(row);
+      if (error) return err(missingFn(error) || /category_id/.test(String(error.message || '')) ? needV15() : error);
       close(); await loadChans(); renderChans();
     }));
   });
