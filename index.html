@@ -2722,7 +2722,7 @@ const err = e => alert(String((e && e.message) || e));
 const missingFn = e => !!e && (e.code === 'PGRST202' || /could not find the function|schema cache|does not exist|bucket not found/i.test(String(e.message || '')));
 const CTRL = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g;
 const ini = n => [...String(n).trim()].slice(0, 2).join('').toUpperCase();
-const normCh = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
+const normCh = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);   // aceita maiúsculas
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const okHex = c => (typeof c === 'string' && HEX.test(c)) ? c.toLowerCase() : '';
 const PAL = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#6c7cff', '#9b59b6', '#e91e63', '#99aab5'];
