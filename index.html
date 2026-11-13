@@ -2820,6 +2820,10 @@ applyLang();
   .sgrp.cat .cact { display: none; padding: 2px 5px !important; font-size: .75rem !important; }
   .sgrp.cat:hover .cact { display: inline-block; }
   .crow.incat { margin-left: 8px; }
+  .crow.dragging, .sgrp.cat.dragging { opacity: .4; }
+  .crow.drop-before, .sgrp.cat.drop-before { box-shadow: inset 0 2px 0 var(--acc); }
+  .crow.drop-after, .sgrp.cat.drop-after { box-shadow: inset 0 -2px 0 var(--acc); }
+  .crow.drop-in, .sgrp.drop-in { background: rgba(108,124,255,.22); border-radius: 9px; outline: 1px dashed var(--acc); }
 </style>
 
 <script>
@@ -3245,7 +3249,15 @@ function renderChans() {
     if (c.locked) mark(k === 'text' ? '📖' : '🔇', k === 'text' ? (en0 ? 'Only some roles can write' : 'Só alguns cargos podem escrever') : (en0 ? 'Only some roles can talk' : 'Só alguns cargos podem falar'));
     r.append(cb);
     if (c.slowmode_seconds > 0) mark('⏱', (en0 ? 'Slow mode: ' : 'Modo lento: ') + fmtSecs(c.slowmode_seconds));
-    if (mng) r.append(mk('✎', () => dlgEditChannel(c), 'cact'), mk('✕', () => delChan(c), 'cact'));
+    if (mng) {
+      const gl = chans.filter(x => chanGroup(x) === chanGroup(c)), gi = gl.findIndex(x => x.id === c.id);
+      const up = mk('▲', () => moveChan(c, -1), 'cact'), dn = mk('▼', () => moveChan(c, 1), 'cact');
+      up.title = t('up'); dn.title = t('down'); up.disabled = gi <= 0; dn.disabled = gi < 0 || gi >= gl.length - 1;
+      r.append(up, dn, mk('✎', () => dlgEditChannel(c), 'cact'), mk('✕', () => delChan(c), 'cact'));
+      dragWire(r, 'chan', c.id);
+      dropWire(r, d => d.type === 'chan' && d.id !== c.id && groupAccepts(chanGroup(c), d.id)
+        ? { mode: 'half', go: after => placeChan(d.id, chanGroup(c), c.id, after) } : null);
+    }
     return r;
   };
   const ids = new Set(cats.map(x => x.id));
@@ -3253,6 +3265,8 @@ function renderChans() {
   [['text', t('textCh')], ['voice', t('voiceCh')]].forEach(([k, label]) => {
     const h = el('div', 'sgrp'); h.append(el('span', '', label));
     if (mng) { const a = mk('+', () => dlgChannel(k)); a.title = t('newCh'); h.append(a); }
+    if (mng) dropWire(h, d => d.type === 'chan' && groupAccepts('_' + k, d.id)
+      ? { mode: 'in', go: () => placeChan(d.id, '_' + k, null, false) } : null);
     box.append(h);
     chans.filter(c => c.kind === k && !(c.category_id && ids.has(c.category_id))).forEach(c => box.append(row(c, false)));
   });
@@ -3275,11 +3289,83 @@ function renderChans() {
       add.title = t('newCh'); up.title = t('up'); dn.title = t('down'); up.disabled = i === 0; dn.disabled = i === cats.length - 1;
       h.append(add, up, dn, mk('✎', () => dlgCategory(g), 'cact'), mk('✕', () => delCat(g), 'cact'));
     }
+    if (mng) {
+      dragWire(h, 'cat', g.id);
+      dropWire(h, d => d.type === 'cat'
+        ? (d.id !== g.id ? { mode: 'half', go: after => placeCat(d.id, g.id, after) } : null)
+        : d.type === 'chan' ? { mode: 'in', go: () => placeChan(d.id, g.id, null, false) } : null);
+    }
     box.append(h);
     chans.filter(c => c.category_id === g.id)
       .filter(c => !off || (chan && chan.id === c.id) || voiceCh === c.id)   // fechada: só mostra o canal em uso
       .forEach(c => box.append(row(c, true)));
   });
+}
+/* ----- reordenar canais e categorias: arrastar e soltar (+ setas ▲▼ para celular) ----- */
+let dragSt = null;   // { type: 'chan' | 'cat', id }
+const chanGroup = c => (c.category_id != null && cats.some(g => String(g.id) === String(c.category_id))) ? String(c.category_id) : '_' + c.kind;
+const groupAccepts = (g, id) => g[0] !== '_' || ((chans.find(x => x.id === id) || {}).kind === g.slice(1));   // sem categoria: texto com texto, voz com voz
+const clearDrop = () => document.querySelectorAll('#svChans .drop-before, #svChans .drop-after, #svChans .drop-in').forEach(n => n.classList.remove('drop-before', 'drop-after', 'drop-in'));
+function dragWire(node, type, id) {
+  node.draggable = true;
+  node.addEventListener('dragstart', e => {
+    dragSt = { type, id }; e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', String(id)); } catch (x) {}
+    setTimeout(() => node.classList.add('dragging'), 0);
+  });
+  node.addEventListener('dragend', () => { dragSt = null; node.classList.remove('dragging'); clearDrop(); });
+}
+function dropWire(node, rule) {   // rule(d) -> null (não aceita) ou { mode: 'half' | 'in', go(after) }
+  node.addEventListener('dragover', e => {
+    const r = dragSt && rule(dragSt); if (!r) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+    clearDrop();
+    if (r.mode === 'in') node.classList.add('drop-in');
+    else { const b = node.getBoundingClientRect(); node.classList.add(e.clientY < b.top + b.height / 2 ? 'drop-before' : 'drop-after'); }
+  });
+  node.addEventListener('dragleave', e => { if (!node.contains(e.relatedTarget)) node.classList.remove('drop-before', 'drop-after', 'drop-in'); });
+  node.addEventListener('drop', e => {
+    const r = dragSt && rule(dragSt); if (!r) return;
+    e.preventDefault();
+    const b = node.getBoundingClientRect(), after = e.clientY >= b.top + b.height / 2;
+    dragSt = null; clearDrop();
+    r.go(after);
+  });
+}
+async function placeChan(id, group, relId, after) {
+  const c = chans.find(x => x.id === id); if (!c || !cur) return;
+  const toCat = group[0] === '_' ? null : (cats.find(g => String(g.id) === group) || {}).id;
+  const list = chans.filter(x => chanGroup(x) === group && x.id !== id);
+  const i = relId == null ? -1 : list.findIndex(x => x.id === relId);
+  list.splice(relId == null ? 0 : i < 0 ? list.length : i + (after ? 1 : 0), 0, c);
+  const moved = String(c.category_id ?? '') !== String(toCat ?? '');
+  const jobs = list.map((x, k) => ({ id: x.id, pos: k, old: x.position })).filter(j => j.pos !== j.old);
+  if (!moved && !jobs.length) return;
+  try {
+    if (moved) {
+      const r = await sb().rpc('ns_set_channel_category', { p_channel: id, p_category: toCat });
+      if (r.error) throw r.error;
+    }
+    const res = await Promise.all(jobs.map(j => sb().from('channels').update({ position: j.pos }).eq('id', j.id).select('id')));
+    const bad = res.find(r => r.error); if (bad) throw bad.error;
+    if (res.some(r => !(r.data || []).length)) throw new Error('Não foi possível salvar a ordem dos canais (sem permissão no banco).');
+  } catch (e) { err(missingFn(e) ? needV15() : e); }
+  await loadChans(); renderChans();
+}
+async function moveChan(c, dir) {
+  const g = chanGroup(c), list = chans.filter(x => chanGroup(x) === g), j = list.findIndex(x => x.id === c.id) + dir;
+  if (j < 0 || j >= list.length) return;
+  await placeChan(c.id, g, list[j].id, dir > 0);
+}
+async function placeCat(id, relId, after) {
+  const from = cats.findIndex(g => g.id === id), rest = cats.filter(g => g.id !== id), i = rest.findIndex(g => g.id === relId);
+  if (from < 0 || i < 0) return;
+  const steps = i + (after ? 1 : 0) - from, dir = steps > 0 ? 1 : -1;
+  for (let k = 0; k < Math.abs(steps); k++) {
+    const { error } = await sb().rpc('ns_move_category', { p_category: id, p_dir: dir });
+    if (error) { err(missingFn(error) ? needV15() : error); break; }
+  }
+  await loadChans(); renderChans();
 }
 async function moveCat(g, dir) {
   const { error } = await sb().rpc('ns_move_category', { p_category: g.id, p_dir: dir }); if (error) return err(missingFn(error) ? needV15() : error);
