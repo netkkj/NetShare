@@ -677,6 +677,7 @@ let myId = null, mySlot = -1, joinedAt = 0, probeTimer = 0, searchTimer = 0, hei
 let myStream = null, myKind = null;
 const MAX_SLOTS = 12;
 let roomCanSpeak = true;   // canal de voz restrito: quem não tem o cargo só assiste
+let roomIsVoice = false;   // canal de voz de servidor: ninguém tem poder de expulsar/banir pela sala (quem modera é o servidor)
 let roomLimit = 0;   // limite de pessoas do canal de voz atual (0 = sem limite além do máximo de conexões)
 const conns = new Map();
 const spare = new Map();
@@ -730,6 +731,7 @@ $('inRoom').value = (() => { try { return decodeURIComponent(location.hash.slice
 $('btnJoin').onclick = async () => {
   const isVoice = window.__roomNs === 'v'; window.__roomNs = '';
   roomLimit = isVoice ? ((+window.__roomLimit | 0) || 0) : 0; window.__roomLimit = 0;
+  roomIsVoice = isVoice;
   roomCanSpeak = isVoice ? window.__roomSpeak !== false : true; window.__roomSpeak = true;   // canal de voz de servidor? (lido e limpo na hora, antes de qualquer await)
   const name = cleanName($('inName').value);
   const room = $('inRoom').value.trim();
@@ -1000,14 +1002,14 @@ async function onData(c, d) {
   } else if (d.t === 'owner') {
     mergeOwner({ id: d.id, epoch: d.epoch }, id);
   } else if (d.t === 'ban') {
-    if (id === own.id) {
+    if (!roomIsVoice && id === own.id) {
       const cid = cleanStr(d.cid, 64), nm = norm(cleanStr(d.nm, 24));
       if (cid) bans.add(cid);
       if (nm) bansName.add(nm);
       if ((cid && cid === clientId) || (nm && nm === norm(myName))) kickOut('banned');
     }
   } else if (d.t === 'kicked') {
-    if (id === own.id) kickOut(d.ban ? 'banned' : 'kicked');
+    if (!roomIsVoice && id === own.id) kickOut(d.ban ? 'banned' : 'kicked');
   }
 }
 
@@ -1076,7 +1078,7 @@ function onState(c, d) {
   c.accepted = true;
   const o = d.own;
   if (o && typeof o.id === 'string') mergeOwner({ id: o.id, epoch: o.epoch }, 'hello');
-  if (c.peer === own.id) {
+  if (!roomIsVoice && c.peer === own.id) {
     const b = cleanList(d.bans, 200, 64), n = cleanList(d.bn, 200, 24).map(norm);
     if (b.includes(clientId) || n.includes(norm(myName))) { kickOut('banned'); return; }
     b.forEach(x => bans.add(x)); n.forEach(x => bansName.add(x));
@@ -1150,7 +1152,7 @@ function ownerLeft() {
   }, 1500);
 }
 function transferOwner(id) {
-  if (!isOwner()) return;
+  if (roomIsVoice || !isOwner()) return;
   const p = people.get(id); if (!p) return;
   if (!confirm(T('confirmOwner', { name: p.name }))) return;
   own = { id, epoch: own.epoch + 1 };
@@ -1158,7 +1160,7 @@ function transferOwner(id) {
   ownerChanged(myId, false);
 }
 function kickPerson(id, ban) {
-  if (!isOwner()) return;
+  if (roomIsVoice || !isOwner()) return;
   const p = people.get(id), c = verifiedConn(id); if (!p || !c) return;
   if (!confirm(T(ban ? 'confirmBan' : 'confirmKick', { name: p.name }))) return;
   if (ban) {
@@ -1527,7 +1529,7 @@ let lastSig = '';
 function renderPeople() {
   $('count').textContent = people.size + 1;
   const list = [...people].map(([id, p]) => [id, p.name, p.sharing ? 1 : 0, p.kind || '', p.prof ? [p.prof.username, p.prof.avatar_path, p.prof.bio] : 0]);
-  const sig = JSON.stringify([lang, own.id, myId, myName, !!myStream, myKind, [...hidden], list, isOwner(), window.Acc ? Acc.sigKey() : '', window.Srv && Srv.colorSig ? Srv.colorSig() : '']);
+  const sig = JSON.stringify([lang, own.id, myId, myName, !!myStream, myKind, [...hidden], list, isOwner(), roomIsVoice, window.Acc ? Acc.sigKey() : '', window.Srv && Srv.colorSig ? Srv.colorSig() : '']);
   if (sig === lastSig) return;
   lastSig = sig;
 
@@ -1537,7 +1539,7 @@ function renderPeople() {
     const li = document.createElement('li');
     const top = document.createElement('div'); top.className = 'prow';
     const n = document.createElement('span'); n.className = 'nm';
-    const crown = id && own.id === id;
+    const crown = !roomIsVoice && id && own.id === id;
     n.textContent = (crown ? '👑 ' : '') + name + (you ? ' (' + T('you') + ')' : '');
     if (crown) n.title = T('owner');
     if (window.Acc && Acc.enabled) {
@@ -1566,7 +1568,7 @@ function renderPeople() {
     if (!you) {
       const acts = document.createElement('div'); acts.className = 'acts';
       if (sharing) acts.append(mkBtn(hidden.has(id) ? T('showScreen') : T('hideScreen'), 'sec', () => toggleHide(id)));
-      if (isOwner()) {
+      if (isOwner() && !roomIsVoice) {
         acts.append(mkBtn(T('kick'), 'sec', () => kickPerson(id, false)));
         acts.append(mkBtn(T('ban'), 'bad', () => kickPerson(id, true)));
         acts.append(mkBtn(T('makeOwner'), 'sec', () => transferOwner(id)));
@@ -2523,7 +2525,7 @@ applyLang();
   .crow .cact { display: none; padding: 4px 6px; font-size: .75rem; }
   .crow:hover .cact { display: inline-block; }
   .crow button:hover:not(:disabled), .sgrp button:hover:not(:disabled) { transform: none; box-shadow: none; color: var(--fg); }
-  .sv-main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; }
+  .sv-main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); min-width: 0; overflow: hidden; }
   .sv-top { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 14px; border-bottom: 1px solid var(--line); }
   .sv-top strong { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sv-chdesc { margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--line); color: var(--mut); font-weight: 500; font-size: .86rem; }
@@ -2535,9 +2537,9 @@ applyLang();
   .msg .mh { display: flex; align-items: baseline; gap: 8px; font-size: .9rem; }
   .msg .mh span { font-size: .72rem; }
   .msg .mt { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; color: #dbe2f4; font-size: .93rem; }
-  #svForm { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
-  #svForm input { flex: 1; }
-  #svForm button { min-width: 48px; padding: 0 14px; }
+  #svForm { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); min-width: 0; width: 100%; }
+  #svForm input { flex: 1 1 0; width: auto; min-width: 0; }
+  #svForm button { flex: 0 0 auto; min-width: 48px; padding: 0 14px; }
   .mem-row { display: flex; align-items: center; gap: 9px; min-width: 0; font-size: .88rem; }
   .mem-row b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
   @media (max-width: 860px) {
