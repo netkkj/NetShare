@@ -676,6 +676,7 @@ let myName, baseId, roomKey = null, leaving = false;
 let myId = null, mySlot = -1, joinedAt = 0, probeTimer = 0, searchTimer = 0, heirTimer = 0, statusTimer = 0, kickTimer = 0, ownerWindow = 0;
 let myStream = null, myKind = null;
 const MAX_SLOTS = 12;
+let roomCanSpeak = true;   // canal de voz restrito: quem não tem o cargo só assiste
 let roomLimit = 0;   // limite de pessoas do canal de voz atual (0 = sem limite além do máximo de conexões)
 const conns = new Map();
 const spare = new Map();
@@ -728,7 +729,8 @@ $('inRoom').value = (() => { try { return decodeURIComponent(location.hash.slice
 
 $('btnJoin').onclick = async () => {
   const isVoice = window.__roomNs === 'v'; window.__roomNs = '';
-  roomLimit = isVoice ? ((+window.__roomLimit | 0) || 0) : 0; window.__roomLimit = 0;   // canal de voz de servidor? (lido e limpo na hora, antes de qualquer await)
+  roomLimit = isVoice ? ((+window.__roomLimit | 0) || 0) : 0; window.__roomLimit = 0;
+  roomCanSpeak = isVoice ? window.__roomSpeak !== false : true; window.__roomSpeak = true;   // canal de voz de servidor? (lido e limpo na hora, antes de qualquer await)
   const name = cleanName($('inName').value);
   const room = $('inRoom').value.trim();
   setJoinErr(null);
@@ -755,6 +757,7 @@ $('btnJoin').onclick = async () => {
   $('btnLink').classList.toggle('hidden', isVoice);   // canal de voz: o acesso é pelo servidor, não por link de sala
   $('join').classList.add('hidden');
   $('room').classList.remove('hidden');
+  updateButtons();
   start();
 };
 
@@ -1278,6 +1281,7 @@ if (!canShareScreen) $('btnScreen').disabled = true;
 $('facing').onchange = () => { if (myKind === 'cam') share('cam'); };
 
 async function share(kind) {
+  if (!roomCanSpeak) return;
   if (kind === 'screen' && !canShareScreen) { msgK('cantScreen'); return; }
   if (kind === 'cam' && !canUseCamera) { msgK('cantCam'); return; }
   if (myStream) stopShare();
@@ -1372,6 +1376,9 @@ window.addEventListener('beforeunload', () => { leaving = true; closeAll(); });
 
 function updateButtons() {
   $('btnStop').disabled = !myStream;
+  $('btnScreen').disabled = !canShareScreen || !roomCanSpeak;
+  $('btnCam').disabled = !roomCanSpeak;
+  $('btnScreen').title = $('btnCam').title = roomCanSpeak ? '' : (lang === 'en' ? 'You do not have permission to talk in this channel' : 'Você não tem permissão para falar neste canal');
   $('btnScreen').textContent = !canShareScreen ? T('btnScreenNA') : myKind === 'screen' ? T('btnScreenRe') : T('btnScreen');
   $('btnCam').textContent = myKind === 'cam' ? T('btnCamRe') : T('btnCam');
 }
@@ -2808,6 +2815,14 @@ const nsOf = s => (window.NS && s) ? NS.clean({ font: s.name_font, color: s.name
 const nsOfRole = r => NS.clean({ font: r.name_font, color: r.color, color2: r.name_color2, fx: r.name_fx });
 const ownerNs = () => NS.clean({ font: cur && cur.owner_role_font, color: ownerColor(), color2: cur && cur.owner_role_color2, fx: cur && cur.owner_role_fx });
 const nsOfChan = c => NS.clean({ font: c.name_font, color: c.name_color, color2: c.name_color2, fx: c.name_fx });
+/* permissão de escrever (texto) ou falar (voz): canal sem restrição, ou cargo escolhido, ou quem gerencia canais */
+const canWriteChan = c => !!c && (can('manage_channels') || !c.locked || (Array.isArray(c.write_roles) && c.write_roles.some(id => hasRole(uid, String(id)))));
+function applyWriteState() {
+  if (!chan) return;
+  const ok = canWriteChan(chan);
+  $('svForm').querySelectorAll('button, input').forEach(x => { x.disabled = !ok; });
+  $('svInput').placeholder = ok ? t('msgPh') : (String(lang).startsWith('en') ? 'You can only read this channel' : 'Você só pode ler este canal');
+}
 function paintTitle(c) {
   const ti = $('svTitle'); ti.textContent = '';
   if (c.icon) ti.append(emoNode(c.icon)); else ti.append('#');
@@ -2880,7 +2895,8 @@ async function openServer(id) {
 }
 async function loadChans() {
   const qc = cols => sb().from('channels').select(cols).eq('server_id', cur.id).order('position').order('created_at');
-  let { data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit');
+  let { data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles');
+  if (error) ({ data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit'));   // v14 ainda não rodou
   if (error) ({ data } = await qc('id,name,kind,voice_key,position'));   // v13 ainda não rodou
   const old = new Map(chans.map(c => [c.id, c.voice_key]));
   chans = data || [];
@@ -2890,7 +2906,7 @@ async function loadChans() {
     if (!v) { voiceCh = null; leaveRoom(); }                                            // canal apagado ou perdi o acesso
     else if (old.has(v.id) && old.get(v.id) !== v.voice_key) { leaveRoom(); setTimeout(() => joinVoice(v), 300); }   // chave trocada: entra de novo com a nova
   }
-  if (chan) { const nc = chans.find(x => x.id === chan.id); if (nc) { Object.assign(chan, nc); paintTitle(chan); } }   // canal aberto foi editado
+  if (chan) { const nc = chans.find(x => x.id === chan.id); if (nc) { Object.assign(chan, nc); paintTitle(chan); applyWriteState(); } }   // canal aberto foi editado
   if (chan && !chans.some(c => c.id === chan.id)) { chan = null; $('svMsgs').textContent = ''; $('svTitle').textContent = ''; $('svForm').classList.add('hidden'); }
 }
 async function loadMembers() {
@@ -2918,7 +2934,8 @@ async function loadRoles() {
   roles = a.error ? [] : (a.data || []).map(cleanRole).filter(r => r.name).sort((x, y) => x.position - y.position);
   mroles = new Map();
   if (!b.error) (b.data || []).forEach(x => { let st = mroles.get(x.user_id); if (!st) mroles.set(x.user_id, st = new Set()); st.add(String(x.role_id)); });
-  renderMembers(); repaintNames(); paintDesc(); renderChans();   // as permissões podem ter mudado
+  renderMembers(); repaintNames(); paintDesc(); renderChans(); applyWriteState();   // as permissões podem ter mudado
+  loadChans().then(() => { if (cur === s) { renderChans(); applyWriteState(); } });     // cargos mudaram: canais privados podem aparecer ou sumir
 }
 function repaintNames() {
   $('svMsgs').querySelectorAll('.msg').forEach(d => { const nm = d.querySelector('.mname'); if (nm) paintName(nm, d.dataset.uid, (memOf(d.dataset.uid) || {}).username); paintRoleTag(d); });
@@ -3022,6 +3039,10 @@ function renderChans() {
       cb.append(' ');
       const nmS = el('span', '', c.name); NS.style(nmS, nsOfChan(c), ''); cb.append(nmS);
       if (k === 'voice' && c.user_limit > 0) { const lm = el('span', 'mut', ' 👥' + c.user_limit); lm.style.fontSize = '.72rem'; cb.append(lm); }
+      const en0 = String(lang).startsWith('en');
+      const mark = (txt, title) => { const m = el('span', 'mut', ' ' + txt); m.style.fontSize = '.72rem'; m.title = title; cb.append(m); };
+      if (c.is_private) mark('🔒', en0 ? 'Private' : 'Privado');
+      if (c.locked) mark(k === 'text' ? '📖' : '🔇', k === 'text' ? (en0 ? 'Only some roles can write' : 'Só alguns cargos podem escrever') : (en0 ? 'Only some roles can talk' : 'Só alguns cargos podem falar'));
       r.append(cb);
       if (can('manage_channels')) r.append(mk('✎', () => dlgEditChannel(c), 'cact'), mk('✕', () => delChan(c), 'cact'));
       box.append(r);
@@ -3192,7 +3213,7 @@ async function pickChan(c) {
     return joinVoice(c);
   }
   chan = c; msgIds.clear(); msgData.clear(); reacts.clear(); renderChans(); closePicker();
-  paintTitle(c); $('svMsgs').textContent = ''; $('svForm').classList.remove('hidden'); $('svInput').placeholder = t('msgPh'); $('svEmoji').title = t('emojiBtn');
+  paintTitle(c); $('svMsgs').textContent = ''; $('svForm').classList.remove('hidden'); $('svInput').placeholder = t('msgPh'); applyWriteState(); $('svEmoji').title = t('emojiBtn');
   let res = await sb().rpc('ns_list_messages', { p_channel: c.id });
   if (res.error) res = await sb().rpc('list_messages', { p_channel: c.id });   // migração v7 ainda não rodou
   if (chan !== c) return;
@@ -3311,7 +3332,7 @@ async function toggleReact(id, key) {
 $('svForm').onsubmit = async e => {
   e.preventDefault();
   const inp = $('svInput'), c = inp.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000);
-  if (!c || !chan || Date.now() - lastSend < 500) return;
+  if (!c || !chan || !canWriteChan(chan) || Date.now() - lastSend < 500) return;
   lastSend = Date.now(); inp.value = '';
   const { data, error } = await sb().from('messages').insert({ channel_id: chan.id, server_id: cur.id, content: c }).select('id,user_id,content,created_at').single();
   if (error) { inp.value = c; return err(error); }
@@ -3351,6 +3372,7 @@ async function joinVoice(c) {
   if (error) ({ data, error } = await sb().from('channels').select('voice_key').eq('id', c.id).single());   // v13 ainda não rodou
   if (error || !data) return err(error || 'sem acesso');
   window.__roomLimit = data.user_limit > 0 ? Math.min(12, data.user_limit) : 0;   // limite de pessoas do canal (0 = ilimitado)
+  window.__roomSpeak = canWriteChan(c);                                             // quem não pode falar só assiste
   voiceCh = c.id; voiceJoin = true; renderChans();
   $('inRoom').value = 'v' + c.id.replace(/-/g, '').slice(0, 20);
   $('inPass').value = data.voice_key;                   // só membros leem esta chave
@@ -3458,12 +3480,44 @@ function dlgEditChannel(c) {
       w.append(l, el('p', 'mut', L('A conexão é direta entre as pessoas, então o máximo é 12 por canal. Quem tentar entrar com o canal cheio recebe um aviso.', 'The connection is direct between people, so the maximum is 12 per channel. Anyone trying to join a full channel gets a notice.')));
     }
 
+    /* acesso: canal privado e quem pode escrever (texto) ou falar (voz) */
+    const isV = c.kind === 'voice';
+    const viewSet = new Set((c.view_roles || []).map(String)), writeSet = new Set((c.write_roles || []).map(String));
+    const accBox = el('div', 'box');
+    accBox.append(el('strong', '', L('Acesso e permissões', 'Access and permissions')),
+      el('p', 'mut', L('Dono, admins e quem gerencia canais sempre têm acesso total.', 'Owner, admins and channel managers always have full access.')));
+    const roleList = set => {
+      const host = el('div', 'rpick');
+      if (!roles.length) host.append(el('p', 'mut', L('Este servidor ainda não tem cargos. Crie em 🏷️ Cargos nas configurações do servidor.', 'This server has no roles yet. Create them in 🏷️ Roles in the server settings.')));
+      roles.forEach(r => {
+        const l = el('label', 'chk'), ck = el('input'); ck.type = 'checkbox'; ck.checked = set.has(r.id);
+        const dot = el('span', 'rdot'); dot.style.setProperty('--c', r.color);
+        l.append(ck, dot, el('span', '', r.name));
+        ck.onchange = () => { if (ck.checked) set.add(r.id); else set.delete(r.id); };
+        host.append(l);
+      });
+      return host;
+    };
+    const privChk = chk(accBox, isV ? L('Canal de voz privado (só os cargos escolhidos entram)', 'Private voice channel (only the chosen roles can join)') : L('Canal privado (só os cargos escolhidos veem)', 'Private channel (only the chosen roles can see it)'), c.is_private);
+    const viewHost = roleList(viewSet); accBox.append(viewHost);
+    const lockChk = chk(accBox, isV ? L('Restringir quem pode falar (transmitir tela e câmera); os demais só assistem', 'Restrict who can talk (share screen and camera); others only watch') : L('Restringir quem pode escrever; os demais só leem', 'Restrict who can write; others can only read'), c.locked);
+    const writeHost = roleList(writeSet); accBox.append(writeHost);
+    const syncAcc = () => { viewHost.classList.toggle('hidden', !privChk.checked); writeHost.classList.toggle('hidden', !lockChk.checked); };
+    privChk.onchange = syncAcc; lockChk.onchange = syncAcc; syncAcc();
+    w.append(accBox);
+    const sameSet = (a, b) => { const x = new Set((a || []).map(String)), y = new Set((b || []).map(String)); return x.size === y.size && [...x].every(v => y.has(v)); };
+    const accessChanged = () => privChk.checked !== !!c.is_private || lockChk.checked !== !!c.locked || !sameSet([...viewSet], c.view_roles) || !sameSet([...writeSet], c.write_roles);
+
     const acts = el('div', 'dlg-actions');
     const saveBtn = mk(L('Salvar', 'Save'), async () => {
       const name = normCh(nameIn.value); if (!name) return err(L('Digite um nome para o canal.', 'Type a channel name.'));
       const ps = NS.clean(pend);
       saveBtn.disabled = true;
       try {
+        if (accessChanged()) {
+          const ra = await sb().rpc('ns_set_channel_access', { p_channel: c.id, p_private: privChk.checked, p_view_roles: [...viewSet], p_locked: lockChk.checked, p_write_roles: [...writeSet] });
+          if (ra.error) err(missingFn(ra.error) ? L('Falta rodar a migração SQL v14 no Supabase para usar privacidade e permissões.', 'The v14 SQL migration still needs to be run in Supabase to use privacy and permissions.') : ra.error);
+        }
         const { error } = await sb().rpc('ns_update_channel', {
           p_channel: c.id, p_name: name, p_icon: icon || null,
           p_font: ps.font || null, p_color: ps.color || null, p_color2: ps.color2 || null, p_fx: ps.fx || null,
