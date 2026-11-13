@@ -2814,7 +2814,7 @@ function syncRail() {
   const inJoin = !$('join').classList.contains('hidden');
   rail.classList.toggle('hidden', !uid);
   document.body.classList.toggle('hasrail', !!uid);
-  if (inJoin) voiceCh = null;
+  if (inJoin && voiceCh) { voiceCh = null; if (cur) renderChans(); }   // saiu da chamada: limpa e repinta a lista (senão o destaque do canal de voz fica preso)
   if (inJoin && voiceJoin) { voiceJoin = false; $('inRoom').value = ''; $('inPass').value = ''; }
   if (inJoin && cur && view.classList.contains('hidden')) closeView();
   layout();
