@@ -3652,11 +3652,9 @@ function dlgEditChannel(c, isNew) {
       saveBtn.disabled = true;
       try {
         if (isNew) {   // cria o canal e em seguida aplica todas as opções abaixo
-          const row = { server_id: cur.id, name, kind: c.kind, position: chans.length };
-          if (catSel && catSel.value) row.category_id = catSel.value;
-          const ins = await sb().from('channels').insert(row).select('id').single();
-          if (ins.error || !ins.data) return err(missingFn(ins.error) || /category_id/.test(String((ins.error || {}).message || '')) ? needV15() : (ins.error || 'erro'));
-          c = { ...c, id: ins.data.id, category_id: catSel && catSel.value ? catSel.value : null }; isNew = false;   // se der erro adiante, salvar de novo só edita
+          const ins = await sb().rpc('ns_create_channel', { p_server: cur.id, p_name: name, p_kind: c.kind, p_category: catSel && catSel.value ? catSel.value : null });
+          if (ins.error || !ins.data) return err(missingFn(ins.error) ? needV15() : (ins.error || 'erro'));
+          c = { ...c, id: ins.data, category_id: catSel && catSel.value ? catSel.value : null }; isNew = false;   // se der erro adiante, salvar de novo só edita
         }
         if (accessChanged()) {
           const ra = await sb().rpc('ns_set_channel_access', { p_channel: c.id, p_private: privChk.checked, p_view_roles: [...viewSet], p_locked: lockChk.checked, p_write_roles: [...writeSet] });
