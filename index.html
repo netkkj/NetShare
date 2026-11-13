@@ -2782,6 +2782,12 @@ applyLang();
   #srvRail .sadmin { margin-top: auto; font-size: 1.2rem; }
 
   .dlg.wide { width: min(94vw, 780px); }
+  #dlgProfile { width: min(96vw, 820px); max-height: min(95dvh, 1000px); overflow-x: hidden; }
+  #dlgProfile .dlg-in { padding: 28px 30px; gap: 18px; }
+  #dlgProfile .dlg-in, #dlgProfile .dlg-form, #dlgProfile .dlg-form > * { min-width: 0; }
+  #dlgProfile .dlg-form { gap: 18px; }
+  #dlgProfile .pe-banner { aspect-ratio: 3.4 / 1; }
+  @media (max-width: 520px) { #dlgProfile .dlg-in { padding: 18px; } }
   .dlg label.chk { display: flex; align-items: center; gap: 9px; font-weight: 600; cursor: pointer; }
   label.chk input { width: 18px; min-height: 18px; padding: 0; accent-color: var(--acc); flex: 0 0 auto; }
   .colorin { width: 52px; min-height: 42px; padding: 3px; cursor: pointer; flex: 0 0 auto; }
