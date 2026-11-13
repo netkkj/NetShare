@@ -303,6 +303,19 @@
   .pc-body h3 { margin: 8px 0 0; font: 800 1.3rem/1.15 'Manrope', sans-serif; letter-spacing: -.03em; overflow-wrap: anywhere; }
   .pc-bio { margin: 8px 0 0; color: #d7def0; font-size: .92rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
   .card-x { position: absolute; top: 10px; right: 10px; z-index: 2; background: rgba(7, 11, 24, .7); }
+  .pc-since { margin: 6px 0 0; font-size: .8rem; }
+  .pc-conns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .cn-chip { --c: #6c7cff; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 10px; border: 1px solid var(--c); border-radius: 999px; background: rgba(255,255,255,.04); background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--fg); font-size: .78rem; line-height: 1.3; text-decoration: none; }
+  .cn-chip b { color: var(--c); font-weight: 800; white-space: nowrap; }
+  .cn-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  a.cn-chip:hover { background: color-mix(in srgb, var(--c) 26%, transparent); }
+  .pe-conns { display: grid; gap: 8px; }
+  .pe-conns .cn-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pe-conns .cn-chip button { min-height: 0; padding: 0 4px; border: 0; background: none; box-shadow: none; color: var(--mut); font-size: .85rem; }
+  .pe-conns .cn-add { display: flex; gap: 8px; }
+  .pe-conns .cn-add select { flex: 0 0 140px; width: auto; min-width: 0; }
+  .pe-conns .cn-add input { flex: 1 1 0; width: auto; min-width: 0; }
+  .pe-conns .cn-add button { flex: 0 0 auto; }
 </style>
 </head>
 <body>
@@ -443,6 +456,7 @@
       <label><span data-i18n="pfUser"></span><input id="pfUser" maxlength="20" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
       <label><span data-i18n="pfBio"></span><textarea id="pfBio" maxlength="200" data-i18n-ph="pfBioPh"></textarea></label>
       <span id="pfBioN" class="mut counter">0/200</span>
+      <div class="pe-conns" id="pfConns"></div>
       <p id="pfMsg" class="amsg" role="status"></p>
       <div class="dlg-actions">
         <button type="button" class="sec" data-close="dlgProfile" data-i18n="pfCancel"></button>
@@ -1874,6 +1888,9 @@ const ACC_I18N = {
   pfName:'Nome de exibição', pfUser:'Nome de usuário', pfBio:'Descrição', pfBioPh:'Conte algo sobre você',
   pfSave:'Salvar perfil', pfCancel:'Cancelar', pfSaving:'Salvando...',
   pfHint:'PNG, JPG, WebP ou GIF animado. Foto até 2 MB, banner até 4 MB.',
+  cnTitle:'Conexões', cnHint:'Mostre suas outras contas no perfil. Você só informa o usuário; elas não são verificadas.', cnAdd:'Adicionar', cnPh:'seu usuário (ex.: net)',
+  cnBad:'Usuário inválido: use só letras, números, ponto, _ ou - (até 40).', cnMax:'Máximo de 8 conexões.', cnLoading:'Carregando...',
+  cnNeed:'Falta rodar a migração SQL v20 no Supabase para usar conexões e data de criação da conta.', cardCreated:'Conta criada em {d}', cardConns:'Conexões',
   pfTooBig:'A imagem passa de {mb} MB.', pfBadType:'Use uma imagem PNG, JPG, WebP ou GIF.',
   pfUserTaken:'Esse nome de usuário já está em uso.', pfNameReq:'Digite um nome de exibição.',
   pfUploadFail:'Falha ao enviar a imagem: {e}',
@@ -1898,6 +1915,9 @@ const ACC_I18N = {
   pfName:'Display name', pfUser:'Username', pfBio:'Bio', pfBioPh:'Tell us something about you',
   pfSave:'Save profile', pfCancel:'Cancel', pfSaving:'Saving...',
   pfHint:'PNG, JPG, WebP or animated GIF. Photo up to 2 MB, banner up to 4 MB.',
+  cnTitle:'Connections', cnHint:'Show your other accounts on your profile. You only enter the username; they are not verified.', cnAdd:'Add', cnPh:'your username (e.g. net)',
+  cnBad:'Invalid username: letters, numbers, dot, _ or - only (up to 40).', cnMax:'Maximum of 8 connections.', cnLoading:'Loading...',
+  cnNeed:'The v20 SQL migration still needs to be run in Supabase to use connections and account creation date.', cardCreated:'Account created on {d}', cardConns:'Connections',
   pfTooBig:'The image is over {mb} MB.', pfBadType:'Use a PNG, JPG, WebP or GIF image.',
   pfUserTaken:'That username is already taken.', pfNameReq:'Enter a display name.',
   pfUploadFail:'Image upload failed: {e}',
@@ -1921,6 +1941,41 @@ window.Acc = (() => {
   const BIO_CTRL = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g;
   const LIMITS = { avatars: 2 * 1024 * 1024, banners: 4 * 1024 * 1024 };
   const PROVIDERS = { discord: 'Discord', google: 'Google', github: 'GitHub' };
+  /* conexões do perfil: o link é montado aqui a partir do usuário (nunca vem pronto do banco) */
+  const PLATS = {
+    youtube:   { n: 'YouTube',     c: '#ff4d4d', u: h => 'https://www.youtube.com/@' + h },
+    tiktok:    { n: 'TikTok',      c: '#25f4ee', u: h => 'https://www.tiktok.com/@' + h },
+    instagram: { n: 'Instagram',   c: '#e1306c', u: h => 'https://www.instagram.com/' + h },
+    x:         { n: 'X (Twitter)', c: '#e7e9ea', u: h => 'https://x.com/' + h },
+    twitch:    { n: 'Twitch',      c: '#9146ff', u: h => 'https://www.twitch.tv/' + h },
+    github:    { n: 'GitHub',      c: '#c9d1d9', u: h => 'https://github.com/' + h },
+    spotify:   { n: 'Spotify',     c: '#1ed760', u: h => 'https://open.spotify.com/user/' + h },
+    steam:     { n: 'Steam',       c: '#66c0f4', u: h => 'https://steamcommunity.com/id/' + h },
+    reddit:    { n: 'Reddit',      c: '#ff7a45', u: h => 'https://www.reddit.com/user/' + h },
+    discord:   { n: 'Discord',     c: '#7289da', u: null }
+  };
+  const CONN_RE = /^[A-Za-z0-9._-]{1,40}$/;
+  const MAX_CONN = 8;
+  const cleanConns = a => {
+    const out = [], seen = new Set();
+    (Array.isArray(a) ? a : []).forEach(c => {
+      if (!c || typeof c.p !== 'string' || !Object.prototype.hasOwnProperty.call(PLATS, c.p) || typeof c.h !== 'string' || !CONN_RE.test(c.h) || seen.has(c.p)) return;
+      seen.add(c.p); out.push({ p: c.p, h: c.h });
+    });
+    return out.slice(0, MAX_CONN);
+  };
+  const noFn = e => !!e && (e.code === 'PGRST202' || /could not find the function|schema cache|does not exist/i.test(String(e.message || '')));
+  const connChip = c => {
+    const P = PLATS[c.p];
+    const node = P.u ? document.createElement('a') : document.createElement('span');
+    node.className = 'cn-chip'; node.style.setProperty('--c', P.c);
+    if (P.u) { node.href = P.u(encodeURIComponent(c.h)); node.target = '_blank'; node.rel = 'noopener noreferrer nofollow'; }
+    node.title = P.n + ': ' + c.h;
+    const b = document.createElement('b'); b.textContent = P.n;
+    const v = document.createElement('span'); v.textContent = (c.p === 'discord' ? '' : '@') + c.h;
+    node.append(b, v);
+    return node;
+  };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const bg = p => { Promise.resolve(p).catch(() => {}); };
   const redirectUrl = () => location.origin + location.pathname;
@@ -2216,6 +2271,62 @@ window.Acc = (() => {
     pend = null;
   }
 
+  /* ---------- conexões (YouTube, TikTok...) no editor de perfil ---------- */
+  let connState = { loaded: false, missing: false, failed: '', orig: [], cur: [] };
+  function paintConns() {
+    const host = $('pfConns'); if (!host) return;
+    host.textContent = '';
+    host.append(el('span', 'mut', T('cnTitle')));
+    if (connState.missing) { host.append(el('p', 'mut', T('cnNeed'))); return; }
+    if (connState.failed) { host.append(el('p', 'mut', T('accErr', { e: connState.failed }))); return; }
+    if (!connState.loaded) { host.append(el('p', 'mut', T('cnLoading'))); return; }
+    host.append(el('p', 'mut', T('cnHint')));
+    const list = el('div', 'cn-list');
+    connState.cur.forEach((c, i) => {
+      const P = PLATS[c.p];
+      const chip = el('span', 'cn-chip'); chip.style.setProperty('--c', P.c);
+      const x = el('button', '', '✕'); x.type = 'button'; x.title = T('pfRemove');
+      x.onclick = () => { connState.cur.splice(i, 1); paintConns(); };
+      chip.append(el('b', '', P.n), el('span', '', c.h), x);
+      list.append(chip);
+    });
+    if (connState.cur.length) host.append(list);
+    if (connState.cur.length >= MAX_CONN) { host.append(el('p', 'mut', T('cnMax'))); return; }
+    const used = new Set(connState.cur.map(c => c.p));
+    const row = el('div', 'cn-add');
+    const sel = document.createElement('select');
+    Object.keys(PLATS).filter(k => !used.has(k)).forEach(k => { const o = el('option', '', PLATS[k].n); o.value = k; sel.append(o); });
+    const inp = document.createElement('input');
+    inp.maxLength = 80; inp.placeholder = T('cnPh'); inp.autocomplete = 'off'; inp.autocapitalize = 'none'; inp.spellcheck = false;
+    const add = el('button', 'sec', T('cnAdd')); add.type = 'button';
+    const doAdd = () => {
+      // aceita também o link colado (youtube.com/@fulano, tiktok.com/@fulano...) e tira o @
+      const h = inp.value.trim().replace(/^(?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}\//i, '').replace(/^(?:id|user)\//i, '').replace(/^@/, '').split(/[/?#]/)[0];
+      if (!CONN_RE.test(h)) return msgTo('pfMsg', 'cnBad', 'err');
+      if (connState.cur.length >= MAX_CONN) return msgTo('pfMsg', 'cnMax', 'err');
+      connState.cur.push({ p: sel.value, h });
+      msgTo('pfMsg', null);
+      paintConns();
+    };
+    add.onclick = doAdd;
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } };
+    row.append(sel, inp, add);
+    host.append(row);
+  }
+  async function loadMyConns() {
+    const st = connState;
+    try {
+      const { data, error } = await sb.rpc('ns_my_extras');
+      if (st !== connState) return;
+      if (error) { if (noFn(error)) st.missing = true; else st.failed = error.message || String(error); }
+      else {
+        const r = Array.isArray(data) ? data[0] : data;
+        st.orig = cleanConns(r && r.connections); st.cur = st.orig.map(c => ({ ...c })); st.loaded = true;
+      }
+    } catch (e) { if (st !== connState) return; st.failed = (e && e.message) || String(e); }
+    paintConns();
+  }
+
   let nsEd = null;
   function openProfile() {
     if (!me) return;
@@ -2231,6 +2342,8 @@ window.Acc = (() => {
       if (!host) { host = document.createElement('div'); host.id = 'pfNS'; $('pfName').closest('label').after(host); $('pfName').addEventListener('input', () => { if (nsEd) nsEd.refresh(); }); }
       nsEd = NS.editor(host, me.ns, () => $('pfName').value, v => { if (pend) pend.ns = v; });
     }
+    connState = { loaded: false, missing: false, failed: '', orig: [], cur: [] };
+    paintConns(); loadMyConns();
     if (!$('dlgProfile').open) $('dlgProfile').showModal();
   }
 
@@ -2290,8 +2403,14 @@ window.Acc = (() => {
     msgTo('pfMsg', 'pfSaving', '');
     const uid = session.user.id;
     const uploaded = [], toDelete = [];
-    let nsMissing = false;
+    let nsMissing = false, connMissing = false;
     try {
+      // conexões primeiro: se falhar, ainda não subiu nenhuma imagem
+      if (connState.loaded && JSON.stringify(connState.cur) !== JSON.stringify(connState.orig)) {
+        const { error: ce } = await sb.rpc('ns_set_connections', { p_conns: connState.cur });
+        if (ce) { if (noFn(ce)) connMissing = true; else throw ce; }
+        else connState.orig = connState.cur.map(c => ({ ...c }));
+      }
       let avatar_path = me.avatar_path, banner_path = me.banner_path;
       for (const kind of ['avatar', 'banner']) {
         const bucket = kind === 'avatar' ? 'avatars' : 'banners';
@@ -2322,6 +2441,7 @@ window.Acc = (() => {
       paint();
       $('dlgProfile').close();
       if (nsMissing) alert(NS.tr('needV10'));
+      if (connMissing) alert(T('cnNeed'));
     } catch (err) {
       uploaded.forEach(([b, p]) => bg(sb.storage.from(b).remove([p])));
       if (err && err.code === '23505') msgTo('pfMsg', 'pfUserTaken', 'err');
@@ -2333,6 +2453,23 @@ window.Acc = (() => {
   }
 
   /* ---------- cartão de perfil (clicar em alguém na sala) ---------- */
+  async function fillExtras(p, info, since, cw) {
+    if (!sb || (!p.user_id && !p.username)) return;
+    try {
+      const { data, error } = await sb.rpc('ns_profile_extras', { p_username: p.username || null, p_user: p.user_id || null });
+      if (error || !info.isConnected) return;
+      const r = Array.isArray(data) ? data[0] : data;
+      if (!r) return;
+      const d = r.created_at ? new Date(r.created_at) : null;
+      if (d && !isNaN(d)) {
+        since.textContent = '📅 ' + T('cardCreated', { d: d.toLocaleDateString(String(lang), { day: '2-digit', month: 'long', year: 'numeric' }) });
+        since.classList.remove('hidden');
+      }
+      const conns = cleanConns(r.connections);
+      if (conns.length) { conns.forEach(c => cw.append(connChip(c))); cw.classList.remove('hidden'); }
+    } catch (e) {}
+  }
+
   function showCard(p) {
     if (!p) return;
     const body = $('cardBody');
@@ -2353,6 +2490,9 @@ window.Acc = (() => {
     if (p.username) info.append(el('span', 'mut', '@' + p.username));
     const v = el('span', 'vf', '✓ ' + T('cardVerified'));
     info.append(v, el('p', 'pc-bio', p.bio || T('cardNoBio')));
+    const since = el('p', 'mut pc-since hidden'), cw = el('div', 'pc-conns hidden');
+    info.append(since, cw);
+    fillExtras(p, info, since, cw);   // data de criação da conta e conexões (chegam logo depois)
     /* é o meu próprio cartão: edito o perfil aqui mesmo, sem voltar à página principal */
     const mine = !!(session && me && ((p.user_id && p.user_id === session.user.id) || (p.username && p.username === me.username)));
     if (mine) {
