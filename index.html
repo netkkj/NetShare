@@ -2728,6 +2728,7 @@ const missingFn = e => !!e && (e.code === 'PGRST202' || /could not find the func
 const CTRL = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g;
 const ini = n => [...String(n).trim()].slice(0, 2).join('').toUpperCase();
 const normCh = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);   // aceita maiúsculas
+const normVoice = s => String(s || '').replace(CTRL, '').replace(/\s+/g, ' ').trim().slice(0, 30);   // canal de voz: mantém espaços, maiúsculas e acentos
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const okHex = c => (typeof c === 'string' && HEX.test(c)) ? c.toLowerCase() : '';
 const PAL = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#6c7cff', '#9b59b6', '#e91e63', '#99aab5'];
@@ -2739,6 +2740,19 @@ let cats = [];   // categorias de canais do servidor aberto
 let collapsed = new Set(); try { collapsed = new Set(JSON.parse(localStorage.getItem('sala-cat-off') || '[]')); } catch (e) {}
 const saveCollapsed = () => { try { localStorage.setItem('sala-cat-off', JSON.stringify([...collapsed])); } catch (e) {} };
 const needV16 = () => String(lang).startsWith('en') ? 'The v16 SQL migration still needs to be run in Supabase to use channel descriptions.' : 'Falta rodar a migração SQL v16 no Supabase para usar descrição de canal.';
+const needV17 = () => String(lang).startsWith('en') ? 'The v17 SQL migration still needs to be run in Supabase to use the chat timer.' : 'Falta rodar a migração SQL v17 no Supabase para usar o temporizador do chat.';
+const coolUntil = new Map(); let coolTimer = 0;   // modo lento: até quando cada canal está em espera para mim
+const slowOf = c => (c && c.slowmode_seconds > 0 && !can('manage_channels')) ? c.slowmode_seconds : 0;
+const fmtSecs = n => n < 60 ? n + 's' : n < 3600 ? Math.round(n / 60) + ' min' : Math.round(n / 3600) + ' h';
+function tickCool() {
+  clearTimeout(coolTimer); if (!chan) return;
+  const left = slowOf(chan) ? Math.ceil(((coolUntil.get(chan.id) || 0) - Date.now()) / 1000) : 0;
+  if (left > 0) {
+    $('svForm').querySelectorAll('button').forEach(x => { x.disabled = true; });
+    $('svInput').placeholder = (String(lang).startsWith('en') ? 'Slow mode: wait ' : 'Modo lento: aguarde ') + fmtSecs(left);
+    coolTimer = setTimeout(tickCool, 250);
+  } else applyWriteState();
+}
 const needV15 = () => String(lang).startsWith('en') ? 'The v15 SQL migration still needs to be run in Supabase to use categories.' : 'Falta rodar a migração SQL v15 no Supabase para usar categorias.';
 const msgIds = new Set(), msgData = new Map(), reacts = new Map();
 const isAdm = () => myRole === 'owner' || myRole === 'admin';
@@ -2831,7 +2845,10 @@ function applyWriteState() {
   if (!chan) return;
   const ok = canWriteChan(chan);
   $('svForm').querySelectorAll('button, input').forEach(x => { x.disabled = !ok; });
-  $('svInput').placeholder = ok ? t('msgPh') : (String(lang).startsWith('en') ? 'You can only read this channel' : 'Você só pode ler este canal');
+  const sl = ok ? slowOf(chan) : 0, en = String(lang).startsWith('en');
+  $('svInput').placeholder = !ok ? (en ? 'You can only read this channel' : 'Você só pode ler este canal')
+    : sl ? (en ? 'Slow mode: 1 message every ' : 'Modo lento: 1 mensagem a cada ') + fmtSecs(sl) : t('msgPh');
+  if (ok && sl && (coolUntil.get(chan.id) || 0) > Date.now()) tickCool();
 }
 function paintTitle(c) {
   const ti = $('svTitle'); ti.textContent = '';
@@ -2909,7 +2926,8 @@ async function openServer(id) {
 }
 async function loadChans() {
   const qc = cols => sb().from('channels').select(cols).eq('server_id', cur.id).order('position').order('created_at');
-  let { data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles,category_id,description,desc_font,desc_color,desc_color2,desc_fx');
+  let { data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles,category_id,description,desc_font,desc_color,desc_color2,desc_fx,slowmode_seconds');
+  if (error) ({ data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles,category_id,description,desc_font,desc_color,desc_color2,desc_fx'));   // v17 ainda não rodou
   if (error) ({ data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles,category_id'));   // v16 ainda não rodou
   if (error) ({ data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles'));   // v15 ainda não rodou
   if (error) ({ data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit'));   // v14 ainda não rodou
@@ -3063,6 +3081,7 @@ function renderChans() {
     if (c.is_private) mark('🔒', en0 ? 'Private' : 'Privado');
     if (c.locked) mark(k === 'text' ? '📖' : '🔇', k === 'text' ? (en0 ? 'Only some roles can write' : 'Só alguns cargos podem escrever') : (en0 ? 'Only some roles can talk' : 'Só alguns cargos podem falar'));
     r.append(cb);
+    if (c.slowmode_seconds > 0) mark('⏱', (en0 ? 'Slow mode: ' : 'Modo lento: ') + fmtSecs(c.slowmode_seconds));
     if (mng) r.append(mk('✎', () => dlgEditChannel(c), 'cact'), mk('✕', () => delChan(c), 'cact'));
     return r;
   };
@@ -3459,11 +3478,17 @@ async function toggleReact(id, key) {
 $('svForm').onsubmit = async e => {
   e.preventDefault();
   const inp = $('svInput'), c = inp.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000);
-  if (!c || !chan || !canWriteChan(chan) || Date.now() - lastSend < 500) return;
+  if (!c || !chan || !canWriteChan(chan) || Date.now() - lastSend < 500 || (slowOf(chan) && (coolUntil.get(chan.id) || 0) > Date.now())) return;
   lastSend = Date.now(); inp.value = '';
   const { data, error } = await sb().from('messages').insert({ channel_id: chan.id, server_id: cur.id, content: c }).select('id,user_id,content,created_at').single();
-  if (error) { inp.value = c; return err(error); }
+  if (error) {
+    inp.value = c;
+    const m = /Modo lento: aguarde (\d+)/.exec(String(error.message || ''));
+    if (m) { coolUntil.set(chan.id, Date.now() + (+m[1]) * 1000); return tickCool(); }   // o servidor mandou esperar
+    return err(error);
+  }
   addMsg(data);
+  const sl = slowOf(chan); if (sl) { coolUntil.set(chan.id, Date.now() + sl * 1000); tickCool(); }
 };
 function subscribe() {
   unsub();
@@ -3616,6 +3641,21 @@ function dlgEditChannel(c, isNew) {
     if (dTtl) dTtl.textContent = L('Estilo da descrição', 'Description style');
     if (dHint) dHint.textContent = L('Escolha fonte, cor e efeito da descrição do canal.', 'Pick a font, color and effect for the channel description.');
 
+    /* temporizador do chat (modo lento): só canal de texto */
+    const slowPresets = [0, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 21600];
+    const fmtS = n => n === 0 ? L('Sem limite de tempo', 'No time limit') : n < 60 ? n + ' s' : n < 3600 ? (n / 60) + ' min' : (n / 3600) + ' h';
+    const slowL = el('label'), slowSel = el('select'), slowNum = el('input');
+    slowPresets.forEach(n => { const o = el('option', '', fmtS(n)); o.value = String(n); slowSel.append(o); });
+    const oc = el('option', '', L('Personalizado (segundos)…', 'Custom (seconds)…')); oc.value = 'custom'; slowSel.append(oc);
+    slowNum.type = 'number'; slowNum.min = '1'; slowNum.max = '21600'; slowNum.placeholder = L('segundos (1 a 21600)', 'seconds (1 to 21600)');
+    const cs = +c.slowmode_seconds || 0;
+    slowSel.value = slowPresets.includes(cs) ? String(cs) : 'custom'; slowNum.value = slowPresets.includes(cs) ? '' : String(cs);
+    const syncSlow = () => slowNum.classList.toggle('hidden', slowSel.value !== 'custom'); slowSel.onchange = syncSlow; syncSlow();
+    slowL.append(el('span', '', L('Temporizador do chat (tempo de espera para escrever de novo)', 'Chat timer (wait time before writing again)')), slowSel, slowNum);
+    const slowP = el('p', 'mut', L('Quanto cada pessoa precisa esperar para mandar outra mensagem neste canal. Dono, admins e quem gerencia canais não são limitados.', 'How long each person must wait to send another message in this channel. The owner, admins and channel managers are not limited.'));
+    w.append(slowL, slowP);
+    const getSlow = () => slowSel.value !== 'custom' ? +slowSel.value : Math.max(0, Math.min(21600, parseInt(slowNum.value, 10) || 0));
+
     /* limite de pessoas (só canal de voz) */
     let limSel = null, limL = null, limP = null;
     if (c.kind === 'voice' || isNew) {
@@ -3652,7 +3692,7 @@ function dlgEditChannel(c, isNew) {
     const syncAcc = () => { viewHost.classList.toggle('hidden', !privChk.checked); writeHost.classList.toggle('hidden', !lockChk.checked); };
     privChk.onchange = syncAcc; lockChk.onchange = syncAcc; syncAcc();
     const syncKind = () => {
-      isV = c.kind === 'voice'; paintIcon();
+      isV = c.kind === 'voice'; paintIcon(); slowL.classList.toggle('hidden', isV); slowP.classList.toggle('hidden', isV);
       if (limL) { limL.classList.toggle('hidden', !isV); limP.classList.toggle('hidden', !isV); }
       privChk.parentNode.lastChild.textContent = isV ? L('Canal de voz privado (só os cargos escolhidos entram)', 'Private voice channel (only the chosen roles can join)') : L('Canal privado (só os cargos escolhidos veem)', 'Private channel (only the chosen roles can see it)');
       lockChk.parentNode.lastChild.textContent = isV ? L('Restringir quem pode falar (transmitir tela e câmera); os demais só assistem', 'Restrict who can talk (share screen and camera); others only watch') : L('Restringir quem pode escrever; os demais só leem', 'Restrict who can write; others can only read');
@@ -3665,7 +3705,7 @@ function dlgEditChannel(c, isNew) {
 
     const acts = el('div', 'dlg-actions');
     const saveBtn = mk(L('Salvar', 'Save'), async () => {
-      const name = normCh(nameIn.value); if (!name) return err(L('Digite um nome para o canal.', 'Type a channel name.'));
+      const name = (c.kind === 'voice' ? normVoice(nameIn.value) : normCh(nameIn.value)); if (!name) return err(L('Digite um nome para o canal.', 'Type a channel name.'));
       const ps = NS.clean(pend);
       saveBtn.disabled = true;
       try {
@@ -3692,6 +3732,13 @@ function dlgEditChannel(c, isNew) {
         if (dsc !== (c.description || '') || JSON.stringify(dps) !== JSON.stringify(dsOf(c))) {
           const rd = await sb().rpc('ns_set_channel_description', { p_channel: c.id, p_text: dsc, p_font: dps.font || null, p_color: dps.color || null, p_color2: dps.color2 || null, p_fx: dps.fx || null });
           if (rd.error) err(missingFn(rd.error) ? needV16() : '[v16 · descrição] ' + rd.error.message);
+        }
+        if (c.kind === 'text') {
+          const sl = getSlow();
+          if (sl !== (+c.slowmode_seconds || 0)) {
+            const rs = await sb().rpc('ns_set_channel_slowmode', { p_channel: c.id, p_seconds: sl });
+            if (rs.error) err(missingFn(rs.error) ? needV17() : '[v17 · temporizador] ' + rs.error.message);
+          }
         }
         if (catSel && catSel.value !== (c.category_id || '')) {
           const rc = await sb().rpc('ns_set_channel_category', { p_channel: c.id, p_category: catSel.value || null });
