@@ -309,6 +309,9 @@
   .cn-chip b { color: var(--c); font-weight: 800; white-space: nowrap; }
   .cn-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   a.cn-chip:hover { background: color-mix(in srgb, var(--c) 26%, transparent); }
+  .cn-lab { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: inherit; text-decoration: none; }
+  a.cn-lab { cursor: pointer; }
+  a.cn-lab:hover span { text-decoration: underline; }
   .pe-conns { display: grid; gap: 8px; }
   .pe-conns .cn-list { display: flex; flex-wrap: wrap; gap: 6px; }
   .pe-conns .cn-chip button { min-height: 0; padding: 0 4px; border: 0; background: none; box-shadow: none; color: var(--mut); font-size: .85rem; }
@@ -2287,7 +2290,11 @@ window.Acc = (() => {
       const chip = el('span', 'cn-chip'); chip.style.setProperty('--c', P.c);
       const x = el('button', '', '✕'); x.type = 'button'; x.title = T('pfRemove');
       x.onclick = () => { connState.cur.splice(i, 1); paintConns(); };
-      chip.append(el('b', '', P.n), el('span', '', c.h), x);
+      // clicar no nome abre a página da conta (o ✕ só remove)
+      const lab = document.createElement(P.u ? 'a' : 'span'); lab.className = 'cn-lab';
+      if (P.u) { lab.href = P.u(encodeURIComponent(c.h)); lab.target = '_blank'; lab.rel = 'noopener noreferrer nofollow'; lab.title = P.n + ': ' + c.h; }
+      lab.append(el('b', '', P.n), el('span', '', c.h));
+      chip.append(lab, x);
       list.append(chip);
     });
     if (connState.cur.length) host.append(list);
