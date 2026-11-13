@@ -2762,6 +2762,24 @@ applyLang();
   .msg:hover .mact, .msg:focus-within .mact, .msg.sel .mact { display: flex; }
   .msg .mact button { min-height: 0; padding: 3px 8px; border-radius: 7px; font-size: .78rem; box-shadow: none; }
   .msg .mact button:hover:not(:disabled) { transform: none; }
+
+  /* markdown nas mensagens */
+  .msg .mt { white-space: normal; }
+  .mtx { display: block; min-width: 0; }
+  .mtx > * + * { margin-top: 6px; }
+  .mtx .mp { white-space: pre-wrap; }
+  .mtx .mh1, .mtx .mh2, .mtx .mh3 { font-weight: 800; line-height: 1.3; color: #fff; }
+  .mtx .mh1 { font-size: 1.35rem; } .mtx .mh2 { font-size: 1.15rem; } .mtx .mh3 { font-size: 1.02rem; }
+  .mtx strong { color: #fff; font-weight: 800; }
+  .mtx a { color: #8ea0ff; text-decoration: underline; }
+  .mtx .mcode { padding: 1px 6px; border-radius: 6px; background: rgba(255,255,255,.09); font: .86em ui-monospace, SFMono-Regular, Consolas, monospace; }
+  .mtx .mpre { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(0,0,0,.35); overflow-x: auto; font: .85rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
+  .mtx .mquote { margin: 6px 0 0; padding: 6px 12px; border-left: 3px solid var(--acc); border-radius: 0 8px 8px 0; background: rgba(108,124,255,.09); }
+  .mtx .mlist { margin: 0; padding-left: 22px; }
+  .mtx .mhr { border: 0; border-top: 1px solid var(--line); margin: 8px 0; }
+  .mt.jumbo .mtx { display: inline; }
+  #svForm textarea { flex: 1 1 0; width: auto; min-width: 0; min-height: 44px; max-height: 160px; resize: none; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; outline: none; background: rgba(5,9,22,.65); color: var(--fg); font: inherit; line-height: 1.4; }
+  #svForm textarea:focus { border-color: var(--acc); }
   .edited { margin-left: 6px; color: var(--mut); font-size: .7rem; }
   .medit { width: 100%; min-height: 56px; padding: 8px 10px; border: 1px solid var(--acc); border-radius: 10px; outline: none; resize: vertical; background: rgba(5,9,22,.65); color: var(--fg); font: inherit; }
   .cemoji { width: 1.45em; height: 1.45em; vertical-align: -.32em; object-fit: contain; }
@@ -2952,7 +2970,7 @@ const rail = el('aside', 'hidden'); rail.id = 'srvRail';
 const view = el('section', 'hidden'); view.id = 'srvView';
 view.innerHTML = '<div class="sv-side" id="svSide"><div class="sv-banner hidden" id="svBanner"></div><button type="button" class="sv-head" id="svName"></button><div class="sv-desc hidden" id="svDesc"></div><div class="sv-list" id="svChans"></div></div>' +
   '<div class="sv-main"><div class="sv-top"><button type="button" class="sec sv-burger" id="svBurger">☰</button><strong id="svTitle"></strong><button type="button" class="sec x" id="svClose">✕</button></div>' +
-  '<div id="svMsgs"></div><form id="svForm" class="hidden"><button type="button" class="sec" id="svEmoji">😊</button><input id="svInput" maxlength="1000" autocomplete="off"><button type="submit">➤</button></form></div>' +
+  '<div id="svMsgs"></div><form id="svForm" class="hidden"><button type="button" class="sec" id="svEmoji">😊</button><textarea id="svInput" rows="1" maxlength="1000" autocomplete="off"></textarea><button type="submit">➤</button></form></div>' +
   '<div class="sv-mem" id="svMem"></div>';
 document.body.append(rail, view);
 
@@ -3496,9 +3514,57 @@ function richInto(node, text) {
   }
   if (last < text.length) node.append(document.createTextNode(text.slice(last)));
 }
+/* ----- markdown seguro (só cria nós DOM; nada de innerHTML) ----- */
+function mdInline(node, text) {
+  const re = /(`[^`\n]+`)|(\*\*[^*\n]+?\*\*)|(~~[^~\n]+?~~)|(\*[^*\s][^*\n]*?\*)|(\bhttps?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g;
+  let last = 0, m;
+  while ((m = re.exec(text))) {
+    if (m.index > last) richInto(node, text.slice(last, m.index));
+    const t = m[0];
+    if (m[1]) node.append(el('code', 'mcode', t.slice(1, -1)));
+    else if (m[2]) { const b = el('strong'); mdInline(b, t.slice(2, -2)); node.append(b); }
+    else if (m[3]) { const d = el('s'); mdInline(d, t.slice(2, -2)); node.append(d); }
+    else if (m[4]) { const i = el('em'); mdInline(i, t.slice(1, -1)); node.append(i); }
+    else { const a = el('a', '', t); a.href = t; a.target = '_blank'; a.rel = 'noopener noreferrer nofollow'; node.append(a); }
+    last = m.index + t.length;
+  }
+  if (last < text.length) richInto(node, text.slice(last));
+}
+function mdInto(root, text) {
+  const lines = String(text).replace(/\r/g, '').split('\n');
+  let i = 0, para = null, list = null, quote = null;
+  const endAll = () => { para = list = quote = null; };
+  while (i < lines.length) {
+    const ln = lines[i];
+    if (/^```/.test(ln)) {                       // bloco de código
+      endAll(); const buf = []; i++;
+      while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]);
+      i++; const pre = el('pre', 'mpre'); pre.append(el('code', '', buf.join('\n'))); root.append(pre); continue;
+    }
+    if (!ln.trim()) { endAll(); i++; continue; }
+    let m;
+    if ((m = /^(#{1,3})\s+(.+)$/.exec(ln))) {    // títulos
+      endAll(); const h = el('div', 'mh' + m[1].length); mdInline(h, m[2].trim()); root.append(h); i++; continue;
+    }
+    if (/^\s*(-{3,}|\*{3,})\s*$/.test(ln)) { endAll(); root.append(el('hr', 'mhr')); i++; continue; }
+    if ((m = /^>\s?(.*)$/.exec(ln))) {           // citação
+      para = list = null;
+      if (!quote) { quote = el('blockquote', 'mquote'); root.append(quote); } else quote.append(document.createElement('br'));
+      mdInline(quote, m[1]); i++; continue;
+    }
+    if ((m = /^\s*([-*•]|\d+[.)])\s+(.+)$/.exec(ln))) {   // listas
+      para = quote = null; const ord = /\d/.test(m[1]);
+      if (!list || list.ord !== ord) { list = { ord, node: el(ord ? 'ol' : 'ul', 'mlist') }; root.append(list.node); }
+      const li = el('li'); mdInline(li, m[2]); list.node.append(li); i++; continue;
+    }
+    list = quote = null;                          // parágrafo (quebras simples viram <br>)
+    if (!para) { para = el('div', 'mp'); root.append(para); } else para.append(document.createElement('br'));
+    mdInline(para, ln); i++;
+  }
+}
 function paintText(mt, r) {
   mt.textContent = '';
-  const s = el('span', 'mtx'); richInto(s, r.content || ''); mt.append(s);
+  const s = el('div', 'mtx'); mdInto(s, r.content || ''); mt.append(s);
   if (r.edited_at) mt.append(el('span', 'edited', t('edited')));
   mt.classList.toggle('jumbo', isJumbo(r.content || ''));
 }
@@ -3730,6 +3796,15 @@ async function toggleReact(id, key) {
   reactSet(String(id), key, uid, data === true); renderReacts(String(id));
 }
 
+{
+  const ti = $('svInput'), fit = () => { ti.style.height = 'auto'; ti.style.height = Math.min(ti.scrollHeight, 160) + 'px'; };
+  ti.addEventListener('input', fit);
+  ti.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('svForm').requestSubmit(); }
+  });
+  new MutationObserver(fit).observe(ti, { attributes: true, attributeFilter: ['value'] });
+  $('svForm').addEventListener('submit', () => setTimeout(fit, 0));
+}
 $('svForm').onsubmit = async e => {
   e.preventDefault();
   const inp = $('svInput'), c = inp.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000);
