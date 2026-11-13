@@ -2816,7 +2816,7 @@ const nsOfRole = r => NS.clean({ font: r.name_font, color: r.color, color2: r.na
 const ownerNs = () => NS.clean({ font: cur && cur.owner_role_font, color: ownerColor(), color2: cur && cur.owner_role_color2, fx: cur && cur.owner_role_fx });
 const nsOfChan = c => NS.clean({ font: c.name_font, color: c.name_color, color2: c.name_color2, fx: c.name_fx });
 /* permissão de escrever (texto) ou falar (voz): canal sem restrição, ou cargo escolhido, ou quem gerencia canais */
-const canWriteChan = c => !!c && (can('manage_channels') || !c.locked || (Array.isArray(c.write_roles) && c.write_roles.some(id => hasRole(uid, String(id)))));
+const canWriteChan = c => !!c && (myRole === 'owner' || !c.locked || (Array.isArray(c.write_roles) && c.write_roles.some(id => hasRole(uid, String(id)))));
 function applyWriteState() {
   if (!chan) return;
   const ok = canWriteChan(chan);
@@ -2949,7 +2949,7 @@ function paintRoleTag(d) {
   if (m && m.role === 'owner' && !ownerHidden()) info = { text: ownerName(), color: ownerColor(), ns: ownerNs() };
   else { const r = u ? topRole(u) : null; if (r) info = { text: r.name, color: r.color, ns: nsOfRole(r) }; }
   if (!info) { if (tg) tg.remove(); return; }
-  if (!tg) { tg = el('span', 'gbadge mrole'); h.prepend(tg); }
+  if (!tg) { tg = el('span', 'gbadge mrole'); const nmEl = h.querySelector('.mname'); if (nmEl) nmEl.after(tg); else h.prepend(tg); }
   tg.textContent = info.text;
   tg.style.setProperty('--c', info.color);
   NS.style(tg, info.ns, '');
@@ -3485,7 +3485,7 @@ function dlgEditChannel(c) {
     const viewSet = new Set((c.view_roles || []).map(String)), writeSet = new Set((c.write_roles || []).map(String));
     const accBox = el('div', 'box');
     accBox.append(el('strong', '', L('Acesso e permissões', 'Access and permissions')),
-      el('p', 'mut', L('Dono, admins e quem gerencia canais sempre têm acesso total.', 'Owner, admins and channel managers always have full access.')));
+      el('p', 'mut', L('O dono sempre tem acesso total. Admins e quem gerencia canais sempre veem o canal, mas só escrevem ou falam se tiverem um dos cargos escolhidos.', 'The owner always has full access. Admins and channel managers can always see the channel, but only write or talk if they have one of the chosen roles.')));
     const roleList = set => {
       const host = el('div', 'rpick');
       if (!roles.length) host.append(el('p', 'mut', L('Este servidor ainda não tem cargos. Crie em 🏷️ Cargos nas configurações do servidor.', 'This server has no roles yet. Create them in 🏷️ Roles in the server settings.')));
