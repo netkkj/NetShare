@@ -2944,7 +2944,7 @@ const PERMS = [
   ['manage_roles', 'permRoles', 'permRolesD'], ['manage_emojis', 'permEmojis', 'permEmojisD'], ['manage_messages', 'permMsgs', 'permMsgsD']
 ];
 const PERM_KEYS = PERMS.map(x => x[0]);
-const cleanRole = r => ({ id: String(r.id), name: cleanStr(r.name, 24), color: okHex(r.color) || '#99aab5', hoist: !!r.hoist, position: +r.position || 0, name_font: r.name_font || '', name_color2: r.name_color2 || '', name_fx: r.name_fx || '',
+const cleanRole = r => ({ id: String(r.id), name: cleanStr(r.name, 24), color: okHex(r.color) || '#99aab5', hoist: !!r.hoist, position: +r.position || 0, name_font: r.name_font || '', name_color2: r.name_color2 || '', name_fx: r.name_fx || '', auto: !!r.auto_assign,
   perms: Array.isArray(r.perms) ? r.perms.filter(x => PERM_KEYS.includes(x)) : [] });
 const cleanEmoji = e => ({ id: String(e.id), name: String(e.name || '').replace(/[^a-z0-9_]/g, '').slice(0, 24), path: String(e.path || '') });
 
@@ -3132,9 +3132,10 @@ async function loadMembers() {
 async function loadRoles() {
   const s = cur; if (!s) return;
   let [a, b] = await Promise.all([
-    sb().from('server_roles').select('id,name,color,hoist,position,perms,name_font,name_color2,name_fx').eq('server_id', s.id).order('position'),
+    sb().from('server_roles').select('id,name,color,hoist,position,perms,name_font,name_color2,name_fx,auto_assign').eq('server_id', s.id).order('position'),
     sb().from('member_roles').select('role_id,user_id').eq('server_id', s.id)
   ]);
+  if (a.error) a = await sb().from('server_roles').select('id,name,color,hoist,position,perms,name_font,name_color2,name_fx').eq('server_id', s.id).order('position');   // v22 ainda não rodou
   if (a.error) a = await sb().from('server_roles').select('id,name,color,hoist,position,perms').eq('server_id', s.id).order('position');   // v12 ainda não rodou
   if (a.error) a = await sb().from('server_roles').select('id,name,color,hoist,position').eq('server_id', s.id).order('position');   // v8 ainda não rodou
   if (cur !== s) return;
@@ -3346,10 +3347,15 @@ async function placeChan(id, group, relId, after) {
       const r = await sb().rpc('ns_set_channel_category', { p_channel: id, p_category: toCat });
       if (r.error) throw r.error;
     }
-    const res = await Promise.all(jobs.map(j => sb().from('channels').update({ position: j.pos }).eq('id', j.id).select('id')));
-    const bad = res.find(r => r.error); if (bad) throw bad.error;
-    if (res.some(r => !(r.data || []).length)) throw new Error('Não foi possível salvar a ordem dos canais (sem permissão no banco).');
-  } catch (e) { err(missingFn(e) ? needV15() : e); }
+    if (jobs.length) {
+      const r = await sb().rpc('ns_reorder_channels', { p_ids: list.map(x => String(x.id)) });
+      if (r.error) throw r.error;
+    }
+  } catch (e) {
+    err(missingFn(e) && /ns_reorder_channels/.test(String(e.message || ''))
+      ? (String(lang).startsWith('en') ? 'The v23 SQL migration still needs to be run in Supabase to reorder channels.' : 'Falta rodar a migração SQL v23 no Supabase para reordenar canais.')
+      : missingFn(e) ? needV15() : e);
+  }
   await loadChans(); renderChans();
 }
 async function moveChan(c, dir) {
@@ -4222,12 +4228,25 @@ function dlgRoles() {
       const ps = NS.clean(pendRole || {});
       let id = editing ? editing.id : (typeof rid === 'string' ? rid : (rid && rid.id) || null);
       if (!id) { await loadRoles(); const f = roles.filter(x => x.name === name).pop(); id = f && f.id; }   // cargo recém-criado
-      if (!id) return;
+      if (!id) return null;
       const { error } = await sb().rpc('ns_set_role_style', { p_role: String(id), p_font: ps.font || null, p_color2: ps.color2 || null, p_fx: ps.fx || null });
       if (error) err(missingFn(error) ? needV12() : error);
+      return id;
+    };
+    /* cargo automático: só dono/admin do servidor mexe nisso (o banco confere de novo) */
+    const saveRoleAuto = async id => {
+      if (!id || !isAdm()) return;
+      const want = autoChk.checked, was = !!(editing && editing.auto);
+      if (want === was) return;
+      const { error } = await sb().rpc('ns_set_role_auto', { p_role: String(id), p_auto: want });
+      if (error) err(missingFn(error) ? (String(lang).startsWith('en') ? 'The v22 SQL migration still needs to be run in Supabase to use automatic roles.' : 'Falta rodar a migração SQL v22 no Supabase para usar cargos automáticos.') : error);
     };
     form.append(styleHost);
     const hoist = chk(form, t('roleHoist'), true), hoistRow = hoist.parentElement;
+    const enR = String(lang).startsWith('en');
+    const autoChk = chk(form, enR ? 'Give automatically to everyone who joins the server' : 'Dar automaticamente a quem entrar no servidor', false), autoRow = autoChk.parentElement;
+    autoChk.disabled = !isAdm();
+    if (!isAdm()) autoRow.title = enR ? 'Only the owner and admins can change this' : 'Só o dono e os admins podem mudar isso';
     const pr = el('div'); pr.style.cssText = 'display:flex;gap:8px;align-items:center'; pr.append(el('span', 'mut', t('preview')), prev); form.append(pr);
     nameIn.oninput = refreshPrev;
     /* permissões do cargo (cada uma é ligada/desligada) */
@@ -4250,7 +4269,7 @@ function dlgRoles() {
     const getPerms = () => permIn.administrator.checked ? ['administrator'] : PERM_KEYS.filter(k => permIn[k].checked);
     form.append(permBox);
     const ownerHint = el('p', 'mut hidden', t('ownerRoleHint'));
-    const setMode = on => { hoistRow.classList.toggle('hidden', on); permBox.classList.toggle('hidden', on); ownerHint.classList.toggle('hidden', !on); };
+    const setMode = on => { hoistRow.classList.toggle('hidden', on); autoRow.classList.toggle('hidden', on); permBox.classList.toggle('hidden', on); ownerHint.classList.toggle('hidden', !on); };
     const acts = el('div', 'pe-actions');
     const okBtn = mk(t('createRole'), async e => {
       const name = cleanStr(nameIn.value, 24);
@@ -4270,13 +4289,14 @@ function dlgRoles() {
       const args = { p_name: name, p_color: roleColor(), p_hoist: hoist.checked, p_perms: getPerms() };
       const { data: rid, error } = editing ? await sb().rpc('ns_update_role', { p_role: editing.id, ...args }) : await sb().rpc('ns_create_role', { p_server: s.id, ...args });
       e.target.disabled = false; if (error) return err(missingFn(error) ? t('needV8') : error);
-      await saveRoleStyle(rid, name);
+      const savedId = await saveRoleStyle(rid, name);
+      await saveRoleAuto(savedId);
       resetForm(); await loadRoles(); draw();
     });
     const cancelBtn = mk(t('cancel'), () => resetForm(), 'sec');
     acts.append(okBtn, cancelBtn); form.append(acts);
     const resetForm = () => {
-      editing = null; setMode(false); nameIn.placeholder = ''; nameIn.value = ''; loadStyle({ color: '#6c7cff' }); hoist.checked = true; setPerms([]);
+      editing = null; setMode(false); nameIn.placeholder = ''; nameIn.value = ''; loadStyle({ color: '#6c7cff' }); hoist.checked = true; autoChk.checked = false; setPerms([]);
       head.textContent = t('newRoleH'); okBtn.textContent = t('createRole'); cancelBtn.classList.add('hidden'); refreshPrev();
     };
     const setOwnerHidden = async h => {
@@ -4320,12 +4340,12 @@ function dlgRoles() {
         const row = el('div', 'lrow'), dot = el('span', 'rdot'); dot.style.setProperty('--c', r.color);
         const g = el('div', 'grow'), nmE = el('b', '', r.name); NS.style(nmE, nsOfRole(r), r.color);
         const cnt = mem.filter(m => hasRole(m.user_id, r.id)).length;
-        g.append(nmE, el('div', 'mut', t('roleMembers', { n: cnt }) + (r.hoist ? ' · ' + t('hoisted') : '') + (r.perms.includes('administrator') ? ' · ' + t('permAll') : r.perms.length ? ' · ' + t('permCount', { n: r.perms.length }) : '')));
+        g.append(nmE, el('div', 'mut', t('roleMembers', { n: cnt }) + (r.hoist ? ' · ' + t('hoisted') : '') + (r.auto ? (String(lang).startsWith('en') ? ' · automatic on join' : ' · automático ao entrar') : '') + (r.perms.includes('administrator') ? ' · ' + t('permAll') : r.perms.length ? ' · ' + t('permCount', { n: r.perms.length }) : '')));
         const move = dir => async () => { const { error } = await sb().rpc('ns_move_role', { p_role: r.id, p_dir: dir }); if (error) return err(error); await loadRoles(); draw(); };
         const up = mk('▲', move(-1), 'sec'), dn = mk('▼', move(1), 'sec');
         up.title = t('up'); dn.title = t('down'); up.disabled = i === 0; dn.disabled = i === roles.length - 1;
         const ed = mk('✎', () => {
-          editing = r; nameIn.value = r.name; loadStyle({ font: r.name_font, color: r.color, color2: r.name_color2, fx: r.name_fx }); hoist.checked = r.hoist; setPerms(r.perms);
+          editing = r; nameIn.value = r.name; loadStyle({ font: r.name_font, color: r.color, color2: r.name_color2, fx: r.name_fx }); hoist.checked = r.hoist; autoChk.checked = !!r.auto; setPerms(r.perms);
           head.textContent = t('editRoleH'); okBtn.textContent = t('saveRole'); cancelBtn.classList.remove('hidden'); refreshPrev(); nameIn.focus();
         }, 'sec'); ed.title = t('edit');
         const rm = mk('✕', async () => {
