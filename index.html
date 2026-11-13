@@ -2526,6 +2526,7 @@ applyLang();
   .sv-main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; }
   .sv-top { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 14px; border-bottom: 1px solid var(--line); }
   .sv-top strong { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sv-chdesc { margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--line); color: var(--mut); font-weight: 500; font-size: .86rem; }
   .sv-top .x { width: 36px; min-height: 36px; padding: 0; }
   .sv-burger { display: none; width: 36px; min-height: 36px; padding: 0; }
   #svMsgs { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; overflow-y: auto; }
@@ -2737,6 +2738,7 @@ let roles = [], mroles = new Map(), emojis = [], siteOwner = false;
 let cats = [];   // categorias de canais do servidor aberto
 let collapsed = new Set(); try { collapsed = new Set(JSON.parse(localStorage.getItem('sala-cat-off') || '[]')); } catch (e) {}
 const saveCollapsed = () => { try { localStorage.setItem('sala-cat-off', JSON.stringify([...collapsed])); } catch (e) {} };
+const needV16 = () => String(lang).startsWith('en') ? 'The v16 SQL migration still needs to be run in Supabase to use channel descriptions.' : 'Falta rodar a migração SQL v16 no Supabase para usar descrição de canal.';
 const needV15 = () => String(lang).startsWith('en') ? 'The v15 SQL migration still needs to be run in Supabase to use categories.' : 'Falta rodar a migração SQL v15 no Supabase para usar categorias.';
 const msgIds = new Set(), msgData = new Map(), reacts = new Map();
 const isAdm = () => myRole === 'owner' || myRole === 'admin';
@@ -2836,6 +2838,10 @@ function paintTitle(c) {
   if (c.icon) ti.append(emoNode(c.icon)); else ti.append('#');
   ti.append(' ');
   const s = el('span', '', c.name); NS.style(s, nsOfChan(c), ''); ti.append(s);
+  if (c.description) {   // descrição do canal, com estilo próprio
+    const d = el('span', 'sv-chdesc', c.description); d.title = c.description;
+    NS.style(d, NS.clean({ font: c.desc_font, color: c.desc_color, color2: c.desc_color2, fx: c.desc_fx }), ''); ti.append(d);
+  }
 }
 function setSrvName() {
   const b = $('svName'); if (!b || !cur) return;
@@ -2903,7 +2909,8 @@ async function openServer(id) {
 }
 async function loadChans() {
   const qc = cols => sb().from('channels').select(cols).eq('server_id', cur.id).order('position').order('created_at');
-  let { data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles,category_id');
+  let { data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles,category_id,description,desc_font,desc_color,desc_color2,desc_fx');
+  if (error) ({ data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles,category_id'));   // v16 ainda não rodou
   if (error) ({ data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles'));   // v15 ainda não rodou
   if (error) ({ data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit'));   // v14 ainda não rodou
   if (error) ({ data } = await qc('id,name,kind,voice_key,position'));   // v13 ainda não rodou
@@ -3598,6 +3605,17 @@ function dlgEditChannel(c, isNew) {
     if (ttl) ttl.textContent = L('Estilo do nome do canal', 'Channel name style');
     if (hint) hint.textContent = L('Escolha fonte, cor e efeito do nome do canal.', 'Pick a font, color and effect for the channel name.');
 
+    /* descrição do canal (aparece no topo) com estilo próprio */
+    const descIn = fld(w, L('Descrição do canal (aparece no topo, ao lado do nome)', 'Channel description (shown at the top, next to the name)'), { maxLength: 150 }); descIn.value = c.description || '';
+    const dsOf = x => NS.clean({ font: x.desc_font, color: x.desc_color, color2: x.desc_color2, fx: x.desc_fx });
+    let dpend = dsOf(c);
+    const dsHost = el('div'); w.append(dsHost);
+    const ded = NS.editor(dsHost, dpend, () => descIn.value, v => { dpend = v; });
+    descIn.addEventListener('input', () => ded.refresh());
+    const dTtl = dsHost.querySelector('.nsed > strong'), dHint = dsHost.querySelector('.nsed > p');
+    if (dTtl) dTtl.textContent = L('Estilo da descrição', 'Description style');
+    if (dHint) dHint.textContent = L('Escolha fonte, cor e efeito da descrição do canal.', 'Pick a font, color and effect for the channel description.');
+
     /* limite de pessoas (só canal de voz) */
     let limSel = null, limL = null, limP = null;
     if (c.kind === 'voice' || isNew) {
@@ -3653,12 +3671,12 @@ function dlgEditChannel(c, isNew) {
       try {
         if (isNew) {   // cria o canal e em seguida aplica todas as opções abaixo
           const ins = await sb().rpc('ns_create_channel', { p_server: cur.id, p_name: name, p_kind: c.kind, p_category: catSel && catSel.value ? catSel.value : null });
-          if (ins.error || !ins.data) return err(missingFn(ins.error) ? needV15() : (ins.error || 'erro'));
+          if (ins.error || !ins.data) return err(missingFn(ins.error) ? needV15() : '[v15b · passo 1/3 · criar canal] ' + ((ins.error && ins.error.message) || 'erro'));
           c = { ...c, id: ins.data, category_id: catSel && catSel.value ? catSel.value : null }; isNew = false;   // se der erro adiante, salvar de novo só edita
         }
         if (accessChanged()) {
           const ra = await sb().rpc('ns_set_channel_access', { p_channel: c.id, p_private: privChk.checked, p_view_roles: [...viewSet], p_locked: lockChk.checked, p_write_roles: [...writeSet] });
-          if (ra.error) err(missingFn(ra.error) ? L('Falta rodar a migração SQL v14 no Supabase para usar privacidade e permissões.', 'The v14 SQL migration still needs to be run in Supabase to use privacy and permissions.') : ra.error);
+          if (ra.error) err(missingFn(ra.error) ? L('Falta rodar a migração SQL v14 no Supabase para usar privacidade e permissões.', 'The v14 SQL migration still needs to be run in Supabase to use privacy and permissions.') : '[v15b · passo 2/3 · acesso] ' + ra.error.message);
         }
         const { error } = await sb().rpc('ns_update_channel', {
           p_channel: c.id, p_name: name, p_icon: icon || null,
@@ -3666,9 +3684,14 @@ function dlgEditChannel(c, isNew) {
           p_limit: limSel ? ((+limSel.value) || null) : null
         });
         if (error) {
-          if (!missingFn(error)) return err(error);
+          if (!missingFn(error)) return err('[v15b · passo 3/3 · ícone/estilo/limite] ' + error.message);
           if (name !== c.name) { const r = await sb().from('channels').update({ name }).eq('id', c.id); if (r.error) return err(r.error); }   // v13 ainda não rodou: salva só o nome
           err(L('Falta rodar a migração SQL v13 no Supabase para usar ícone, estilo e limite.', 'The v13 SQL migration still needs to be run in Supabase to use icon, style and limit.'));
+        }
+        const dsc = cleanStr(descIn.value, 150), dps = NS.clean(dpend);
+        if (dsc !== (c.description || '') || JSON.stringify(dps) !== JSON.stringify(dsOf(c))) {
+          const rd = await sb().rpc('ns_set_channel_description', { p_channel: c.id, p_text: dsc, p_font: dps.font || null, p_color: dps.color || null, p_color2: dps.color2 || null, p_fx: dps.fx || null });
+          if (rd.error) err(missingFn(rd.error) ? needV16() : '[v16 · descrição] ' + rd.error.message);
         }
         if (catSel && catSel.value !== (c.category_id || '')) {
           const rc = await sb().rpc('ns_set_channel_category', { p_channel: c.id, p_category: catSel.value || null });
