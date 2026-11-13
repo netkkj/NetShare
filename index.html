@@ -4485,18 +4485,36 @@ function dlgAdmin() {
         const q = fld(body, 'Buscar servidor por nome', { maxLength: 32 }); const box = listOf(); body.append(box);
         let tm = 0;
         const run = async () => {
-          const { data, error } = await sb().rpc('ns_admin_list_servers', { p_q: q.value });
+          const [{ data, error }, off] = await Promise.all([
+            sb().rpc('ns_admin_list_servers', { p_q: q.value }),
+            sb().rpc('ns_official_server')
+          ]);
+          const offMissing = !!off.error;                       // v21 ainda não rodou
+          const offId = offMissing || off.data == null ? '' : String(off.data);
           box.textContent = '';
           if (error) return box.append(el('p', 'amsg err', error.message));
+          if (offMissing && missingFn(off.error)) box.append(el('p', 'mut', 'Falta rodar a migração SQL v21 no Supabase para usar o servidor oficial.'));
           if (!(data || []).length) return box.append(el('p', 'mut', 'Nenhum servidor.'));
           data.forEach(s => {
+            const isOff = !!offId && String(s.id) === offId;
+            const star = offMissing ? null : mk(isOff ? 'Remover oficial' : 'Tornar oficial', async () => {
+              const msg = isOff
+                ? 'Remover o status de oficial de \"' + s.name + '\"? Novas contas deixarão de entrar nele automaticamente.'
+                : 'Tornar \"' + s.name + '\" o servidor oficial? Toda conta nova entrará nele automaticamente (substitui o oficial atual, se houver).';
+              if (!confirm(msg)) return;
+              const { error: e2 } = await sb().rpc('ns_admin_set_official', { p_id: isOff ? null : String(s.id) });
+              if (e2) return err(e2);
+              run();
+            }, 'sec');
+            const nm = el('b', '', s.name);
+            if (isOff) { const tag = el('span', '', ' ★ Oficial'); tag.style.color = 'var(--warning)'; nm.append(tag); }
             const rm = mk('Apagar', async () => {
               if (!confirm('Apagar o servidor "' + s.name + '" com todos os canais e mensagens? Isso não pode ser desfeito.')) return;
               const { error: e2 } = await sb().rpc('ns_admin_delete_server', { p_id: s.id }); if (e2) return err(e2);
               if (cur && cur.id === s.id) closeView();
               loadServers(); run();
             }, 'bad');
-            box.append(row(grow(el('b', '', s.name), el('div', 'mut', 'dono: ' + (s.owner_username ? '@' + s.owner_username : '?') + ' · ' + s.members + ' membro(s) · criado em ' + fmtDate(s.created_at))), rm));
+            box.append(row(grow(nm, el('div', 'mut', 'dono: ' + (s.owner_username ? '@' + s.owner_username : '?') + ' · ' + s.members + ' membro(s) · criado em ' + fmtDate(s.created_at))), ...[star, rm].filter(Boolean)));
           });
         };
         q.oninput = () => { clearTimeout(tm); tm = setTimeout(run, 300); };
