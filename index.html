@@ -2650,12 +2650,13 @@ applyLang();
   .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .box { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(4,8,20,.38); }
   .tabs.t4 { grid-template-columns: repeat(4, 1fr); }
+  .tabs.t5 { grid-template-columns: repeat(5, 1fr); }
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
   .stat { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
   .stat b { display: block; font: 800 1.6rem/1.1 'Manrope', sans-serif; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chips button { min-height: 30px; padding: 3px 10px; border-radius: 999px; font-size: .76rem; }
-  @media (max-width: 520px) { .fgrid { grid-template-columns: 1fr; } .tabs.t4 button { padding: 4px; font-size: .78rem; } }
+  @media (max-width: 520px) { .fgrid { grid-template-columns: 1fr; } .tabs.t4 button, .tabs.t5 button { padding: 4px; font-size: .78rem; } }
 .sgrp .cattog { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
   .sgrp.cat .cact { display: none; padding: 2px 5px !important; font-size: .75rem !important; }
   .sgrp.cat:hover .cact { display: inline-block; }
@@ -4159,8 +4160,8 @@ function dlgEmojis() {
 /* ----- painel do dono do site (só aparece para a conta dona; tudo é conferido no servidor) ----- */
 function dlgAdmin() {
   modal('Painel do dono do site', w => {
-    const names = [['tags', 'Tags'], ['people', 'Pessoas'], ['servers', 'Servidores'], ['stats', 'Resumo']];
-    const tabs = el('div', 'tabs t4'), body = el('div'); body.style.cssText = 'display:grid;gap:14px';
+    const names = [['tags', 'Tags'], ['people', 'Pessoas'], ['owners', 'Donos'], ['servers', 'Servidores'], ['stats', 'Resumo']];
+    const tabs = el('div', 'tabs t5'), body = el('div'); body.style.cssText = 'display:grid;gap:14px';
     let prefill = '';
     const show = k => { [...tabs.children].forEach((b, i) => b.classList.toggle('on', names[i][0] === k)); body.textContent = ''; panes[k](); };
     names.forEach(([k, lab]) => tabs.append(mk(lab, () => show(k), '')));
@@ -4271,6 +4272,53 @@ function dlgAdmin() {
         };
         q.oninput = () => { clearTimeout(tm); tm = setTimeout(run, 300); };
         run();
+      },
+      /* ---- donos do site ---- */
+      owners() {
+        const form = el('div', 'box');
+        const uIn = fld(form, '@ da nova pessoa dona', { maxLength: 21, placeholder: '@usuario' });
+        uIn.autocapitalize = 'none'; uIn.spellcheck = false;
+        form.append(el('p', 'mut', 'Donos do site têm acesso total a este painel e podem adicionar outros donos. Só o dono principal (o primeiro) pode remover donos, e ninguém remove a si mesmo.'));
+        const addBtn = mk('Adicionar como dono', async e => {
+          const user = uIn.value.trim().replace(/^@/, '').toLowerCase();
+          if (!ULOW.test(user)) return err('Digite o @ da pessoa (3 a 20 letras minúsculas, números ou _).');
+          if (!confirm('Tornar @' + user + ' dono do site? Ela terá acesso total a este painel.')) return;
+          e.target.disabled = true;
+          const { error } = await sb().rpc('ns_admin_add_owner', { p_username: user });
+          e.target.disabled = false;
+          if (error) return err(missingFn(error) ? 'Falta rodar a migração SQL v18 no Supabase (donos do site).' : error);
+          uIn.value = ''; load();
+        });
+        form.append(addBtn);
+        const box = listOf();
+        const load = async () => {
+          const { data, error } = await sb().rpc('ns_admin_list_owners');
+          box.textContent = '';
+          if (error) return box.append(el('p', 'amsg err', missingFn(error) ? 'Falta rodar a migração SQL v18 no Supabase (donos do site).' : 'Não foi possível carregar: ' + error.message));
+          const hasPrim = (data || []).some(o => o.is_primary !== undefined);   // v19 já rodou?
+          const iAmPrimary = hasPrim ? (data || []).some(o => o.is_me && o.is_primary) : true;
+          (data || []).forEach(o => {
+            const who = o.username ? '@' + o.username : 'conta sem @';
+            const nm = el('b', '', o.display_name || who);
+            if (o.is_me) { const me = el('span', 'gbadge', 'você'); me.style.setProperty('--c', '#f1c40f'); nm.append(' ', me); }
+            if (o.is_primary) { const pr = el('span', 'gbadge', 'dono principal'); pr.style.setProperty('--c', '#ff9f43'); nm.append(' ', pr); }
+            const info = grow(nm, el('div', 'mut', who + ' · dono desde ' + fmtDate(o.created_at)));
+            const rm = mk('Remover', async () => {
+              if (o.is_me) return err('Você não pode se remover de dono do site.');
+              if (!iAmPrimary) return err('Só o dono principal pode remover donos.');
+              if (!confirm('Remover ' + who + ' dos donos do site?')) return;
+              const { error: e2 } = await sb().rpc('ns_admin_remove_owner', { p_user: o.user_id });
+              if (e2) return err(e2);
+              load();
+            }, 'bad');
+            if (o.is_me) { rm.disabled = true; rm.title = 'Você não pode se remover de dono do site'; }
+            else if (!iAmPrimary) { rm.disabled = true; rm.title = 'Só o dono principal pode remover donos'; }
+            box.append(row(A().avatar({ display_name: o.display_name || who, avatar_path: o.avatar_path }, 32), info, rm));
+          });
+          if (!(data || []).length) box.append(el('p', 'mut', 'Nenhum dono encontrado.'));
+        };
+        body.append(form, box);
+        load();
       },
       /* ---- servidores ---- */
       servers() {
