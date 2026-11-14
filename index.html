@@ -2154,6 +2154,27 @@ window.PFX = (() => {
   const parse = s => { const [a, b, c] = String(s || '').split('|'); return { fx: FX[a] ? a : 'none', top: TOP[b] ? b : 'none', ring: RING[c] ? c : 'none' }; };
   const ser = o => (o.fx === 'none' && o.top === 'none' && o.ring === 'none') ? '' : [o.fx, o.top, o.ring].join('|');
   const clean = s => ser(parse(s));
+  /* no cartão de perfil: mede onde há texto e esconde as partículas nesses pontos (só aparecem no banner e nos espaços vazios) */
+  function keepOut(host, L) {
+    if (host._ro) host._ro.disconnect();
+    let raf = 0;
+    const run = () => {
+      if (!L.isConnected) return;
+      const lr = L.getBoundingClientRect(), W = Math.round(lr.width), H = Math.round(lr.height);
+      if (!W || !H) return;
+      let rs = '';
+      const add = r => { if (r.width > 0 && r.height > 0) rs += '<rect x="' + Math.round(r.left - lr.left - 6) + '" y="' + Math.round(r.top - lr.top - 4) + '" width="' + Math.round(r.width + 12) + '" height="' + Math.round(r.height + 8) + '"/>'; };
+      const root = host.querySelector('.pc-body') || host, rg = document.createRange(), w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      for (let n; (n = w.nextNode());) { if (!n.nodeValue.trim()) continue; rg.selectNodeContents(n); Array.from(rg.getClientRects()).forEach(add); }
+      root.querySelectorAll('button').forEach(b => add(b.getBoundingClientRect()));
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '"><rect width="' + W + '" height="' + H + '" fill="#fff"/><g fill="#000">' + rs + '</g></svg>';
+      const u = 'url("data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '")';
+      L.style.webkitMaskImage = L.style.maskImage = u; L.style.maskMode = 'luminance'; L.style.maskSize = '100% 100%'; L.style.maskRepeat = 'no-repeat';
+    };
+    const sched = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(run); };
+    host._ro = new ResizeObserver(sched); host._ro.observe(host);
+    sched(); setTimeout(sched, 500); setTimeout(sched, 1500);
+  }
   function apply(host, spec, av) {
     if (!host) return;
     host.classList.add('pfx-host');
@@ -2165,6 +2186,7 @@ window.PFX = (() => {
       const f = FX[s.fx], L = E('div', 'pfx-layer pfx-' + f.m);
       for (let i = 0; i < 18; i++) { const im = IM(f.p[i % f.p.length]); im.style.cssText = '--x:' + (r() * 94) + '%;--y:' + (r() * 90) + '%;--d:' + (f.m === 'twinkle' ? 1.6 + r() * 2 : 6 + r() * 7) + 's;--l:-' + (r() * 10) + 's;--s:' + (20 + r() * 20) + 'px'; L.append(im); }
       host.append(L);
+      if (host.id === 'cardBody') keepOut(host, L);
     }
     if (s.top !== 'none') {
       const T = TOP[s.top], t = E('div', 'pfx-top');
