@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <title>NetShare</title>
 <link rel="icon" type="image/png" href="NetIcon.png">
@@ -2098,6 +2098,7 @@ window.Acc = (() => {
       t.append(nmS, el('span', 'mut', me.username ? '@' + me.username : ''));
       who.append(avatar(me, 40), t);
       bar.append(who, btn('accEdit', 'sec', openProfile), btn('accSignOut', 'sec', signOut));
+      if (window.Srv && Srv.statusButton) bar.insertBefore(Srv.statusButton(), who.nextSibling);
       if (!inName.readOnly) guestName = inName.value;
       inName.value = me.display_name;
       inName.readOnly = true;
@@ -2778,8 +2779,76 @@ applyLang();
   .mtx .mlist { margin: 0; padding-left: 22px; }
   .mtx .mhr { border: 0; border-top: 1px solid var(--line); margin: 8px 0; }
   .mt.jumbo .mtx { display: inline; }
-  #svForm textarea { flex: 1 1 0; width: auto; min-width: 0; min-height: 44px; max-height: 160px; resize: none; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; outline: none; background: rgba(5,9,22,.65); color: var(--fg); font: inherit; line-height: 1.4; }
+  #svForm textarea { flex: 1 1 0; width: auto; min-width: 0; min-height: 46px; max-height: 160px; overflow-y: hidden; resize: none; box-sizing: border-box; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; outline: none; background: rgba(5,9,22,.65); color: var(--fg); font: inherit; line-height: 1.4; }
   #svForm textarea:focus { border-color: var(--acc); }
+
+  /* ---------- celular: layout do servidor/chat ---------- */
+  #srvView { height: 100vh; height: 100dvh; bottom: auto; }
+  #srvRail { padding-top: max(14px, env(safe-area-inset-top)); padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+  #svMsgs { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  @media (hover: none) { .crow .cact { display: inline-block; } .crow button, .sgrp button { min-height: 36px; } }
+  @media (max-width: 860px) {
+    #srvRail { gap: 8px; }
+    #srvRail .sbtn { width: 44px; height: 44px; min-height: 44px; border-radius: 14px; }
+    .sv-side { width: min(84%, 320px); max-width: none; box-shadow: 10px 0 30px rgba(0,0,0,.45); padding-top: env(safe-area-inset-top); }
+    .sv-top { min-height: 52px; padding: env(safe-area-inset-top) 10px 0 10px; gap: 8px; }
+    .sv-top .x, .sv-burger { width: 40px; min-height: 40px; flex: 0 0 auto; }
+    .sv-chdesc { display: none; }
+    #svMsgs { padding: 12px 10px; gap: 12px; }
+    .msg { gap: 9px; }
+    .msg .mt { font-size: .95rem; }
+    .msg .mh { gap: 6px; }
+    .msg .mact { right: 2px; }
+    .mtx .mquote { padding: 6px 10px; }
+    .mtx .mpre { font-size: .8rem; }
+    #svForm { gap: 6px; padding: 8px 8px max(8px, env(safe-area-inset-bottom)); }
+    #svForm textarea, #svForm input, .medit { font-size: 16px; }   /* 16px evita o zoom automático do iPhone ao focar */
+    #svForm #svEmoji { min-width: 44px; padding: 0 8px; }
+    #svForm button { min-width: 44px; min-height: 46px; }
+    #emoPick { max-width: calc(100vw - 16px); }
+    #emoPick .egrid { grid-template-columns: repeat(7, 1fr); }
+  }
+  @media (max-width: 380px) {
+    :root { --rail: 54px; }
+    #srvRail .sbtn { width: 40px; height: 40px; min-height: 40px; }
+    #emoPick .egrid { grid-template-columns: repeat(6, 1fr); }
+  }
+
+  /* ---------- presença, menções e @everyone ---------- */
+  [data-st="online"] { --sc: #3ba55d; } [data-st="away"] { --sc: #f0b232; } [data-st="dnd"] { --sc: #ed4245; } [data-st="off"] { --sc: #6b7488; }
+  .pdot { position: absolute; width: 13px; height: 13px; box-sizing: border-box; border: 2.5px solid #0b1124; border-radius: 50%; background: var(--sc, #6b7488); z-index: 1; }
+  .msg > .pdot.pos-msg { left: 27px; top: 27px; }
+  .msg.cont > .pdot, .pdot.pos-msg[data-st="off"] { display: none; }
+  .mem-row.click { position: relative; } .mem-row.off { opacity: .5; } .mem-row.off:hover { opacity: .85; }
+  .pdot.pos-mem { left: 27px; top: 25px; }
+  .smewrap { position: relative; flex: 0 0 auto; margin-top: auto; }
+  #srvRail .smewrap ~ .sadmin { margin-top: 0; }
+  .sbtn.smine { padding: 0; display: grid; place-items: center; }
+  .sbtn.smine .av { --s: 100%; width: 100%; height: 100%; }
+  .pdot.pos-rail { right: -1px; bottom: -1px; border-color: #060a18; }
+  .sdot { display: inline-block; flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; background: var(--sc, #6b7488); }
+  .stbtn { display: inline-flex; align-items: center; gap: 7px; }
+  .pstat { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: .82rem; color: var(--mut); }
+  .pstat::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--sc, #6b7488); }
+  #stMenu { position: fixed; z-index: 85; width: min(270px, calc(100vw - 16px)); display: grid; gap: 2px; padding: 6px; border: 1px solid var(--line); border-radius: 14px; background: var(--card-solid); box-shadow: var(--shadow); }
+  #stMenu .stopt { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 0; padding: 9px 10px; border: 0; border-radius: 9px; background: transparent; box-shadow: none; color: var(--fg); text-align: left; }
+  #stMenu .stopt:hover, #stMenu .stopt.on { background: var(--surface-hover); }
+  #stMenu .stx { display: grid; line-height: 1.25; } #stMenu .stx small { font-size: .72rem; }
+  .msg.mentioned { margin-left: -6px; margin-right: -6px; padding: 4px 6px 4px 3px; border-left: 3px solid #facc15; border-radius: 8px; background: rgba(250, 204, 21, .16); }
+  .msg.mentioned:hover { background: rgba(250, 204, 21, .21); }
+  .mention { padding: 0 4px; border-radius: 5px; background: rgba(108, 124, 255, .25); color: #b7c0ff; font-weight: 700; }
+  .mention.click { cursor: pointer; } .mention.click:hover { background: rgba(108, 124, 255, .4); }
+  .mention.me { background: rgba(250, 204, 21, .32); color: #fde68a; }
+  .mbadge { margin-left: 6px; padding: 0 6px; border-radius: 999px; background: #facc15; color: #1a1500; font-size: .7rem; font-weight: 800; }
+  #svForm { position: relative; }
+  #mentPick { position: absolute; left: 8px; right: 8px; bottom: 100%; margin-bottom: 6px; max-height: 230px; overflow-y: auto; z-index: 6; display: grid; gap: 2px; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-solid); box-shadow: var(--shadow); }
+  #mentPick .mrow2 { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 0; padding: 7px 9px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; color: var(--fg); text-align: left; font-size: .9rem; }
+  #mentPick .mrow2.on, #mentPick .mrow2:hover { background: var(--surface-hover); }
+  #mentPick .mev { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(250, 204, 21, .3); color: #fde68a; font-weight: 800; }
+  #mentPick .mut { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; }
+  #nsToast { position: fixed; top: max(14px, env(safe-area-inset-top)); right: 14px; z-index: 95; display: grid; gap: 8px; width: min(360px, calc(100vw - 28px)); }
+  .nstoast { padding: 10px 12px; border-radius: 12px; background: #facc15; color: #1a1500; font-size: .88rem; font-weight: 700; line-height: 1.35; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); cursor: pointer; overflow: hidden; text-overflow: ellipsis; }
+  .dlg select { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: rgba(5, 9, 22, .65); color: var(--fg); font: inherit; }
   .edited { margin-left: 6px; color: var(--mut); font-size: .7rem; }
   .medit { width: 100%; min-height: 56px; padding: 8px 10px; border: 1px solid var(--acc); border-radius: 10px; outline: none; resize: vertical; background: rgba(5,9,22,.65); color: var(--fg); font: inherit; }
   .cemoji { width: 1.45em; height: 1.45em; vertical-align: -.32em; object-fit: contain; }
@@ -2985,6 +3054,7 @@ function renderRail() {
   const home = mk('🏠', () => hideView(), 'sbtn shome' + (!cur ? ' on' : '')); home.title = String(lang).startsWith('en') ? 'Home' : 'Página inicial'; rail.append(home);
   servers.forEach(s => { const b = mk('', () => openServer(s.id), 'sbtn' + (cur && cur.id === s.id ? ' on' : '')); b.title = s.name; b.append(icon(s)); rail.append(b); });
   const add = mk('+', () => dlgAdd(), 'sbtn sadd'); add.title = t('addServer'); rail.append(add);
+  if (uid && A().myProfile()) rail.append(meBtn());
   if (siteOwner) { const ad = mk('🛡️', () => dlgAdmin(), 'sbtn sadmin'); ad.title = 'Painel do dono do site'; rail.append(ad); }
 }
 function layout() {
@@ -3029,7 +3099,7 @@ const canWriteChan = c => !!c && (myRole === 'owner' || !c.locked || (Array.isAr
 function applyWriteState() {
   if (!chan) return;
   const ok = canWriteChan(chan);
-  $('svForm').querySelectorAll('button, input').forEach(x => { x.disabled = !ok; });
+  $('svForm').querySelectorAll('button, input, textarea').forEach(x => { x.disabled = !ok; });
   const sl = ok ? slowOf(chan) : 0, en = String(lang).startsWith('en');
   $('svInput').placeholder = !ok ? (en ? 'You can only read this channel' : 'Você só pode ler este canal')
     : sl ? (en ? 'Slow mode: 1 message every ' : 'Modo lento: 1 mensagem a cada ') + fmtSecs(sl) : t('msgPh');
@@ -3074,11 +3144,195 @@ async function checkOwner() {
   if (uid !== me) return;
   siteOwner = ok; renderRail();
 }
+/* ===== presença: online / ausente / não perturbar ===== */
+const LL = (pt, en) => String(lang).startsWith('en') ? en : pt;
+const myUser = () => String((A().myProfile() || {}).username || '').toLowerCase();
+const PRES_KEYS = ['online', 'away', 'dnd'];
+const presInfo = k => k === 'online' ? [LL('Online', 'Online'), LL('Disponível', 'Available')]
+  : k === 'away' ? [LL('Ausente', 'Away'), LL('Aparece como ausente para os outros', 'Shows as away to others')]
+  : k === 'dnd' ? [LL('Não perturbar', 'Do not disturb'), LL('Sem avisos de menção; as mensagens continuam chegando', 'No mention alerts; messages still arrive')]
+  : [LL('Offline', 'Offline'), ''];
+let presMine = 'online', presIdle = false, presLast = Date.now(), presCh = null, presMap = new Map(), presSig = '', presTimer = 0;
+try { const v = localStorage.getItem('ns-status'); if (PRES_KEYS.includes(v)) presMine = v; } catch (e) {}
+const presEffective = () => (presMine === 'online' && presIdle) ? 'away' : presMine;
+const stOf = u => (u && u === uid) ? presEffective() : (presMap.get(u) || null);
+const presBtns = new Set();
+function presDot(u, pos) { const k = stOf(u) || 'off', d = el('span', 'pdot ' + (pos || '')); d.dataset.u = u || ''; d.dataset.st = k; d.title = presInfo(k)[0]; return d; }
+function paintPres() {
+  document.querySelectorAll('.pdot[data-u]').forEach(n => { const k = stOf(n.dataset.u) || 'off'; n.dataset.st = k; n.title = presInfo(k)[0]; });
+  document.querySelectorAll('.mem-row[data-u]').forEach(r => r.classList.toggle('off', !stOf(r.dataset.u)));
+  document.querySelectorAll('.pstat[data-u]').forEach(n => { const k = stOf(n.dataset.u) || 'off'; n.dataset.st = k; n.textContent = presInfo(k)[0]; });
+  presBtns.forEach(b => {
+    if (!b.isConnected) { presBtns.delete(b); return; }
+    const k = presEffective(), d = b.querySelector('.sdot'), lb = b.querySelector('.stl');
+    if (d) d.dataset.st = k; if (lb) lb.textContent = presInfo(k)[0];
+    b.title = LL('Seu status: ', 'Your status: ') + presInfo(k)[0];
+  });
+}
+function presTrack() { if (!presCh) return; try { presCh.track({ status: presEffective(), ts: Date.now() }); } catch (e) {} }
+function presSet(k) {
+  if (!PRES_KEYS.includes(k)) return;
+  presMine = k; presIdle = false; presLast = Date.now();
+  try { localStorage.setItem('ns-status', k); } catch (e) {}
+  presTrack(); paintPres();
+}
+function presSync() {
+  if (!presCh) return;
+  const st = presCh.presenceState(), m = new Map();
+  Object.keys(st).forEach(key => {
+    let best = null;
+    (st[key] || []).forEach(x => { if (PRES_KEYS.includes(x.status) && (!best || (x.ts || 0) >= (best.ts || 0))) best = x; });
+    if (best) m.set(key, best.status);
+  });
+  presMap = m;
+  const sig = [...m].map(([k, v]) => k + v).sort().join('|');
+  paintPres();
+  if (sig !== presSig) { presSig = sig; if (cur) renderMembers(); }
+}
+function presTick() {
+  const idle = Date.now() - presLast > 300000 && $('room').classList.contains('hidden');   // 5 min sem mexer (na chamada não conta)
+  if (idle !== presIdle) { presIdle = idle; presTrack(); paintPres(); }
+}
+function presAct() { presLast = Date.now(); if (presIdle) { presIdle = false; presTrack(); paintPres(); } }
+['pointerdown', 'keydown', 'mousemove', 'touchstart', 'wheel'].forEach(ev => addEventListener(ev, presAct, { passive: true }));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) presAct(); });
+function presStart() {
+  presStop();
+  const me = uid; if (!me) return;
+  try {
+    presCh = sb().channel('ns-presence', { config: { presence: { key: me } } });
+    presCh.on('presence', { event: 'sync' }, presSync).subscribe(st => { if (st === 'SUBSCRIBED') presTrack(); });
+  } catch (e) { presCh = null; }
+  presTimer = setInterval(presTick, 30000);
+}
+function presStop() {
+  clearInterval(presTimer); presTimer = 0;
+  if (presCh) { try { sb().removeChannel(presCh); } catch (e) {} presCh = null; }
+  presMap = new Map(); presSig = ''; paintPres();
+}
+let stMenuEl = null, stMenuOff = null;
+function closePresMenu() { if (stMenuEl) { stMenuEl.remove(); stMenuEl = null; } if (stMenuOff) { stMenuOff(); stMenuOff = null; } }
+function presMenu(anchor) {
+  if (stMenuEl && stMenuEl._anchor === anchor) { closePresMenu(); return; }
+  closePresMenu();
+  const box = el('div'); box.id = 'stMenu'; box._anchor = anchor;
+  PRES_KEYS.forEach(k => {
+    const b = mk('', () => { presSet(k); closePresMenu(); }, 'stopt' + (presMine === k ? ' on' : ''));
+    const d = el('span', 'sdot'); d.dataset.st = k;
+    const x = el('span', 'stx'); x.append(el('b', '', presInfo(k)[0]), el('small', 'mut', presInfo(k)[1]));
+    b.append(d, x); box.append(b);
+  });
+  document.body.append(box); stMenuEl = box;
+  const r = anchor.getBoundingClientRect(), vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight, w = box.offsetWidth;
+  if (r.top > vh / 2) { box.style.bottom = Math.max(8, vh - r.bottom) + 'px'; box.style.left = Math.max(8, Math.min(r.right + 8, vw - w - 8)) + 'px'; }
+  else { box.style.top = (r.bottom + 6) + 'px'; box.style.left = Math.max(8, Math.min(r.left, vw - w - 8)) + 'px'; }
+  const away = e => { if (!box.contains(e.target) && !anchor.contains(e.target)) closePresMenu(); };
+  const esc = e => { if (e.key === 'Escape') closePresMenu(); };
+  setTimeout(() => { document.addEventListener('pointerdown', away, true); document.addEventListener('keydown', esc); }, 0);
+  stMenuOff = () => { document.removeEventListener('pointerdown', away, true); document.removeEventListener('keydown', esc); };
+}
+function statusButton() {
+  const b = mk('', () => presMenu(b), 'sec stbtn');
+  b.append(el('span', 'sdot'), el('span', 'stl'), document.createTextNode(' ▾')); presBtns.add(b); paintPres(); return b;
+}
+function meBtn() {
+  const w = el('div', 'smewrap'), b = mk('', () => presMenu(b), 'sbtn smine');
+  b.append(A().avatar(A().myProfile(), 44)); b.title = LL('Seu status: ', 'Your status: ') + presInfo(presEffective())[0];
+  w.append(b, presDot(uid, 'pos-rail')); return w;
+}
+
+/* ===== menções: @pessoa e @everyone ===== */
+let everyonePolicy = 'admins';
+const unreadMent = new Map();
+const EVERY_RE = /(^|[^\w@\/.])@everyone(?!\w)/i;
+const canEveryone = () => everyonePolicy === 'all' || (everyonePolicy === 'owner' ? myRole === 'owner' : isAdm());
+const everyoneMsg = () => everyonePolicy === 'owner' ? LL('Só o dono do servidor pode usar @everyone aqui.', 'Only the server owner can use @everyone here.') : LL('Só administradores podem usar @everyone aqui.', 'Only admins can use @everyone here.');
+async function loadEveryone() {
+  const s = cur; if (!s) return;
+  let pol = 'admins';
+  try { const { data, error } = await sb().from('servers').select('everyone_policy').eq('id', s.id).maybeSingle(); if (!error && data && ['all', 'admins', 'owner'].includes(data.everyone_policy)) pol = data.everyone_policy; } catch (e) {}
+  if (cur === s) { everyonePolicy = pol; s.everyone_policy = pol; }
+}
+function mentionsMe(text) {
+  const re = /(^|[^\w@\/.])@([A-Za-z0-9_]{3,20})(?!\w)/g, me = myUser(), str = String(text || ''); let m;
+  while ((m = re.exec(str))) { const w = m[2].toLowerCase(); if (w === 'everyone' || (me && w === me)) return true; }
+  return false;
+}
+function markMention(d, r) { d.classList.toggle('mentioned', !!r && !!uid && r.user_id !== uid && mentionsMe(r.content)); }
+function toast(text, fn) {
+  let box = $('nsToast'); if (!box) { box = el('div'); box.id = 'nsToast'; document.body.append(box); }
+  const n = el('div', 'nstoast', text); n.onclick = () => { n.remove(); if (fn) fn(); };
+  box.append(n); setTimeout(() => n.remove(), 7000);
+  while (box.children.length > 3) box.firstChild.remove();
+}
+const baseTitle = document.title; let titleN = 0;
+function titleAlert() { if (!document.hidden) return; titleN++; document.title = '(' + titleN + ') ' + baseTitle; }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { titleN = 0; document.title = baseTitle; } });
+function noteMention(r, open) {
+  if (!r || !uid || r.user_id === uid || !mentionsMe(r.content)) return;
+  if (!open) { unreadMent.set(r.channel_id, (unreadMent.get(r.channel_id) || 0) + 1); renderChans(); }
+  if (presEffective() === 'dnd') return;                       // não perturbar: só o destaque amarelo e o selo
+  titleAlert();
+  if (!open || document.hidden) {
+    const c = chans.find(x => x.id === r.channel_id), m = memOf(r.user_id);
+    const pv = String(r.content || '').replace(/[*_`~>#]/g, '').replace(/\s+/g, ' ').trim().slice(0, 90);
+    toast('🔔 ' + ((m && m.display_name) || '?') + (c ? ' · #' + c.name : '') + ': ' + pv, () => { if (c && cur) pickChan(c); });
+  }
+}
+{ /* caixa de texto: Enter envia, Shift+Enter quebra linha, @ abre a lista de pessoas */
+  const ti = $('svInput'), mentBox = el('div', 'hidden'); mentBox.id = 'mentPick'; $('svForm').append(mentBox);
+  let ment = null;
+  const fit = () => { ti.style.height = 'auto'; ti.style.height = Math.min(ti.scrollHeight, 160) + 'px'; ti.style.overflowY = ti.scrollHeight > 160 ? 'auto' : 'hidden'; };
+  const mentClose = () => { ment = null; mentBox.classList.add('hidden'); };
+  const mentRender = () => {
+    mentBox.textContent = '';
+    ment.items.forEach((it, i) => {
+      const b = mk('', () => mentPick(it), 'mrow2' + (i === ment.idx ? ' on' : ''));
+      b.onpointerdown = e => e.preventDefault();           // não tira o foco do campo
+      if (it.k === 'everyone') b.append(el('span', 'mev', '@'), el('b', '', 'everyone'), el('span', 'mut', LL('avisa todos deste canal', 'notifies everyone in this channel')));
+      else b.append(A().avatar(it.m, 26), el('b', '', it.m.display_name), el('span', 'mut', '@' + it.m.username));
+      mentBox.append(b);
+    });
+    mentBox.classList.remove('hidden');
+    const on = mentBox.querySelector('.on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
+  };
+  function mentPick(it) {
+    const start = ment.start, pos = ti.selectionStart, ins = '@' + (it.k === 'everyone' ? 'everyone' : it.m.username) + ' ';
+    const v = ti.value.slice(0, start) + ins + ti.value.slice(pos);
+    mentClose(); if (v.length > ti.maxLength) return;
+    ti.value = v; ti.focus(); ti.setSelectionRange(start + ins.length, start + ins.length); fit();
+  }
+  const mentUpdate = () => {
+    if (!chan || ti.disabled) return mentClose();
+    const pos = ti.selectionStart, m = /(^|[\s(])@([A-Za-z0-9_]{0,20})$/.exec(ti.value.slice(0, pos));
+    if (!m) return mentClose();
+    const q = m[2].toLowerCase(), start = pos - m[2].length - 1, items = [];
+    if (canEveryone() && 'everyone'.startsWith(q)) items.push({ k: 'everyone' });
+    const pre = x => x.username.toLowerCase().startsWith(q) ? 1 : 0;
+    mem.filter(x => x.username && (pre(x) || String(x.display_name || '').toLowerCase().includes(q))).sort((a, b) => pre(b) - pre(a)).slice(0, 8).forEach(x => items.push({ k: 'u', m: x }));
+    if (!items.length) return mentClose();
+    ment = { start, items, idx: ment && ment.start === start ? Math.min(ment.idx, items.length - 1) : 0 };
+    mentRender();
+  };
+  ti.addEventListener('input', () => { fit(); mentUpdate(); });
+  ti.addEventListener('click', mentUpdate);
+  ti.addEventListener('blur', () => setTimeout(mentClose, 120));
+  ti.addEventListener('keyup', e => { if (!['ArrowUp', 'ArrowDown', 'Enter', 'Tab', 'Escape'].includes(e.key)) mentUpdate(); });
+  ti.addEventListener('keydown', e => {
+    if (ment) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); ment.idx = (ment.idx + (e.key === 'ArrowDown' ? 1 : -1) + ment.items.length) % ment.items.length; mentRender(); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); mentPick(ment.items[ment.idx]); return; }
+      if (e.key === 'Escape') { e.preventDefault(); mentClose(); return; }
+    }
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('svForm').requestSubmit(); }
+  });
+  $('svForm').addEventListener('submit', () => { mentClose(); setTimeout(fit, 0); });
+}
 function onAuth(id) {
-  if (id === uid) return;
+  if (id === uid) { if (uid) renderRail(); return; }
   uid = id; siteOwner = false; closeView(); servers = []; renderRail(); syncRail();
-  if (!id) return;
-  checkOwner();
+  if (!id) { presStop(); return; }
+  presStart(); checkOwner();
   loadServers().then(() => {
     const c = sessionStorage.getItem('sala-convite');
     if (c) { sessionStorage.removeItem('sala-convite'); dlgAdd(c); }
@@ -3098,11 +3352,11 @@ $('svName').onclick = () => cur && dlgSettings();
 
 async function openServer(id) {
   const s = servers.find(x => x.id === id); if (!s) return;
-  cur = s; chan = null; roles = []; mroles = new Map(); emojis = []; unsub(); closePicker(); renderRail();
+  cur = s; chan = null; roles = []; mroles = new Map(); emojis = []; everyonePolicy = 'admins'; unreadMent.clear(); unsub(); closePicker(); renderRail();
   setSrvName(); $('svTitle').textContent = ''; $('svMsgs').textContent = ''; $('svForm').classList.add('hidden'); $('svMem').textContent = '';
   paintDesc();
   view.classList.remove('hidden'); layout();
-  await Promise.all([loadChans(), loadMembers(), loadRoles(), loadEmojis()]);
+  await Promise.all([loadChans(), loadMembers(), loadRoles(), loadEmojis(), loadEveryone()]);
   if (cur !== s) return;
   renderChans();
   const first = chans.find(c => c.kind === 'text');
@@ -3142,7 +3396,7 @@ async function loadMembers() {
   const m = mem.find(x => x.user_id === uid);
   if (!m) { closeView(); loadServers(); return; }   // fui expulso
   const before = myRole; myRole = m.role;
-  renderMembers(); repaintNames();
+  renderMembers(); repaintNames(); repaintMessages();
   if (before !== myRole) { renderChans(); paintDesc(); }
 }
 
@@ -3232,12 +3486,13 @@ function memRow(m) {
   paintName(nm, m.user_id, m.username);
   col.append(nm);
   r.append(col); r.onclick = () => A().showCard(m);
+  r.dataset.u = m.user_id; r.append(presDot(m.user_id, 'pos-mem')); if (!stOf(m.user_id)) r.classList.add('off');
   return r;
 }
 function renderMembers() {
   const box = $('svMem'); box.textContent = '';
   const used = new Set();
-  const take = fn => mem.filter(m => !used.has(m.user_id) && fn(m)).map(m => (used.add(m.user_id), m));
+  const take = fn => mem.filter(m => !used.has(m.user_id) && fn(m)).map(m => (used.add(m.user_id), m)).sort((a, b) => (stOf(b.user_id) ? 1 : 0) - (stOf(a.user_id) ? 1 : 0));
   const section = (label, list, color, ns) => {
     if (!list.length) return;
     const h = el('div', 'sgrp'), sp = el('span', '', label + ' — ' + list.length);
@@ -3266,6 +3521,7 @@ function renderChans() {
     const mark = (txt, title) => { const m = el('span', 'mut', ' ' + txt); m.style.fontSize = '.72rem'; m.title = title; cb.append(m); };
     if (c.is_private) mark('🔒', en0 ? 'Private' : 'Privado');
     if (c.locked) mark(k === 'text' ? '📖' : '🔇', k === 'text' ? (en0 ? 'Only some roles can write' : 'Só alguns cargos podem escrever') : (en0 ? 'Only some roles can talk' : 'Só alguns cargos podem falar'));
+    if (unreadMent.get(c.id)) cb.append(' ', el('span', 'mbadge', '@' + unreadMent.get(c.id)));
     r.append(cb);
     if (c.slowmode_seconds > 0) mark('⏱', (en0 ? 'Slow mode: ' : 'Modo lento: ') + fmtSecs(c.slowmode_seconds));
     if (mng) {
@@ -3505,12 +3761,26 @@ function isJumbo(s) {
   const rest = full.replace(/:([a-z0-9_]{2,24}):/g, (x, n) => emojiByName(n) ? '' : x).trim();
   return rest === '' || !!(JUMBO && JUMBO.test(rest));
 }
+function mentionEl(who, mm) {
+  const me = who === 'everyone' || who === myUser();
+  const n = el('span', 'mention' + (me ? ' me' : ''), '@' + (mm ? mm.username : 'everyone'));
+  if (mm) { n.classList.add('click'); n.title = mm.display_name; n.onclick = e => { e.stopPropagation(); A().showCard(mm); }; }
+  else n.title = LL('Avisa todos os membros do canal', 'Notifies everyone in the channel');
+  return n;
+}
 function richInto(node, text) {
-  const re = /:([a-z0-9_]{2,24}):/g; let last = 0, m;
+  const re = /:([a-z0-9_]{2,24}):|(^|[^\w@\/.])@(everyone|[A-Za-z0-9_]{3,20})(?!\w)/g; let last = 0, m;
   while ((m = re.exec(text))) {
-    const e = emojiByName(m[1]); if (!e) continue;
-    if (m.index > last) node.append(document.createTextNode(text.slice(last, m.index)));
-    node.append(emojiImg(e)); last = m.index + m[0].length;
+    let start = m.index, piece;
+    if (m[1] !== undefined) { const e = emojiByName(m[1]); if (!e) continue; piece = emojiImg(e); }
+    else {
+      const who = m[3].toLowerCase();
+      const mm = who === 'everyone' ? null : mem.find(x => x.username && x.username.toLowerCase() === who);
+      if (who !== 'everyone' && !mm) continue;
+      start = m.index + m[2].length; piece = mentionEl(who, mm);
+    }
+    if (start > last) node.append(document.createTextNode(text.slice(last, start)));
+    node.append(piece); last = m.index + m[0].length;
   }
   if (last < text.length) node.append(document.createTextNode(text.slice(last)));
 }
@@ -3567,6 +3837,7 @@ function paintText(mt, r) {
   const s = el('div', 'mtx'); mdInto(s, r.content || ''); mt.append(s);
   if (r.edited_at) mt.append(el('span', 'edited', t('edited')));
   mt.classList.toggle('jumbo', isJumbo(r.content || ''));
+  const dm = mt.closest && mt.closest('.msg'); if (dm) markMention(dm, r);
 }
 function repaintMessages() {
   msgData.forEach((r, id) => {
@@ -3679,7 +3950,7 @@ async function pickChan(c) {
     if (inRoom) { leaveRoom(); setTimeout(() => joinVoice(c), 300); return; }
     return joinVoice(c);
   }
-  chan = c; msgIds.clear(); msgData.clear(); reacts.clear(); renderChans(); closePicker();
+  chan = c; unreadMent.delete(c.id); msgIds.clear(); msgData.clear(); reacts.clear(); renderChans(); closePicker();
   paintTitle(c); $('svMsgs').textContent = ''; $('svForm').classList.remove('hidden'); $('svInput').placeholder = t('msgPh'); applyWriteState(); $('svEmoji').title = t('emojiBtn');
   let res = await sb().rpc('ns_list_messages', { p_channel: c.id });
   if (res.error) res = await sb().rpc('list_messages', { p_channel: c.id });   // migração v7 ainda não rodou
@@ -3712,6 +3983,7 @@ function addMsg(r) {
   const mt = el('div', 'mt'); paintText(mt, r);
   b.append(h, mt, el('div', 'mre'));
   d.append(av, b); paintRoleTag(d);
+  d.append(presDot(r.user_id, 'pos-msg')); markMention(d, r);
 
   const act = el('div', 'mact');
   const rb = mk('😊', e => { e.stopPropagation(); openPicker(e.currentTarget, p => toggleReact(r.id, pickKey(p))); }, 'sec'); rb.title = t('react'); act.append(rb);
@@ -3751,6 +4023,7 @@ function startEdit(d, r) {
     const c = ta.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000);
     if (!c) return;                          // para esvaziar, use o botão de apagar
     if (c === r.content) return cancel();
+    if (EVERY_RE.test(c) && !EVERY_RE.test(r.content || '')) { await loadEveryone(); if (!canEveryone()) return err(everyoneMsg()); }
     ta.disabled = true;
     const { data, error } = await sb().rpc('ns_edit_message', { p_id: r.id, p_content: c });
     if (error) { ta.disabled = false; err(error); ta.focus(); return; }
@@ -3796,19 +4069,11 @@ async function toggleReact(id, key) {
   reactSet(String(id), key, uid, data === true); renderReacts(String(id));
 }
 
-{
-  const ti = $('svInput'), fit = () => { ti.style.height = 'auto'; ti.style.height = Math.min(ti.scrollHeight, 160) + 'px'; };
-  ti.addEventListener('input', fit);
-  ti.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('svForm').requestSubmit(); }
-  });
-  new MutationObserver(fit).observe(ti, { attributes: true, attributeFilter: ['value'] });
-  $('svForm').addEventListener('submit', () => setTimeout(fit, 0));
-}
 $('svForm').onsubmit = async e => {
   e.preventDefault();
   const inp = $('svInput'), c = inp.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000);
   if (!c || !chan || !canWriteChan(chan) || Date.now() - lastSend < 500 || (slowOf(chan) && (coolUntil.get(chan.id) || 0) > Date.now())) return;
+  if (EVERY_RE.test(c)) { await loadEveryone(); if (!canEveryone()) return err(everyoneMsg()); }
   lastSend = Date.now(); inp.value = '';
   const { data, error } = await sb().from('messages').insert({ channel_id: chan.id, server_id: cur.id, content: c }).select('id,user_id,content,created_at').single();
   if (error) {
@@ -3824,7 +4089,7 @@ function subscribe() {
   unsub();
   const id = cur.id, f = 'server_id=eq.' + id;
   rt = sb().channel('srv:' + id)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: f }, p => { if (chan && p.new.channel_id === chan.id) addMsg(p.new); })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: f }, p => { if (chan && p.new.channel_id === chan.id) { addMsg(p.new); noteMention(p.new, true); } else noteMention(p.new, false); })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, p => { const n = document.getElementById('m' + p.old.id); if (n) { n.remove(); regroup(); } })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'channels', filter: f }, async () => { await loadChans(); renderChans(); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'server_members', filter: f }, () => loadMembers())
@@ -4169,6 +4434,20 @@ function dlgSettings() {
       const dl = el('label'), dt = el('textarea'); dt.maxLength = 300; dt.value = s.description || ''; dt.placeholder = t('descPh');
       const cnt = el('span', 'mut'); const upd = () => { cnt.textContent = dt.value.length + '/300'; }; dt.oninput = upd; upd();
       dl.append(el('span', '', t('desc')), dt, cnt); w.append(dl);
+      let saveEv = async () => true;
+      if (myRole === 'owner') {
+        const pl = el('label'), sel = el('select');
+        [['all', LL('Todos os membros', 'Everyone')], ['admins', LL('Só administradores', 'Admins only')], ['owner', LL('Só o dono', 'Owner only')]].forEach(([v, lab]) => { const o = el('option', '', lab); o.value = v; sel.append(o); });
+        sel.value = everyonePolicy;
+        pl.append(el('span', '', LL('Quem pode usar @everyone', 'Who can use @everyone')), sel); w.append(pl);
+        saveEv = async () => {
+          if (sel.value === everyonePolicy) return true;
+          const { data, error } = await sb().from('servers').update({ everyone_policy: sel.value }).eq('id', s.id).select('everyone_policy');
+          if (error) { err(/everyone_policy|column|schema cache/i.test(String(error.message || '')) ? LL('Falta rodar a migração SQL v23 no Supabase para usar isso.', 'The v23 SQL migration still needs to be run in Supabase to use this.') : error); return false; }
+          if (!data || !data.length) { err(LL('Não foi possível salvar (falta rodar a migração SQL v23 ou você não é o dono).', 'Could not save (the v23 SQL migration is missing or you are not the owner).')); return false; }
+          everyonePolicy = data[0].everyone_policy; s.everyone_policy = everyonePolicy; return true;
+        };
+      }
       const saveBtn = mk(t('saveChanges'), async () => {
         const name = cleanStr(n.value, 32); if (name.length < 2) return err(t('nameShort'));
         const desc = dt.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 300);
@@ -4185,7 +4464,7 @@ function dlgSettings() {
             if (error) return hintErr(error);
             s.description = desc;
           }
-          await saveStyle();
+          await saveStyle(); await saveEv();
         } finally { saveBtn.disabled = false; }
         await loadServers(); if (cur) $('svName').textContent = cur.name + ' ▾';
         saveBtn.textContent = t('saved'); setTimeout(() => { saveBtn.textContent = t('saveChanges'); }, 1800);
@@ -4726,6 +5005,7 @@ function cardExtras(p, box) {
   }
   const m = cur && mem.find(x => (p.user_id && x.user_id === p.user_id) || (p.username && x.username === p.username));
   if (!m) return;
+  { const ps = el('span', 'pstat'); ps.dataset.u = m.user_id; const k = stOf(m.user_id) || 'off'; ps.dataset.st = k; ps.textContent = presInfo(k)[0]; const bio0 = box.querySelector('.pc-bio'); if (bio0) box.insertBefore(ps, bio0); else box.append(ps); }
   const lab = k => k === 'owner' ? t('owner') : k === 'admin' ? t('admin') : t('member');
   /* uma única seção "Cargos": cargo base (Dono/Admin/Membro) + cargos personalizados */
   const rs = roles.filter(r => hasRole(m.user_id, r.id));
@@ -4763,7 +5043,7 @@ function cardExtras(p, box) {
     b.style.marginTop = '10px'; box.append(b);
   }
 }
-return { onAuth, cardExtras, badgeEl, colorOfUser, colorSig };
+return { onAuth, cardExtras, badgeEl, colorOfUser, colorSig, statusButton };
 })();
 </script>
 
