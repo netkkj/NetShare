@@ -3811,6 +3811,60 @@ applyLang();
   .crow.drop-before, .sgrp.cat.drop-before { box-shadow: inset 0 2px 0 var(--acc); }
   .crow.drop-after, .sgrp.cat.drop-after { box-shadow: inset 0 -2px 0 var(--acc); }
   .crow.drop-in, .sgrp.drop-in { background: rgba(108,124,255,.22); border-radius: 9px; outline: 1px dashed var(--acc); }
+  /* ---------- amigos (casinha) ---------- */
+  :root { --frw: 360px; }
+  .shomewrap { position: relative; flex: 0 0 auto; }
+  .fbadge, .fr-tabs .tb { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--bad); color: #fff; font: 800 .68rem/18px 'DM Sans', sans-serif; text-align: center; }
+  .fbadge { position: absolute; top: -5px; right: -5px; border: 2px solid #060a18; box-sizing: content-box; pointer-events: none; }
+  #frView { position: fixed; z-index: 26; top: 0; bottom: 0; left: var(--rail); width: var(--frw); display: flex; flex-direction: column; padding-top: env(safe-area-inset-top); background: var(--card-solid); border-right: 1px solid var(--line); box-shadow: 8px 0 30px rgba(0,0,0,.35); animation: frIn .18s ease-out; }
+  @keyframes frIn { from { transform: translateX(-14px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .fr-head { display: flex; align-items: center; gap: 6px; min-height: 52px; padding: 0 10px 0 14px; border-bottom: 1px solid var(--line); }
+  .fr-head strong { flex: 1; font: 800 1.05rem/1 'Manrope', sans-serif; }
+  .fr-head button { width: 38px; min-height: 38px; padding: 0; }
+  .fr-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 8px; border-bottom: 1px solid var(--line); }
+  .fr-tabs button { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 38px; padding: 4px 2px; border: 0; background: transparent; box-shadow: none; color: var(--mut); font-size: .8rem; }
+  .fr-tabs button.on { background: var(--surface-hover); color: var(--fg); }
+  .fr-tabs button.add { color: var(--ok); }
+  .fr-tabs button:hover:not(:disabled) { transform: none; box-shadow: none; background: var(--surface); }
+  .fr-search { padding: 8px 8px 0; }
+  .fr-search input { min-height: 40px; }
+  .fr-body { flex: 1; overflow-y: auto; padding: 8px; overscroll-behavior: contain; }
+  .fr-grp { margin: 8px 6px 4px; color: var(--mut); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .fr-row { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 10px; cursor: pointer; }
+  .fr-row:hover { background: var(--surface-hover); }
+  .fr-av { position: relative; flex: 0 0 auto; }
+  .pdot.pos-fr { right: -3px; bottom: -3px; border-color: var(--card-solid); }
+  .fr-tx { flex: 1; min-width: 0; display: grid; line-height: 1.3; }
+  .fr-tx b, .fr-tx small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fr-act { display: flex; gap: 6px; }
+  .fr-act button { width: 36px; min-height: 36px; padding: 0; border-radius: 50%; }
+  .fr-act .fr-ok { background: rgba(67,217,163,.18); border-color: rgba(67,217,163,.4); color: var(--ok); box-shadow: none; }
+  .fr-empty { padding: 28px 14px; text-align: center; }
+  .fr-add { display: grid; gap: 10px; padding: 6px; }
+  .fr-add h3 { margin: 0; font: 800 1.05rem/1.2 'Manrope', sans-serif; }
+  .fr-add p { margin: 0; }
+  .fr-foot { padding: 8px 14px max(8px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); color: var(--mut); font-size: .74rem; }
+  .fr-bd { position: fixed; inset: 0; z-index: 90; }
+  .fr-menu { position: fixed; width: min(270px, calc(100vw - 16px)); display: grid; gap: 2px; padding: 6px; border: 1px solid var(--line); border-radius: 14px; background: var(--card-solid); box-shadow: 0 16px 40px rgba(0,0,0,.5); }
+  .fr-menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; padding: 8px 10px; border: 0; border-radius: 9px; background: transparent; box-shadow: none; color: var(--fg); text-align: left; font-weight: 600; }
+  .fr-menu button:hover:not(:disabled) { background: var(--surface-hover); transform: none; box-shadow: none; }
+  .fr-menu button.dng { color: #ff9bad; }
+  .fr-menu .mut { padding: 6px 10px 2px; font-size: .74rem; }
+  body.fropen.inroomview #room { margin-left: calc(var(--rail) + var(--frw)); width: calc(100vw - var(--rail) - var(--frw)); }
+  @media (min-width: 861px) and (max-width: 1180px) { body.fropen:not(.inroomview) { padding-left: calc(var(--rail) + var(--frw)); } }
+  @media (max-width: 860px) {
+    #frView { width: calc(100vw - var(--rail)); }
+    body.fropen.inroomview #room { margin-left: var(--rail); width: calc(100vw - var(--rail)); }
+    .fr-tabs { order: 3; border-bottom: 0; border-top: 1px solid var(--line); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+    .fr-tabs button { min-height: 46px; font-size: .78rem; }
+    .fr-foot { order: 2; padding-bottom: 8px; }
+    .fr-row { padding: 9px 8px; }
+    .fr-act button { width: 40px; min-height: 40px; }
+    .fr-search input, .fr-add input { font-size: 16px; }
+    .fr-bd { background: rgba(0,0,0,.5); }
+    .fr-menu { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; padding: 8px 8px max(10px, env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; }
+    .fr-menu button { min-height: 48px; }
+  }
 </style>
 
 <script>
@@ -3958,7 +4012,8 @@ function icon(s) {
 }
 function renderRail() {
   rail.textContent = '';
-  const home = mk('🏠', () => hideView(), 'sbtn shome' + (!cur ? ' on' : '')); home.title = String(lang).startsWith('en') ? 'Home' : 'Página inicial'; rail.append(home);
+  const home = mk('🏠', () => frToggle(), 'sbtn shome' + ((!cur || frIsOpen) ? ' on' : '')), hw = el('div', 'shomewrap'); home.title = LL('Amigos', 'Friends'); hw.append(home);
+  { const n = frCount('in'); if (n) hw.append(el('span', 'fbadge', n > 99 ? '99+' : String(n))); } rail.append(hw);
   servers.forEach(s => { const b = mk('', () => openServer(s.id), 'sbtn' + (cur && cur.id === s.id ? ' on' : '')); b.title = s.name; b.append(icon(s)); rail.append(b); });
   const add = mk('+', () => dlgAdd(), 'sbtn sadd'); add.title = t('addServer'); rail.append(add);
   if (uid && A().myProfile()) rail.append(meBtn());
@@ -4075,6 +4130,7 @@ const stOf = u => (u && u === uid) ? presEffective() : (presMap.get(u) || null);
 const presBtns = new Set();
 function presDot(u, pos) { const k = stOf(u) || 'off', d = el('span', 'pdot ' + (pos || '')); d.dataset.u = u || ''; d.dataset.st = k; d.title = presInfo(k)[0]; return d; }
 function paintPres() {
+  frRepaint();
   document.querySelectorAll('.pdot[data-u]').forEach(n => { const k = stOf(n.dataset.u) || 'off'; n.dataset.st = k; n.title = presInfo(k)[0]; });
   document.querySelectorAll('.mem-row[data-u]').forEach(r => r.classList.toggle('off', !stOf(r.dataset.u)));
   document.querySelectorAll('.pstat[data-u]').forEach(n => { const k = stOf(n.dataset.u) || 'off'; n.dataset.st = k; n.textContent = presInfo(k)[0]; });
@@ -4202,6 +4258,7 @@ function noteMention(r, open) {
   if (!r || !uid || r.user_id === uid || !mentionsMe(r.content)) return;
   if (!open) { unreadMent.set(r.channel_id, (unreadMent.get(r.channel_id) || 0) + 1); renderChans(); }
   if (presEffective() === 'dnd') return;                       // não perturbar: só o destaque amarelo e o selo
+  if (frMuted(r.user_id)) return;
   titleAlert();
   if (!open || document.hidden) {
     const c = chans.find(x => x.id === r.channel_id), m = memOf(r.user_id);
@@ -4347,9 +4404,9 @@ $('svMembers').onclick = e => { e.stopPropagation(); const m = $('svMem'), on = 
 document.addEventListener('pointerdown', e => { const m = $('svMem'); if (m && m.classList.contains('open') && !m.contains(e.target) && !$('svMembers').contains(e.target)) m.classList.remove('open'); }, true);
 function onAuth(id) {
   if (id === uid) { if (uid) renderRail(); return; }
-  uid = id; siteOwner = false; closeView(); servers = []; renderRail(); syncRail();
+  uid = id; siteOwner = false; frStop(); closeView(); servers = []; renderRail(); syncRail();
   if (!id) { presStop(); return; }
-  presStart(); checkOwner();
+  presStart(); checkOwner(); frStart();
   loadServers().then(() => {
     const c = sessionStorage.getItem('sala-convite');
     if (c) { sessionStorage.removeItem('sala-convite'); dlgAdd(c); }
@@ -4369,6 +4426,7 @@ $('svName').onclick = () => cur && dlgSettings();
 
 async function openServer(id) {
   const s = servers.find(x => x.id === id); if (!s) return;
+  frClose();
   cur = s; chan = null; roles = []; mroles = new Map(); emojis = []; everyonePolicy = 'admins'; unreadMent.clear(); unsub(); closePicker(); renderRail();
   setSrvName(); $('svTitle').textContent = ''; $('svMsgs').textContent = ''; $('svForm').classList.add('hidden'); $('svMem').textContent = ''; pins = []; pinSet = new Set(); syncChanFlags(); $('svMem').classList.remove('open');
   paintDesc();
@@ -6310,9 +6368,198 @@ function dlgAdmin() {
   }, true);
 }
 
+/* ===== amigos: painel da casinha ===== */
+var fr = [], frSeen = null, frTab = 'online', frFilter = '', frCh = null, frTimer = 0, frLast = 0, frSql = false, frIsOpen = false, frBadgeN = 0;
+const FR_MAX = 1000, FR_PEND = 1500;
+const FR_TABS = [['online', 'Online', 'Online'], ['all', 'Todos', 'All'], ['pend', 'Pendentes', 'Pending'], ['add', 'Adicionar', 'Add']];
+const FR_MSG = {
+  sent: ['✓ Pedido enviado!', '✓ Request sent!'], accepted: ['🤝 Vocês agora são amigos!', '🤝 You are now friends!'],
+  not_found: ['Nenhum usuário com esse @.', 'No user with that @.'], self: ['Esse é você 🙂', 'That is you 🙂'],
+  already_friends: ['Vocês já são amigos.', 'You are already friends.'], already_sent: ['Você já enviou um pedido para essa pessoa.', 'You already sent a request to this person.'],
+  my_limit: ['Você chegou ao limite de ' + FR_MAX + ' amizades.', 'You reached the limit of ' + FR_MAX + ' friends.'],
+  their_limit: ['Essa pessoa chegou ao limite de ' + FR_MAX + ' amizades.', 'That person reached the limit of ' + FR_MAX + ' friends.'],
+  my_pending: ['Você já tem ' + FR_PEND + ' pedidos enviados pendentes. Cancele alguns para enviar mais.', 'You already have ' + FR_PEND + ' pending sent requests. Cancel some to send more.'],
+  their_pending: ['Essa pessoa não pode receber mais pedidos agora.', 'That person cannot receive more requests right now.'],
+  rate: ['Calma! Pedidos demais em pouco tempo. Tente de novo daqui a pouco.', 'Slow down! Too many requests. Try again in a bit.'],
+  gone: ['Esse pedido não existe mais.', 'That request no longer exists.']
+};
+const need27 = () => LL('Falta rodar a migração SQL v27 no Supabase para usar amigos.', 'The v27 SQL migration still needs to be run in Supabase to use friends.');
+const frMsg = c => c === 'sql' ? need27() : FR_MSG[c] ? LL(FR_MSG[c][0], FR_MSG[c][1]) : String(c);
+const frCount = k => fr.filter(x => x.kind === k).length;
+const frMuteAll = () => { try { return localStorage.getItem('ns-fr-mute') === '1'; } catch (e) { return false; } };
+const frMuted = id => !!id && fr.some(x => x.other_id === id && x.kind === 'friend' && x.muted);
+
+const frPanel = el('aside', 'hidden'); frPanel.id = 'frView';
+frPanel.innerHTML = '<div class="fr-head"><strong id="frTitle"></strong><button type="button" class="sec" id="frMute"></button><button type="button" class="sec" id="frX">✕</button></div>'
+  + '<div class="fr-tabs" id="frTabs"></div><div class="fr-search" id="frQw"><input id="frQ" type="search" maxlength="40" autocomplete="off"></div>'
+  + '<div class="fr-body" id="frBody"></div><div class="fr-foot" id="frFoot"></div>';
+document.body.append(frPanel);
+$('frTitle').textContent = LL('Amigos', 'Friends'); $('frQ').placeholder = LL('Buscar amigo', 'Search friends');
+$('frX').onclick = () => frSet(false);
+$('frQ').oninput = e => { frFilter = e.target.value; frBodyPaint(); };
+function frMuteBtn() { const b = $('frMute'), m = frMuteAll(); b.textContent = m ? '🔕' : '🔔'; b.title = m ? LL('Notificações de amizade silenciadas. Toque para reativar', 'Friend notifications muted. Tap to unmute') : LL('Silenciar todas as notificações de amizade', 'Mute all friend notifications'); }
+$('frMute').onclick = () => { try { localStorage.setItem('ns-fr-mute', frMuteAll() ? '0' : '1'); } catch (e) {} frMuteBtn(); toast(frMuteAll() ? LL('🔕 Notificações de amizade silenciadas', '🔕 Friend notifications muted') : LL('🔔 Notificações de amizade ativas', '🔔 Friend notifications on')); };
+let frSx = 0, frSy = 0;   // celular: arrastar para a esquerda fecha o painel
+frPanel.addEventListener('touchstart', e => { frSx = e.touches[0].clientX; frSy = e.touches[0].clientY; }, { passive: true });
+frPanel.addEventListener('touchend', e => { const t = e.changedTouches[0]; if (innerWidth <= 860 && t.clientX - frSx < -90 && Math.abs(t.clientY - frSy) < 40) frSet(false); }, { passive: true });
+
+function frSet(on) {
+  frIsOpen = !!on && !!uid; frPanel.classList.toggle('hidden', !frIsOpen); document.body.classList.toggle('fropen', frIsOpen);
+  renderRail();
+  if (frIsOpen) { frMuteBtn(); frRender(true); frLoad(); }
+}
+function frClose() { if (frIsOpen) frSet(false); }
+function frToggle() {
+  if (!uid) return;
+  if (!view.classList.contains('hidden')) { hideView(); frSet(true); } else frSet(!frIsOpen);
+}
+function frRepaint() { if (frIsOpen && (frTab === 'online' || frTab === 'all')) frBodyPaint(); }
+
+async function frLoad() {
+  const me = uid; if (!me) return;
+  const { data, error } = await sb().rpc('friends_overview');
+  if (uid !== me) return;
+  if (error) { frSql = missingFn(error); if (!frSql) console.warn(error); frRender(); return; }
+  frSql = false; const old = frSeen;
+  fr = (data || []).map(x => ({ ...x, username: x.username || '', display_name: cleanStr(x.display_name, 24) || '?' }));
+  frSeen = new Map(fr.map(x => [x.fid, x.kind]));
+  if (old) {
+    fr.filter(x => x.kind === 'in' && !old.has(x.fid)).forEach(x => frNotify('📨 ' + x.display_name + LL(' enviou um pedido de amizade', ' sent you a friend request'), 'pend'));
+    fr.filter(x => x.kind === 'friend' && old.get(x.fid) === 'out' && !x.muted).forEach(x => frNotify('🤝 ' + x.display_name + LL(' aceitou seu pedido de amizade', ' accepted your friend request'), 'all'));
+  }
+  const n = frCount('in'); if (n !== frBadgeN) { frBadgeN = n; renderRail(); }
+  frRender();
+}
+function frNotify(text, tab) {
+  if (frMuteAll() || presEffective() === 'dnd') return;
+  toast(text, () => { frTab = tab; frSet(true); }); titleAlert();
+}
+/* tempo real: quem age avisa a outra pessoa por um "ping" (ela só recarrega a lista, nada vem do ping); e confere a cada 45 s */
+function frStart() {
+  frStop(); const me = uid; if (!me) return;
+  frLoad();
+  try {
+    frCh = sb().channel('ns-friends:' + me, { config: { broadcast: { self: false } } });
+    frCh.on('broadcast', { event: 'ping' }, () => { if (Date.now() - frLast > 1500) { frLast = Date.now(); frLoad(); } }).subscribe();
+  } catch (e) { frCh = null; }
+  frTimer = setInterval(() => { if (!document.hidden) frLoad(); }, 45000);
+}
+function frStop() {
+  clearInterval(frTimer); frTimer = 0;
+  if (frCh) { try { sb().removeChannel(frCh); } catch (e) {} frCh = null; }
+  fr = []; frSeen = null; frSql = false; frBadgeN = 0; if (frIsOpen) frSet(false);
+}
+function frTell(id) {
+  if (!id) return;
+  try { const c = sb().channel('ns-friends:' + id); c.subscribe(s => { if (s === 'SUBSCRIBED') { c.send({ type: 'broadcast', event: 'ping', payload: {} }); setTimeout(() => { try { sb().removeChannel(c); } catch (e) {} }, 900); } }); } catch (e) {}
+}
+async function frRpc(fn, args, tellId) {
+  const { data, error } = await sb().rpc(fn, args);
+  if (error) { const c = missingFn(error) ? 'sql' : String(error.message || error); toast(frMsg(c)); return c; }
+  await frLoad(); if (tellId) frTell(tellId);
+  if (typeof data === 'string' && FR_MSG[data]) toast(frMsg(data));
+  return data;
+}
+async function frSend(un) {
+  const { data, error } = await sb().rpc('friend_send_request', { p_username: un });
+  if (error) return missingFn(error) ? 'sql' : String(error.message || error);
+  await frLoad(); const x = fr.find(y => y.username === un);
+  if (x && (data === 'sent' || data === 'accepted')) frTell(x.other_id);
+  return data;
+}
+
+function frRender(force) {
+  if (!frIsOpen) return;
+  const tabs = $('frTabs'); tabs.textContent = '';
+  FR_TABS.forEach(([k, a, b]) => {
+    const t = mk(LL(a, b), () => { frTab = k; frRender(true); }, (frTab === k ? 'on ' : '') + k);
+    if (k === 'pend' && frCount('in')) t.append(el('span', 'tb', String(frCount('in'))));
+    tabs.append(t);
+  });
+  $('frQw').classList.toggle('hidden', frTab === 'pend' || frTab === 'add');
+  if (frTab !== 'add' || force) frBodyPaint();
+  $('frFoot').textContent = LL('Amigos ', 'Friends ') + frCount('friend') + '/' + FR_MAX + ' · ' + LL('Recebidos ', 'Received ') + frCount('in') + '/' + FR_PEND + ' · ' + LL('Enviados ', 'Sent ') + frCount('out') + '/' + FR_PEND;
+}
+function frEmpty(b, txt) { b.append(el('p', 'mut fr-empty', txt)); }
+function frBodyPaint() {
+  const b = $('frBody'); if (!b) return; b.textContent = '';
+  if (frSql) return frEmpty(b, need27());
+  if (frTab === 'add') return frAddPaint(b);
+  if (frTab === 'pend') {
+    [['in', 'Recebidos', 'Received'], ['out', 'Enviados', 'Sent']].forEach(([k, a, c]) => {
+      const l = fr.filter(x => x.kind === k).sort((p, q) => String(q.created_at).localeCompare(String(p.created_at)));
+      b.append(el('div', 'fr-grp', LL(a, c) + ' — ' + l.length + '/' + FR_PEND));
+      if (!l.length) b.append(el('p', 'mut', k === 'in' ? LL('Nenhum pedido recebido.', 'No requests received.') : LL('Nenhum pedido enviado.', 'No requests sent.')));
+      l.forEach(x => b.append(frRow(x)));
+    });
+    return;
+  }
+  const q = frFilter.trim().toLowerCase().replace(/^@/, '');
+  let l = fr.filter(x => x.kind === 'friend');
+  if (frTab === 'online') l = l.filter(x => stOf(x.other_id));
+  if (q) l = l.filter(x => (x.display_name + ' ' + x.username).toLowerCase().includes(q));
+  l.sort((p, c) => (!!stOf(c.other_id) - !!stOf(p.other_id)) || p.display_name.localeCompare(c.display_name));
+  if (!l.length) return frEmpty(b, q ? LL('Ninguém encontrado.', 'Nobody found.') : frTab === 'online' ? LL('Nenhum amigo online agora.', 'No friends online right now.') : LL('Você ainda não tem amigos. Use a aba Adicionar e digite o @ de alguém.', 'No friends yet. Use the Add tab and type someone’s @.'));
+  b.append(el('div', 'fr-grp', (frTab === 'online' ? 'Online' : LL('Todos os amigos', 'All friends')) + ' — ' + l.length));
+  l.forEach(x => b.append(frRow(x)));
+}
+function frCard(x) { A().showCard({ user_id: x.other_id, username: x.username, display_name: x.display_name, avatar_path: x.avatar_path, banner_path: x.banner_path, bio: x.bio || '' }); }
+function frRow(x) {
+  const r = el('div', 'fr-row'), w = el('div', 'fr-av'), tx = el('div', 'fr-tx'), nm = el('b', '', x.display_name), ac = el('div', 'fr-act');
+  w.append(A().avatar(x, 40)); if (x.kind === 'friend') w.append(presDot(x.other_id, 'pos-fr'));
+  if (x.username && window.NS) NS.apply(nm, x.username);
+  tx.append(nm, el('small', 'mut', x.kind === 'friend' ? presInfo(stOf(x.other_id) || 'off')[0] + (x.muted ? ' · 🔕' : '') : '@' + x.username));
+  if (x.kind === 'friend') { const m = mk('⋯', e => { e.stopPropagation(); frMenu(e.currentTarget, x); }, 'sec'); m.title = LL('Mais opções', 'More options'); ac.append(m); }
+  else {
+    if (x.kind === 'in') { const ok = mk('✓', e => { e.stopPropagation(); frRpc('friend_respond', { p_id: x.fid, p_accept: true }, x.other_id); }, 'fr-ok'); ok.title = LL('Aceitar', 'Accept'); ac.append(ok); }
+    const no = mk('✕', e => { e.stopPropagation(); x.kind === 'in' ? frRpc('friend_respond', { p_id: x.fid, p_accept: false }, x.other_id) : frRpc('friend_remove', { p_id: x.fid }, x.other_id); }, 'sec');
+    no.title = x.kind === 'in' ? LL('Recusar', 'Decline') : LL('Cancelar pedido', 'Cancel request'); ac.append(no);
+  }
+  r.append(w, tx, ac); r.onclick = () => frCard(x); return r;
+}
+function frMenu(anchor, x) {
+  const bd = el('div', 'fr-bd'), m = el('div', 'fr-menu'); bd.append(m);
+  const close = () => bd.remove(); bd.onclick = e => { if (e.target === bd) close(); };
+  const item = (txt, fn, cls, keep) => m.append(mk(txt, () => { if (!keep) close(); fn(); }, cls || ''));
+  const main = () => {
+    m.textContent = '';
+    item(LL('👤 Ver perfil', '👤 View profile'), () => frCard(x));
+    if (x.username) item(LL('📋 Copiar @usuário', '📋 Copy @username'), () => { try { navigator.clipboard.writeText('@' + x.username); } catch (e) {} toast(LL('Copiado: @', 'Copied: @') + x.username); });
+    if (x.muted) item(LL('🔔 Reativar notificações', '🔔 Unmute notifications'), () => frRpc('friend_mute', { p_friend: x.other_id, p_minutes: null }));
+    else item(LL('🔕 Silenciar notificações  ›', '🔕 Mute notifications  ›'), sub, '', true);
+    item(LL('💔 Remover amizade', '💔 Remove friend'), async () => {
+      if (await confirmBox(LL('Remover amizade?', 'Remove friend?'), LL('Remover ' + x.display_name + ' dos seus amigos? Para voltarem a ser amigos, será preciso um novo pedido.', 'Remove ' + x.display_name + ' from your friends? A new request will be needed to be friends again.'), { icon: '💔', ok: LL('Remover', 'Remove') })) frRpc('friend_remove', { p_id: x.fid }, x.other_id);
+    }, 'dng');
+  };
+  const sub = () => {
+    m.textContent = ''; m.append(el('p', 'mut', LL('Silenciar ' + x.display_name + ' por…', 'Mute ' + x.display_name + ' for…')));
+    [[60, '1 hora', '1 hour'], [480, '8 horas', '8 hours'], [1440, '24 horas', '24 hours'], [0, 'Até eu reativar', 'Until I unmute']].forEach(([n, a, c]) => item('🔕 ' + LL(a, c), () => frRpc('friend_mute', { p_friend: x.other_id, p_minutes: n })));
+    item(LL('‹ Voltar', '‹ Back'), main, '', true);
+  };
+  main(); document.body.append(bd);
+  if (innerWidth > 860) { const r = anchor.getBoundingClientRect(); m.style.left = Math.min(r.right + 6, innerWidth - m.offsetWidth - 8) + 'px'; m.style.top = Math.max(8, Math.min(r.top, innerHeight - m.offsetHeight - 8)) + 'px'; }
+}
+function frAddPaint(b) {
+  const f = el('form', 'fr-add'), i = el('input'), go = el('button', '', LL('Enviar pedido de amizade', 'Send friend request')), msg = el('p', 'amsg');
+  i.placeholder = LL('Digite o @ da pessoa', 'Type their @'); i.maxLength = 21; i.autocapitalize = 'none'; i.autocomplete = 'off'; i.spellcheck = false; go.type = 'submit';
+  f.append(el('h3', '', LL('Adicionar amigo', 'Add friend')), el('p', 'mut', LL('Digite o nome de usuário (@) de quem você quer adicionar. A pessoa receberá um pedido para aceitar.', 'Type the username (@) of who you want to add. They will get a request to accept.')), i, go, msg);
+  f.onsubmit = async e => {
+    e.preventDefault(); const un = i.value.trim().toLowerCase().replace(/^@/, '');
+    if (!/^[a-z0-9_]{3,20}$/.test(un)) { msg.className = 'amsg err'; msg.textContent = LL('Digite um @ válido: 3 a 20 letras minúsculas, números ou _.', 'Type a valid @: 3 to 20 lowercase letters, numbers or _.'); return; }
+    go.disabled = true; const c = await frSend(un); go.disabled = false;
+    msg.className = 'amsg ' + (c === 'sent' || c === 'accepted' ? 'ok' : 'err'); msg.textContent = frMsg(c); if (c === 'sent' || c === 'accepted') i.value = '';
+  };
+  b.append(f);
+}
+
 renderRail();
 /* ----- extras do cartão de perfil: tags, cargos e moderação ----- */
 function cardExtras(p, box) {
+  if (p && p.username && uid && p.username.toLowerCase() !== myUser()) {
+    const fx = fr.find(x => x.username === p.username), b = mk(fx ? (fx.kind === 'friend' ? LL('✓ Amigos', '✓ Friends') : LL('⏳ Pedido pendente', '⏳ Request pending')) : LL('➕ Adicionar amigo', '➕ Add friend'), async e => {
+      const t = e.currentTarget; t.disabled = true; const c = await frSend(p.username.toLowerCase()); t.textContent = frMsg(c); }, 'sec');
+    b.disabled = !!fx; b.style.marginTop = '8px'; box.append(b);
+  }
   if (p && p.username) {
     const g = badgeEl(p.username), bio = box.querySelector('.pc-bio');
     g.style.marginTop = '6px';
