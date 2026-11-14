@@ -2079,7 +2079,6 @@ function editor(host, init, getName, onChange) {
 return { clean, apply, setMine, editor, style, tr, paintAll };
 })();
 </script>
-<script src="config.js"></script>
 <script>
 /* =====================================================================
    CONTAS (Supabase)  —  CONFIGURE AQUI
@@ -4363,7 +4362,7 @@ function addMsg(r) {
   if (can('manage_messages')) { const pb = mk('📌', e => { e.stopPropagation(); setPin(r.id, !pinSet.has(String(r.id))); }, 'sec pinb'); act.append(pb); }
   if (r.user_id === uid) { const eb = mk('✎', e => { e.stopPropagation(); startEdit(d, r); }, 'sec'); eb.title = t('edit'); act.append(eb); }
   if (r.user_id === uid || can('manage_messages')) {
-    const x = mk('✕', async () => { const { error } = await sb().from('messages').delete().eq('id', r.id); if (error) err(error); else { d.remove(); regroup(); pinDrop(r.id); } }, 'sec');
+    const x = mk('✕', async () => { if (!confirm(LL('Apagar esta mensagem? Isso não pode ser desfeito.', 'Delete this message? This cannot be undone.'))) return; const { error } = await sb().from('messages').delete().eq('id', r.id); if (error) err(error); else { d.remove(); regroup(); pinDrop(r.id); } }, 'sec');
     x.title = t('del'); act.append(x);
   }
   d.append(act); markPinned(d);
