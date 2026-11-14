@@ -519,7 +519,11 @@ const I18N = {
   audOn:'com áudio', audNone:'sem áudio',
   sharing1:'Sua tela está sendo transmitida para 1 pessoa', sharingN:'Sua tela está sendo transmitida para {n} pessoas',
   sharingReady:'Sua tela está pronta, ninguém assistindo ainda',
-  loadingImg:'Carregando a imagem...\nSe continuar preto, clique aqui.', pausedImg:'Vídeo pausado pelo navegador.\nClique aqui para reproduzir.'
+  loadingImg:'Conectando a imagem...', pausedImg:'Toque aqui para reproduzir',
+  retryImg:'Reconectando a imagem...',
+  noFramesNet:'A imagem não chegou: a rede está bloqueando a conexão direta. Tente em outra rede (Wi-Fi) ou peça para a pessoa reiniciar a tela.',
+  noFramesDec:'A imagem chegou mas este navegador não consegue exibir. Peça para a pessoa reiniciar a tela ou reduzir a resolução.',
+  shareDenied:'O navegador não deixou compartilhar (cancelado ou bloqueado). Clique em \"Compartilhar tela\" de novo e escolha o que mostrar. No Mac, libere o navegador em Ajustes > Privacidade > Gravação de Tela.'
 },
 'en': {
   title:'Share your screen, effortlessly.',
@@ -561,7 +565,11 @@ const I18N = {
   audOn:'with audio', audNone:'no audio',
   sharing1:'Your screen is being shared with 1 person', sharingN:'Your screen is being shared with {n} people',
   sharingReady:'Your screen is ready, nobody is watching yet',
-  loadingImg:'Loading the picture...\nIf it stays black, click here.', pausedImg:'Video paused by the browser.\nClick here to play.'
+  loadingImg:'Connecting the picture...', pausedImg:'Tap here to play',
+  retryImg:'Reconnecting the picture...',
+  noFramesNet:'The picture did not arrive: the network is blocking the direct connection. Try another network (Wi-Fi) or ask them to restart sharing.',
+  noFramesDec:'The picture arrived but this browser cannot display it. Ask them to restart sharing or lower the resolution.',
+  shareDenied:'The browser did not allow sharing (cancelled or blocked). Click \"Share screen\" again and pick what to show. On Mac, allow the browser in Settings > Privacy > Screen Recording.'
 },
 'pt-PT': {
   title:'Partilhe o ecrã, sem complicações.',
@@ -603,7 +611,11 @@ const I18N = {
   audOn:'com áudio', audNone:'sem áudio',
   sharing1:'O seu ecrã está a ser transmitido para 1 pessoa', sharingN:'O seu ecrã está a ser transmitido para {n} pessoas',
   sharingReady:'O seu ecrã está pronto, ainda ninguém a ver',
-  loadingImg:'A carregar a imagem...\nSe continuar preto, clique aqui.', pausedImg:'Vídeo pausado pelo navegador.\nClique aqui para reproduzir.'
+  loadingImg:'A ligar a imagem...', pausedImg:'Toque aqui para reproduzir',
+  retryImg:'A religar a imagem...',
+  noFramesNet:'A imagem não chegou: a rede está a bloquear a ligação direta. Tente noutra rede (Wi-Fi) ou peça para reiniciarem o ecrã.',
+  noFramesDec:'A imagem chegou mas este navegador não a consegue mostrar. Peça para reiniciarem a partilha ou reduzirem a resolução.',
+  shareDenied:'O navegador não permitiu partilhar (cancelado ou bloqueado). Clique em \"Partilhar ecrã\" outra vez e escolha o que mostrar. No Mac, autorize o navegador em Definições > Privacidade > Gravação de Ecrã.'
 }
 };
 
@@ -676,10 +688,10 @@ function loadPeer() {
   });
   return peerLoad;
 }
-$('join').addEventListener('focusin', () => loadPeer(), { once: true });
+$('join').addEventListener('focusin', () => { loadPeer(); ensureIce(); }, { once: true });
 
 /* =====================  REDE E OTIMIZAÇÕES  ===================== */
-const APP_VERSION = '6.1';
+const APP_VERSION = '6.2';
 const CUSTOM_TURN = [];
 const PEER_OPTS = { config: { sdpSemantics: 'unified-plan', iceServers: [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -688,6 +700,44 @@ const PEER_OPTS = { config: { sdpSemantics: 'unified-plan', iceServers: [
   { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' },
   { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp', 'turns:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
 ].concat(CUSTOM_TURN) } };
+
+/* ---------- TURN confiável: credenciais temporárias vindas de uma Edge Function do Supabase ----------
+   Os TURN públicos acima são só reserva (instáveis). Com a função "turn-credentials" publicada, o app usa
+   um relay de verdade, que é o que faz a imagem aparecer em 4G/5G, redes de empresa/escola e Wi-Fi com NAT estrito. */
+let iceCache = null, icePending = null, iceFailAt = 0;
+function iceEndpoint() {
+  const c = window.NETSHARE_CONFIG || {};
+  if (c.turnUrl) return c.turnUrl;
+  let base = c.supabaseUrl || '';
+  if (!base) { try { base = SB_URL; } catch (e) {} }
+  return base ? String(base).replace(/\/+$/, '') + '/functions/v1/turn-credentials' : '';
+}
+function ensureIce(force) {
+  if (!force && iceCache && Date.now() < iceCache.exp) return Promise.resolve();
+  if (icePending) return icePending;
+  if (!force && Date.now() - iceFailAt < 60000) return Promise.resolve();
+  const url = iceEndpoint();
+  if (!url) return Promise.resolve();
+  icePending = (async () => {
+    const ctl = new AbortController();
+    const tm = setTimeout(() => ctl.abort(), 3500);
+    try {
+      let key = ''; try { key = SB_KEY; } catch (e) {}
+      const r = await fetch(url, { headers: key ? { apikey: key } : {}, signal: ctl.signal, cache: 'no-store' });
+      if (!r.ok) { iceFailAt = Date.now(); return; }
+      const j = await r.json();
+      const list = (Array.isArray(j.iceServers) ? j.iceServers : [j.iceServers]).filter(x => x && x.urls);
+      if (!list.length) { iceFailAt = Date.now(); return; }
+      PEER_OPTS.config.iceServers = list
+        .concat([{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }])
+        .concat(CUSTOM_TURN);
+      iceCache = { at: Date.now(), exp: Date.now() + Math.min(6 * 3600e3, (+j.ttl || 3600) * 500) };
+    } catch (e) { iceFailAt = Date.now(); }
+    finally { clearTimeout(tm); }
+  })().finally(() => { icePending = null; });
+  return icePending;
+}
+setInterval(() => { if (iceCache && Date.now() > iceCache.exp) ensureIce(true); }, 5 * 60e3);
 
 const IS_CHROMIUM = /Chrome\/|Chromium\/|Edg\//.test(navigator.userAgent) && !/CriOS|FxiOS|iPhone|iPad|iPod/.test(navigator.userAgent);
 const kill = p => { try { p._dead = true; p.destroy(); } catch (e) {} };
@@ -791,7 +841,7 @@ function destroyTile(t) {
   t.el.remove();
 }
 function resetState() {
-  ignoreUntil.clear(); conns.clear(); spare.clear(); dialing.clear(); calls.clear(); pendingCalls.clear(); people.clear();
+  ignoreUntil.clear(); conns.clear(); spare.clear(); dialing.clear(); calls.clear(); pendingCalls.clear(); people.clear(); rx.clear(); lastResend.clear();
   tiles.forEach(destroyTile); tiles.clear();
   own = { id: null, epoch: 0 }; bans.clear(); bansName.clear(); hidden.clear();
   clearTimeout(heirTimer); clearTimeout(kickTimer); kickTimer = 0; ownerWindow = 0;
@@ -803,10 +853,14 @@ function closeAll() {
   try { p && p.destroy(); } catch (e) {}
 }
 
-function start() {
+let startTok = 0;
+async function start() {
+  const tok = ++startTok;
   closeAll(); resetState();
   leaving = false;
   joinedAt = performance.now();
+  await ensureIce();
+  if (leaving || tok !== startTok) return;
   claimSlot(0);
 }
 
@@ -1030,6 +1084,8 @@ async function onData(c, d) {
       if (nm) bansName.add(nm);
       if ((cid && cid === clientId) || (nm && nm === norm(myName))) kickOut('banned');
     }
+  } else if (d.t === 'resend') {
+    resendTo(id);
   } else if (d.t === 'kicked') {
     if (!roomIsVoice && id === own.id) kickOut(d.ban ? 'banned' : 'kicked');
   }
@@ -1116,7 +1172,7 @@ function kickOut(reason) {
 
 function broadcast(m) { connIds().forEach(id => { const c = verifiedConn(id); if (c) { try { c.send(m); } catch (e) {} } }); }
 function drop(id) {
-  conns.delete(id); people.delete(id); pendingCalls.delete(id); hidden.delete(id);
+  conns.delete(id); people.delete(id); pendingCalls.delete(id); hidden.delete(id); rx.delete(id);
   const c = calls.get(id); if (c) c.close(); calls.delete(id);
   removeTile(id);
   if (own.id === id) ownerLeft();
@@ -1200,7 +1256,7 @@ function onCall(call) {
   pendingCalls.set(call.peer, call);
   setTimeout(() => {
     if (pendingCalls.get(call.peer) === call) { pendingCalls.delete(call.peer); try { call.close(); } catch (e) {} }
-  }, 6000);
+  }, 25000);
 }
 function answerCall(call) {
   call.answer(undefined, { sdpTransform: tuneSdp });
@@ -1219,7 +1275,37 @@ function qualitySettings() {
   return { fps, res, w, h, base };
 }
 
+function preferCodecs(sdp) {
+  try {
+    const rank = { VP8: 0, H264: 1, VP9: 2, AV1: 3 };
+    const lines = sdp.split('\r\n');
+    const mi = lines.findIndex(l => l.startsWith('m=video'));
+    if (mi < 0) return sdp;
+    let end = lines.findIndex((l, i) => i > mi && l.startsWith('m='));
+    if (end < 0) end = lines.length;
+    const head = lines[mi].split(' ');
+    const pts = head.slice(3);
+    const name = {}, apt = {};
+    for (let i = mi; i < end; i++) {
+      let m = lines[i].match(/^a=rtpmap:(\d+) ([\w-]+)\//);
+      if (m) name[m[1]] = m[2].toUpperCase();
+      m = lines[i].match(/^a=fmtp:(\d+) .*apt=(\d+)/);
+      if (m) apt[m[1]] = m[2];
+    }
+    const prim = pts.filter(x => !apt[x] && rank[name[x]] != null)
+      .map((x, i) => [x, i]).sort((a, b) => rank[name[a[0]]] - rank[name[b[0]]] || a[1] - b[1]).map(x => x[0]);
+    const out = [];
+    prim.forEach(x => { out.push(x); pts.forEach(q => { if (apt[q] === x) out.push(q); }); });
+    pts.forEach(x => { if (!out.includes(x)) out.push(x); });
+    if (out.length !== pts.length) return sdp;
+    head.splice(3, pts.length, ...out);
+    lines[mi] = head.join(' ');
+    return lines.join('\r\n');
+  } catch (e) { return sdp; }
+}
+
 function tuneSdp(sdp) {
+  sdp = preferCodecs(sdp);
   if (!IS_CHROMIUM) return sdp;
   try {
     const lines = sdp.split('\r\n');
@@ -1299,10 +1385,59 @@ function callPeer(id) {
   });
   updateLocalNote();
   scheduleQuality();
+  kickKeyFrames(c);
+}
+
+// Tela parada não gera quadros novos; pedir keyframe evita o "preto até mexer o mouse" em quem acabou de entrar.
+function kickKeyFrames(c) {
+  [1500, 4000, 8000].forEach(ms => setTimeout(() => {
+    try {
+      const pc = c.peerConnection;
+      if (!pc || calls.get(c.peer) !== c) return;
+      pc.getSenders().forEach(sn => {
+        if (sn.track && sn.track.kind === 'video' && typeof sn.generateKeyFrame === 'function') sn.generateKeyFrame().catch(() => {});
+      });
+    } catch (e) {}
+  }, ms));
+}
+
+// Quem assiste pede para refazer a chamada quando a imagem não aparece.
+const lastResend = new Map();
+function resendTo(id) {
+  if (!myStream || !verifiedConn(id)) return;
+  const now = Date.now();
+  if (now - (lastResend.get(id) || 0) < 5000) return;
+  lastResend.set(id, now);
+  const c = calls.get(id);
+  if (c) { calls.delete(id); try { c.close(); } catch (e) {} }
+  setTimeout(() => { if (myStream && verifiedConn(id)) callPeer(id); }, 400);
 }
 
 if (!canShareScreen) $('btnScreen').disabled = true;
 $('facing').onchange = () => { if (myKind === 'cam') share('cam'); };
+
+// Navegadores diferentes rejeitam constraints diferentes (Safari, Firefox, Chrome antigo, Opera, Samsung...).
+// Tenta o pedido completo e vai simplificando; só desiste de vez se a pessoa cancelar/bloquear.
+async function getScreenStream(q, frameRate) {
+  const md = navigator.mediaDevices;
+  const tries = [
+    { video: { cursor: 'always', frameRate, width: { ideal: q.w, max: q.w }, height: { ideal: q.h, max: q.h } },
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, restrictOwnAudio: true },
+      systemAudio: 'include' },
+    { video: { frameRate, width: { ideal: q.w }, height: { ideal: q.h } }, audio: true },
+    { video: true, audio: true },
+    { video: true }
+  ];
+  let last;
+  for (const c of tries) {
+    try { return await md.getDisplayMedia(c); }
+    catch (e) {
+      last = e;
+      if (e && ['NotAllowedError', 'AbortError', 'SecurityError', 'NotReadableError'].includes(e.name)) throw e;
+    }
+  }
+  throw last;
+}
 
 async function share(kind) {
   if (!roomCanSpeak) return;
@@ -1314,17 +1449,19 @@ async function share(kind) {
   let stream, camAudioFailed = false;
   try {
     if (kind === 'screen') {
-      stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { cursor: 'always', frameRate, width: { ideal: q.w, max: q.w }, height: { ideal: q.h, max: q.h } },
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, restrictOwnAudio: true },
-        systemAudio: 'include'
-      });
+      stream = await getScreenStream(q, frameRate);
     } else {
       const video = { frameRate, width: { ideal: q.w }, height: { ideal: q.h }, facingMode: { ideal: $('facing').value } };
       try { stream = await navigator.mediaDevices.getUserMedia({ video, audio: true }); }
       catch (e) { camAudioFailed = true; stream = await navigator.mediaDevices.getUserMedia({ video }); }
     }
-  } catch (e) { msgK('startFail', { e: e.message }); return; }
+  } catch (e) {
+    if (kind === 'screen' && e && ['NotAllowedError', 'AbortError', 'SecurityError'].includes(e.name)) {
+      msgK('shareDenied');
+      setTimeout(() => { if (msgKey() === 'shareDenied') msg(''); }, 9000);
+    } else msgK('startFail', { e: (e && e.message) || String(e) });
+    return;
+  }
   myStream = stream;
   myKind = kind;
   hasAudio = stream.getAudioTracks().length > 0;
@@ -1432,24 +1569,48 @@ function updateTileTexts(t) {
   updateSoundBtn(t);
 }
 
+// Tenta tocar com som; se o navegador barrar (política de autoplay), toca mudo e deixa o som para o primeiro toque/clique
+// em qualquer lugar da página (unlockPlayback). Só vira "toque para reproduzir" se nem mudo o navegador deixar.
 function startRemotePlayback(t) {
   const v = t.video;
-  v.muted = false;
+  if (!v.srcObject) return;
+  v.muted = !!t.userMuted;
   const pr = v.play();
-  if (pr && pr.catch) pr.catch(() => {
-    v.muted = true;
-    v.play().catch(() => {});
+  if (!pr || !pr.then) return;
+  const ok = () => { t.needTap = false; };
+  const fail = () => { t.needTap = true; };
+  pr.then(ok).catch(err => {
+    if (err && err.name === 'AbortError') return;   // chegou outro carregamento; o próximo evento tenta de novo
+    if (v.muted) { fail(); return; }
+    v.muted = true; t.autoMuted = true;
+    v.play().then(ok).catch(fail);
   });
 }
+
+function unlockPlayback(e) {
+  if (e && e.target && e.target.closest && e.target.closest('.tbtn, .tvol')) return;
+  tiles.forEach(t => {
+    if (t.local || !t.video.srcObject) return;
+    const v = t.video;
+    if (v.paused) startRemotePlayback(t);
+    else if (v.muted && t.autoMuted && !t.userMuted) { v.muted = false; t.autoMuted = false; updateSoundBtn(t); }
+  });
+}
+['pointerup', 'click', 'touchend', 'keydown'].forEach(ev => document.addEventListener(ev, unlockPlayback, true));
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  tiles.forEach(t => { if (!t.local && t.video.srcObject && t.video.paused) startRemotePlayback(t); });
+});
 
 function showTile(id, stream, call, isLocal) {
   let t = tiles.get(id);
   if (!t) {
     const el = document.createElement('div'); el.className = 'tile';
     const video = document.createElement('video'); video.autoplay = true; video.playsInline = true;
+    video.setAttribute('playsinline', ''); video.setAttribute('webkit-playsinline', ''); video.preload = 'auto';
     const label = document.createElement('div'); label.className = 'label';
     el.append(video);
-    t = { el, video, label, call: null, stream: null, note: null, snd: null, hbtn: null, noPreview: false, timer: 0, fps: 0, res: '', lastFrames: 0, lastT: 0, created: performance.now(), userMuted: false, local: !!isLocal, vol: 1, vslider: null };
+    t = { el, video, label, call: null, stream: null, note: null, snd: null, hbtn: null, noPreview: false, timer: 0, fps: 0, res: '', lastFrames: 0, lastT: 0, created: performance.now(), userMuted: false, autoMuted: false, needTap: false, hooked: null, local: !!isLocal, vol: 1, vslider: null };
     if (isLocal && myKind === 'screen') {
       t.noPreview = true;
       t.note = document.createElement('div'); t.note.className = 'note';
@@ -1460,11 +1621,17 @@ function showTile(id, stream, call, isLocal) {
       t.note = document.createElement('div'); t.note.className = 'note hidden';
       t.note.style.pointerEvents = 'none';
       el.append(t.note);
-      el.onclick = () => { t.video.play().catch(() => {}); };
+      el.onclick = () => { startRemotePlayback(t); };
+      // Safari/Firefox só aceitam tocar quando já há dados: reage a cada sinal de que o vídeo "acordou".
+      ['loadedmetadata', 'loadeddata', 'canplay', 'resize'].forEach(ev => video.addEventListener(ev, () => {
+        if (video.paused) startRemotePlayback(t);
+        render();
+      }));
+      video.addEventListener('playing', () => { t.needTap = false; render(); });
       t.snd = document.createElement('button'); t.snd.className = 'tbtn snd';
       t.snd.onclick = e => {
         e.stopPropagation();
-        t.video.muted = !t.video.muted; t.userMuted = t.video.muted;
+        t.video.muted = !t.video.muted; t.userMuted = t.video.muted; t.autoMuted = false;
         if (!t.video.muted) t.video.play().catch(() => {});
         updateSoundBtn(t);
       };
@@ -1507,11 +1674,13 @@ function showTile(id, stream, call, isLocal) {
         t.lastT = now;
         t.res = v.videoWidth ? v.videoWidth + '×' + v.videoHeight : '';
         if (t.note) {
-          const stuck = !v.videoWidth || v.paused;
-          const waited = now - t.created > 3000;
-          t.note.textContent = v.paused && v.videoWidth ? T('pausedImg') : T('loadingImg');
-          t.note.classList.toggle('hidden', !(stuck && waited));
-          if (v.paused && v.videoWidth && !hidden.has(id)) v.play().catch(() => {});
+          const st = rx.get(id);
+          let key = '';
+          if (v.videoWidth && v.paused) key = 'pausedImg';              // só aparece se o navegador realmente barrou a reprodução
+          else if (!v.videoWidth && now - t.created > 2500) key = st && st.fail ? st.fail : (st && st.tries ? 'retryImg' : 'loadingImg');
+          if (key) t.note.textContent = T(key);
+          t.note.classList.toggle('hidden', !key);
+          if (v.paused && v.videoWidth && !hidden.has(id)) startRemotePlayback(t);
         }
         render();
       }, 2000);
@@ -1524,6 +1693,12 @@ function showTile(id, stream, call, isLocal) {
     else { if (t.userMuted) { t.video.muted = true; t.video.play().catch(() => {}); } else startRemotePlayback(t); }
   }
   t.call = call;
+  if (!isLocal && t.hooked !== stream) {
+    t.hooked = stream;
+    const hook = tr => tr.addEventListener('unmute', () => { if (t.video.paused) startRemotePlayback(t); render(); });
+    stream.getTracks().forEach(hook);
+    stream.addEventListener('addtrack', e => { hook(e.track); if (t.video.paused) startRemotePlayback(t); });
+  }
   render();
 }
 function removeTile(id) {
@@ -1538,6 +1713,52 @@ function toggleHide(id) {
   if (t) t.el.classList.toggle('hidden', hidden.has(id));
   render();
 }
+
+/* Se a pessoa está compartilhando e nenhum quadro chegou, pede para ela refazer a chamada (9 s, 20 s e 35 s depois).
+   Se mesmo assim nada chegar, mostra o motivo provável (rede bloqueando x navegador sem conseguir decodificar). */
+const rx = new Map();
+const RX_STEPS = [9000, 20000, 35000];
+async function rxStats(pc) {
+  const o = { bytes: 0, state: '' };
+  try {
+    o.state = pc.iceConnectionState;
+    (await pc.getStats()).forEach(r => {
+      if (r.type === 'inbound-rtp' && (r.kind || r.mediaType) === 'video') o.bytes += r.bytesReceived || 0;
+    });
+  } catch (e) {}
+  return o;
+}
+setInterval(async () => {
+  if (document.hidden || !peer || !peer.open || leaving) return;
+  for (const [id, p] of [...people]) {
+    const c = verifiedConn(id);
+    if (!p.sharing || !c) { rx.delete(id); continue; }
+    const t = tiles.get(id);
+    if (t && t.video.videoWidth > 0) {
+      const st0 = rx.get(id);
+      if (st0 && st0.fail && msgKey() === st0.fail) msg('');
+      rx.delete(id); continue;
+    }
+    let st = rx.get(id);
+    if (!st) { st = { since: Date.now(), tries: 0, fail: '', busy: false }; rx.set(id, st); }
+    if (st.busy) continue;
+    const age = Date.now() - st.since;
+    const pc = t && t.call && t.call.peerConnection;
+    const iceFailed = !!pc && pc.iceConnectionState === 'failed';
+    if (st.tries < RX_STEPS.length) {
+      if (age < RX_STEPS[st.tries] && !(iceFailed && age > 4000)) continue;
+      st.tries++;
+      if (t && t.call) { const old = t.call; try { old.close(); } catch (e) {} }
+      try { c.send({ t: 'resend' }); } catch (e) {}
+    } else if (!st.fail && age > 50000) {
+      st.busy = true;
+      const r = pc ? await rxStats(pc) : { bytes: 0 };
+      st.fail = r.bytes > 0 ? 'noFramesDec' : 'noFramesNet';
+      st.busy = false;
+      if (!t) msgK(st.fail);
+    }
+  }
+}, 3000);
 
 let renderQueued = false;
 function render() {
