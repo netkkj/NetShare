@@ -3145,6 +3145,17 @@ applyLang();
   #srvRail .sadmin { margin-top: auto; font-size: 1.2rem; }
 
   .dlg.wide { width: min(94vw, 780px); }
+  /* balão de confirmação (apagar mensagem etc.) */
+  .dlg.confirm { width: min(92vw, 380px); }
+  .dlg.confirm[open] { animation: nspop .16s ease-out; }
+  .dlg.confirm .dlg-in { gap: 12px; padding: 24px 22px 20px; text-align: center; justify-items: center; }
+  .dlg.confirm .cf-ico { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: rgba(255,102,125,.14); border: 1px solid rgba(255,102,125,.3); font-size: 1.5rem; }
+  .dlg.confirm h2 { margin: 0; font: 800 1.15rem/1.2 'Manrope', sans-serif; letter-spacing: -.02em; }
+  .dlg.confirm .cf-txt { margin: 0; color: var(--mut); font-size: .88rem; line-height: 1.45; }
+  .dlg.confirm .cf-quote { width: 100%; box-sizing: border-box; max-height: 74px; overflow: hidden; padding: 8px 12px; border-left: 3px solid rgba(255,102,125,.55); border-radius: 8px; background: rgba(5, 9, 22, .55); color: #dbe2f4; font-size: .85rem; text-align: left; overflow-wrap: anywhere; }
+  .dlg.confirm .dlg-actions { width: 100%; justify-content: center; margin-top: 4px; }
+  .dlg.confirm .dlg-actions button { flex: 1 1 0; }
+  @keyframes nspop { from { opacity: 0; transform: translateY(8px) scale(.96); } to { opacity: 1; transform: none; } }
   #dlgProfile { width: min(96vw, 820px); max-height: min(95dvh, 1000px); overflow-x: hidden; }
   #dlgProfile .dlg-in { padding: 28px 30px; gap: 18px; }
   #dlgProfile .dlg-in, #dlgProfile .dlg-form, #dlgProfile .dlg-form > * { min-width: 0; }
@@ -4362,7 +4373,7 @@ function addMsg(r) {
   if (can('manage_messages')) { const pb = mk('📌', e => { e.stopPropagation(); setPin(r.id, !pinSet.has(String(r.id))); }, 'sec pinb'); act.append(pb); }
   if (r.user_id === uid) { const eb = mk('✎', e => { e.stopPropagation(); startEdit(d, r); }, 'sec'); eb.title = t('edit'); act.append(eb); }
   if (r.user_id === uid || can('manage_messages')) {
-    const x = mk('✕', async () => { if (!confirm(LL('Apagar esta mensagem? Isso não pode ser desfeito.', 'Delete this message? This cannot be undone.'))) return; const { error } = await sb().from('messages').delete().eq('id', r.id); if (error) err(error); else { d.remove(); regroup(); pinDrop(r.id); } }, 'sec');
+    const x = mk('✕', async () => { const pv = String(r.content || '').replace(/\s+/g, ' ').trim(); if (!(await confirmBox(LL('Apagar mensagem?', 'Delete message?'), LL('Isso não pode ser desfeito.', 'This cannot be undone.'), { quote: pv.length > 140 ? pv.slice(0, 140) + '…' : pv }))) return; const { error } = await sb().from('messages').delete().eq('id', r.id); if (error) err(error); else { d.remove(); regroup(); pinDrop(r.id); } }, 'sec');
     x.title = t('del'); act.append(x);
   }
   d.append(act); markPinned(d);
@@ -4515,6 +4526,25 @@ function modal(title, build, wide) {
   document.body.append(d);
   build(w, () => d.close());
   d.showModal();
+}
+function confirmBox(title, text, opts) {
+  opts = opts || {};
+  return new Promise(res => {
+    const d = el('dialog', 'dlg confirm'), w = el('div', 'dlg-in');
+    let ans = false;
+    w.append(el('div', 'cf-ico', opts.icon || '🗑️'), el('h2', '', title));
+    if (text) w.append(el('p', 'cf-txt', text));
+    if (opts.quote) w.append(el('div', 'cf-quote', opts.quote));
+    const acts = el('div', 'dlg-actions');
+    const no = mk(opts.cancel || LL('Cancelar', 'Cancel'), () => d.close(), 'sec');
+    const yes = mk(opts.ok || LL('Apagar', 'Delete'), () => { ans = true; d.close(); }, 'bad');
+    no.autofocus = true;
+    acts.append(no, yes); w.append(acts); d.append(w);
+    d.addEventListener('close', () => { d.remove(); res(ans); });
+    d.addEventListener('click', e => { if (e.target === d) d.close(); });
+    document.body.append(d);
+    d.showModal();
+  });
 }
 function fld(w, label, attrs) {
   const l = el('label'), i = el('input'); Object.assign(i, attrs || {}); i.autocomplete = 'off';
