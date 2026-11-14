@@ -485,6 +485,7 @@
       <span id="pfBioN" class="mut counter">0/200</span>
       <div class="pe-conns" id="pfConns"></div>
       <label class="chk"><input type="checkbox" id="pfDmFriends"><span id="pfDmLbl"></span></label>
+      <label class="chk"><input type="checkbox" id="pfNoFr"><span id="pfNoFrLbl"></span></label>
       <p id="pfMsg" class="amsg" role="status"></p>
       <div class="dlg-actions">
         <button type="button" class="sec" data-close="dlgProfile" data-i18n="pfCancel"></button>
@@ -3479,8 +3480,8 @@ applyLang();
 <style>
   /* =====================  SERVIDORES  ===================== */
   :root { --rail: 72px; --dock: 400px; }
-  body.hasrail #room { margin-left: var(--rail); width: calc(100vw - var(--rail)); }
-  body.dockopen #room { margin-left: calc(var(--rail) + var(--dock)); width: calc(100vw - var(--rail) - var(--dock)); }
+  body.hasrail #room { margin-left: var(--rail); width: calc(100vw - var(--rail) - var(--dmo, 0px)); }
+  body.dockopen #room { margin-left: calc(var(--rail) + var(--dock)); width: calc(100vw - var(--rail) - var(--dock) - var(--dmo, 0px)); }
   #srvView.dock { inset: 0 auto 0 var(--rail); width: var(--dock); grid-template-columns: minmax(0, 1fr); border-right: 1px solid var(--line); box-shadow: 8px 0 30px rgba(0,0,0,.35); }
   #srvView.dock .sv-mem { display: none; }
   #srvView.dock .sv-side { position: absolute; z-index: 3; inset: 0 auto 0 0; width: 80%; transform: translateX(-102%); transition: transform .2s ease; background: var(--card-solid); }
@@ -3533,8 +3534,8 @@ applyLang();
   @media (max-width: 860px) {
     :root { --rail: 60px; }
     body.hasrail:not(.inroomview) { padding-left: var(--rail); }
-    #srvView.dock { width: calc(100vw - var(--rail)); }
-    body.dockopen #room { margin-left: var(--rail); width: calc(100vw - var(--rail)); }
+    #srvView.dock { width: calc(100vw - var(--rail) - var(--dmo, 0px)); }
+    body.dockopen #room { margin-left: var(--rail); width: calc(100vw - var(--rail) - var(--dmo, 0px)); }
     #srvView { grid-template-columns: minmax(0, 1fr); }
     .sv-mem { display: none; }
     .sv-side { position: absolute; z-index: 3; inset: 0 auto 0 0; width: 80%; max-width: 300px; transform: translateX(-102%); transition: transform .2s ease; background: var(--card-solid); }
@@ -3852,23 +3853,45 @@ applyLang();
   .fr-menu button.dng { color: #ff9bad; }
   .fr-menu .mut { padding: 6px 10px 2px; font-size: .74rem; }
   .fr-tabs { grid-template-columns: repeat(5, 1fr); }
-  .dm-dlg { width: min(94vw, 520px); }
-  .dm-dlg .dlg-in { gap: 10px; }
-  .dm-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .dm-top b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dm-list { display: flex; flex-direction: column; gap: 6px; height: min(56dvh, 440px); overflow-y: auto; padding: 4px; overscroll-behavior: contain; }
-  .dm-m { max-width: 82%; padding: 8px 12px; border-radius: 14px; background: var(--surface-hover); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; font-size: .93rem; }
-  .dm-m.me { align-self: flex-end; background: linear-gradient(135deg, var(--acc), var(--acc-2)); }
-  .dm-m small { display: block; margin-top: 2px; opacity: .65; font-size: .66rem; }
-  .dm-form { display: flex; gap: 8px; }
-  .dm-form textarea { flex: 1; min-height: 46px; max-height: 120px; resize: none; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(5,9,22,.65); color: var(--fg); font: inherit; }
+
+  /* ---------- conversa privada: barra lateral à direita ---------- */
+  :root { --dmw: clamp(340px, 30vw, 440px); --dmo: 0px; }
+  body.dmopen { --dmo: var(--dmw); }
+  #dmView { position: fixed; z-index: 28; top: 0; right: 0; bottom: 0; width: var(--dmw); display: flex; flex-direction: column; padding-top: env(safe-area-inset-top); background: var(--card-solid); border-left: 1px solid var(--line); box-shadow: -8px 0 30px rgba(0,0,0,.35); animation: dmIn .18s ease-out; }
+  @keyframes dmIn { from { transform: translateX(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .dm-head { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 10px 0 14px; border-bottom: 1px solid var(--line); }
+  .dm-av { position: relative; flex: 0 0 auto; cursor: pointer; }
+  .pdot.pos-dm { right: -3px; bottom: -3px; border-color: var(--card-solid); }
+  .dm-who { flex: 1; min-width: 0; display: grid; line-height: 1.3; cursor: pointer; }
+  .dm-who b, .dm-who small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dm-who:hover b { text-decoration: underline; }
+  .dm-head .x { width: 36px; min-height: 36px; padding: 0; }
+  .dm-list { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px; padding: 14px 16px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .dm-empty { margin: auto; padding: 20px; text-align: center; }
+  .dm-form { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); min-width: 0; width: 100%; box-sizing: border-box; }
+  .dm-form textarea { flex: 1 1 0; width: auto; min-width: 0; min-height: 46px; max-height: 160px; overflow-y: hidden; resize: none; box-sizing: border-box; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; outline: none; background: rgba(5,9,22,.65); color: var(--fg); font: inherit; line-height: 1.4; }
+  .dm-form textarea:focus { border-color: var(--acc); }
+  .dm-form button { flex: 0 0 auto; min-width: 48px; padding: 0 14px; }
+  .dm-form .dm-emo { font-size: 1.15rem; padding: 0 12px; }
+  @media (min-width: 861px) {
+    body.dmopen #srvView { right: var(--dmw); }
+    body.dmopen:not(.inroomview) { padding-right: var(--dmw); }
+  }
+  @media (max-width: 860px) {
+    body.dmopen { --dmo: 0px; }
+    #dmView { width: 100vw; z-index: 40; }
+    .dm-list { padding: 12px 10px; }
+    .dm-form { gap: 6px; padding: 8px 8px max(8px, env(safe-area-inset-bottom)); }
+    .dm-form textarea { font-size: 16px; }
+    .dm-form button { min-width: 44px; min-height: 46px; }
+  }
   .fr-row .ub { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--bad); color: #fff; font: 800 .72rem/20px 'DM Sans', sans-serif; text-align: center; }
-  @media (max-width: 860px) { .dm-dlg { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; } .dm-dlg .dlg-in { height: 100%; grid-template-rows: auto 1fr auto; } .dm-list { height: auto; } .dm-form textarea { font-size: 16px; } .fr-tabs button { font-size: .72rem; } }
-  body.fropen.inroomview #room { margin-left: calc(var(--rail) + var(--frw)); width: calc(100vw - var(--rail) - var(--frw)); }
+  @media (max-width: 860px) { .fr-tabs button { font-size: .72rem; } }
+  body.fropen.inroomview #room { margin-left: calc(var(--rail) + var(--frw)); width: calc(100vw - var(--rail) - var(--frw) - var(--dmo, 0px)); }
   @media (min-width: 861px) and (max-width: 1180px) { body.fropen:not(.inroomview) { padding-left: calc(var(--rail) + var(--frw)); } }
   @media (max-width: 860px) {
-    #frView { width: calc(100vw - var(--rail)); }
-    body.fropen.inroomview #room { margin-left: var(--rail); width: calc(100vw - var(--rail)); }
+    #frView { width: calc(100vw - var(--rail) - var(--dmo, 0px)); }
+    body.fropen.inroomview #room { margin-left: var(--rail); width: calc(100vw - var(--rail) - var(--dmo, 0px)); }
     .fr-tabs { order: 3; border-bottom: 0; border-top: 1px solid var(--line); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
     .fr-tabs button { min-height: 46px; font-size: .78rem; }
     .fr-foot { order: 2; padding-bottom: 8px; }
@@ -5013,7 +5036,7 @@ function closePicker() {
   document.removeEventListener('keydown', pick.key, true);
   pick = null;
 }
-function openPicker(anchor, onPick) {
+function openPicker(anchor, onPick, noCustom) {
   if (pick && pick.anchor === anchor) return closePicker();
   closePicker();
   const box = el('div'); box.id = 'emoPick';
@@ -5023,7 +5046,7 @@ function openPicker(anchor, onPick) {
     const all = list.split(' '), okl = all.filter(emoOk);
     return { icon, title: t(k), list: okl.length >= all.length / 2 ? okl : all };   // se o teste falhar em massa, mostra tudo
   });
-  if (cur && emojis.length) cats.unshift({ icon: '⭐', title: t('ecustom'), custom: true });
+  if (!noCustom && cur && emojis.length) cats.unshift({ icon: '⭐', title: t('ecustom'), custom: true });
   const choose = (p, ev) => { onPick(p); if (!ev.shiftKey) closePicker(); };
   const show = i => {
     [...tabs.children].forEach((b, k) => b.classList.toggle('on', k === i));
@@ -5037,7 +5060,8 @@ function openPicker(anchor, onPick) {
   show(0);                                                   // enche a grade antes de medir (antes media só as abas e a caixa crescia pra fora da tela)
   const r = anchor.getBoundingClientRect(), vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
   const w = box.offsetWidth, h = box.offsetHeight;
-  box.style.left = Math.min(Math.max(8, r.right - w), vw - w - 8) + 'px';
+  const dmh = anchor.closest('#dmView'), hr = dmh && dmh.getBoundingClientRect();
+  box.style.left = (hr ? Math.min(Math.max(8, hr.right - w - 8), vw - w - 8) : Math.min(Math.max(8, r.right - w), vw - w - 8)) + 'px';
   const above = r.top - 16, below = vh - r.bottom - 16;
   if (above >= Math.min(h, 260) || above >= below) {         // abre para cima e cresce para cima
     box.style.maxHeight = Math.min(360, above) + 'px'; box.style.bottom = (vh - r.top + 8) + 'px';
@@ -6395,7 +6419,8 @@ const FR_MSG = {
   my_pending: ['Você já tem ' + FR_PEND + ' pedidos enviados pendentes. Cancele alguns para enviar mais.', 'You already have ' + FR_PEND + ' pending sent requests. Cancel some to send more.'],
   their_pending: ['Essa pessoa não pode receber mais pedidos agora.', 'That person cannot receive more requests right now.'],
   rate: ['Calma! Pedidos demais em pouco tempo. Tente de novo daqui a pouco.', 'Slow down! Too many requests. Try again in a bit.'],
-  gone: ['Esse pedido não existe mais.', 'That request no longer exists.']
+  gone: ['Esse pedido não existe mais.', 'That request no longer exists.'],
+  no_requests: ['Essa pessoa não está aceitando pedidos de amizade.', 'This person is not accepting friend requests.']
 };
 const need27 = () => LL('Falta rodar a migração SQL v27 no Supabase para usar amigos.', 'The v27 SQL migration still needs to be run in Supabase to use friends.');
 const frMsg = c => c === 'sql' ? need27() : FR_MSG[c] ? LL(FR_MSG[c][0], FR_MSG[c][1]) : String(c);
@@ -6422,16 +6447,28 @@ var dmCur = null, dmCh = null, dmPoll = 0, dmInboxL = [], dmUn = 0;
 const DM_MSG = { closed: ['Essa pessoa só recebe mensagens de amigos.', 'This person only receives messages from friends.'], rate: ['Calma! Mensagens demais em pouco tempo.', 'Slow down! Too many messages.'], self: ['Você não pode mandar mensagem para si mesmo.', 'You cannot message yourself.'], not_found: ['Pessoa não encontrada.', 'Person not found.'] };
 const dmMsg = c => c === 'sql' ? LL('Falta rodar a migração SQL v29 no Supabase para usar mensagens.', 'The v29 SQL migration still needs to be run in Supabase to use messages.') : DM_MSG[c] ? LL(DM_MSG[c][0], DM_MSG[c][1]) : String(c);
 $('pfDmLbl').textContent = LL('Receber mensagens só de amigos (desligado: qualquer pessoa pode me escrever)', 'Only receive messages from friends (off: anyone can message me)');
+$('pfNoFrLbl').textContent = LL('Não receber pedidos de amizade de ninguém (desligado: qualquer pessoa pode me adicionar)', 'Do not receive friend requests from anyone (off: anyone can add me)');
+const need30 = () => LL('Falta rodar a migração SQL v30 no Supabase para usar essa opção.', 'The v30 SQL migration still needs to be run in Supabase to use this option.');
 new MutationObserver(async () => {
   const d = $('dlgProfile'); if (!d.open || !uid) return;
-  const c = $('pfDmFriends'); c.disabled = true;
-  try { const { data } = await sb().from('dm_settings').select('friends_only').eq('user_id', uid).maybeSingle(); c.checked = !!(data && data.friends_only); } catch (e) {}
-  c.disabled = false;
+  const c = $('pfDmFriends'), n = $('pfNoFr'); c.disabled = true; n.disabled = true;
+  try {
+    let r = await sb().from('dm_settings').select('friends_only,no_friend_requests').eq('user_id', uid).maybeSingle();
+    if (r.error) r = await sb().from('dm_settings').select('friends_only').eq('user_id', uid).maybeSingle();   // v30 ainda não rodou
+    const data = r.data; c.checked = !!(data && data.friends_only); n.checked = !!(data && data.no_friend_requests);
+  } catch (e) {}
+  c.disabled = false; n.disabled = false;
 }).observe($('dlgProfile'), { attributes: true, attributeFilter: ['open'] });
 $('pfDmFriends').onchange = async e => {
   const { error } = await sb().from('dm_settings').upsert({ user_id: uid, friends_only: e.target.checked });
   if (error) { e.target.checked = !e.target.checked; toast(dmMsg(missingFn(error) ? 'sql' : error.message)); }
   else toast(e.target.checked ? LL('🔒 Agora só amigos podem te mandar mensagem', '🔒 Only friends can message you now') : LL('🔓 Qualquer pessoa pode te mandar mensagem', '🔓 Anyone can message you now'));
+};
+$('pfNoFr').onchange = async e => {
+  const on = e.target.checked;
+  const { error } = await sb().from('dm_settings').upsert({ user_id: uid, friends_only: $('pfDmFriends').checked, no_friend_requests: on });
+  if (error) { e.target.checked = !on; toast(missingFn(error) ? need30() : String(error.message || error)); }
+  else toast(on ? LL('🚫 Ninguém mais pode te enviar pedido de amizade', '🚫 Nobody can send you friend requests now') : LL('✅ Qualquer pessoa pode te enviar pedido de amizade', '✅ Anyone can send you friend requests now'));
 };
 async function dmResolve(p) {
   if (p.user_id) return p.user_id; if (p.other_id) return p.other_id;
@@ -6444,37 +6481,72 @@ async function dmLoadInbox() {
   dmInboxL = data || []; const n = dmInboxL.reduce((s, x) => s + (x.unread || 0), 0);
   if (n !== dmUn) { dmUn = n; renderRail(); } frRender();
 }
+var dmPanel = null;
+function dmClose() {
+  clearInterval(dmPoll); dmCur = null;
+  try { closePicker(); } catch (e) {}
+  if (dmPanel) { dmPanel.remove(); dmPanel = null; }
+  document.body.classList.remove('dmopen');
+}
 async function dmOpen(p) {
   const id = await dmResolve(p); if (!id) return toast(dmMsg('not_found'));
   if (id === uid) return toast(dmMsg('self'));
-  document.querySelectorAll('dialog.dm-dlg').forEach(d => d.close());
+  if (dmCur && dmCur.id === id && dmPanel) { const t0 = dmPanel.querySelector('textarea'); if (t0) t0.focus(); return; }
+  dmClose();
   const o = { id, username: p.username || '', display_name: p.display_name || '?', avatar_path: p.avatar_path || null };
-  const d = el('dialog', 'dlg dm-dlg'), w = el('div', 'dlg-in'), top = el('div', 'dm-top'), nm = el('b', '', o.display_name), list = el('div', 'dm-list'), f = el('form', 'dm-form'), ta = el('textarea'), go = el('button', '', '➤');
+  const mp = A().myProfile() || {}, meo = { display_name: mp.display_name || '?', username: mp.username || '', avatar_path: mp.avatar_path || null };
+  const d = el('aside'); d.id = 'dmView'; dmPanel = d;
+  const head = el('div', 'dm-head'), avw = el('div', 'dm-av'), who = el('div', 'dm-who'), nm = el('b', '', o.display_name);
+  const list = el('div', 'dm-list'), f = el('form', 'dm-form'), ta = el('textarea'), go = el('button', '', '➤'), emo = mk('😊', e => openPicker(e.currentTarget, q => ins(q.u), true), 'sec dm-emo');
   if (o.username && window.NS) NS.apply(nm, o.username);
-  top.append(A().avatar(o, 38), nm, mk('✕', () => d.close(), 'sec x'));
-  ta.rows = 1; ta.maxLength = 1000; ta.placeholder = LL('Escreva uma mensagem', 'Write a message'); go.type = 'submit'; f.append(ta, go); w.append(top, list, f); d.append(w);
-  let last = 0;
+  const openCard = () => A().showCard({ user_id: id, username: o.username, display_name: o.display_name, avatar_path: o.avatar_path });
+  avw.append(A().avatar(o, 40), presDot(id, 'pos-dm')); avw.onclick = openCard; who.onclick = openCard;
+  who.append(nm, el('small', 'mut', o.username ? '@' + o.username : ''));
+  head.append(avw, who, mk('✕', dmClose, 'sec x'));
+  ta.rows = 1; ta.maxLength = 1000; ta.placeholder = LL('Escreva uma mensagem', 'Write a message'); ta.autocomplete = 'off'; emo.title = LL('Emojis', 'Emojis'); go.type = 'submit';
+  f.append(emo, ta, go); d.append(head, list, f);
+  const ins = t => {
+    const a = ta.selectionStart == null ? ta.value.length : ta.selectionStart, e2 = ta.selectionEnd == null ? a : ta.selectionEnd, v = ta.value.slice(0, a) + t + ta.value.slice(e2);
+    if (v.length > ta.maxLength) return; ta.value = v; ta.focus(); try { ta.setSelectionRange(a + t.length, a + t.length); } catch (e) {} fit();
+  };
+  const fit = () => { ta.style.height = 'auto'; const h = ta.scrollHeight; ta.style.height = Math.min(h, 160) + 'px'; ta.style.overflowY = h > 160 ? 'auto' : 'hidden'; };
+  ta.oninput = fit;
+  let last = 0, prev = null;
+  const empty = el('p', 'mut dm-empty', LL('Esta é a sua conversa com ' + o.display_name + '. Diga oi! 👋', 'This is your conversation with ' + o.display_name + '. Say hi! 👋'));
+  const addRow = r => {
+    const mine = r.sender_id === uid, w = mine ? meo : o, ts = Date.parse(r.created_at) || Date.now();
+    const cont = !!prev && prev.mine === mine && ts - prev.ts >= 0 && ts - prev.ts < GROUP_MS;
+    const m = el('div', 'msg' + (cont ? ' cont' : '')); m.dataset.uid = mine ? uid : id; m.dataset.ts = String(ts);
+    const av = A().avatar(w, 36), mb = el('div', 'mb'), mh = el('div', 'mh'), mn = el('strong', 'click mname', w.display_name);
+    if (w.username && window.NS) NS.apply(mn, w.username);
+    const oc = () => mine ? A().showCard({ user_id: uid, username: meo.username, display_name: meo.display_name, avatar_path: meo.avatar_path }) : openCard();
+    mn.onclick = oc; av.onclick = oc; av.classList.add('click');
+    mh.append(mn, el('span', 'mut', new Date(r.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
+    const mt = el('div', 'mt'), tx = el('div', 'mtx'), c = String(r.content || ''); mdInto(tx, c); mt.append(tx); mt.classList.toggle('jumbo', isJumbo(c));
+    mb.append(mh, mt); m.append(av, mb, presDot(mine ? uid : id, 'pos-msg')); list.append(m); prev = { mine, ts };
+  };
   const paint = rows => {
-    const bottom = list.scrollHeight - list.scrollTop - list.clientHeight < 60 || !last;
-    rows.forEach(r => { if (r.id <= last) return; last = r.id; const m = el('div', 'dm-m' + (r.sender_id === uid ? ' me' : ''), r.content); m.append(el('small', '', new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))); list.append(m); });
-    if (bottom) list.scrollTop = list.scrollHeight;
+    const near = list.scrollHeight - list.scrollTop - list.clientHeight < 90 || !last; let mineNew = false;
+    rows.forEach(r => { if (r.id <= last) return; last = r.id; if (empty.parentNode) empty.remove(); addRow(r); if (r.sender_id === uid) mineNew = true; });
+    if (!last && !empty.parentNode) list.append(empty);
+    if (near || mineNew) list.scrollTop = list.scrollHeight;
   };
   const pull = async () => {
     const { data, error } = await sb().from('dm_messages').select('id,sender_id,content,created_at').or('and(sender_id.eq.' + uid + ',recipient_id.eq.' + id + '),and(sender_id.eq.' + id + ',recipient_id.eq.' + uid + ')').order('created_at', { ascending: false }).limit(100);
+    if (dmPanel !== d) return;
     if (error) { if (!last) list.append(el('p', 'mut', dmMsg(missingFn(error) ? 'sql' : error.message))); return; }
     paint((data || []).reverse()); sb().rpc('dm_mark_read', { p_other: id }).then(() => dmLoadInbox());
   };
   f.onsubmit = async e => {
-    e.preventDefault(); const c = ta.value.trim(); if (!c) return; go.disabled = true;
+    e.preventDefault(); const c = ta.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000); if (!c) return; go.disabled = true;
     const { data, error } = await sb().rpc('dm_send', { p_to: id, p_content: c }); go.disabled = false;
     if (error || data !== 'ok') return toast(dmMsg(error ? (missingFn(error) ? 'sql' : error.message) : data));
-    ta.value = ''; await pull(); ta.focus();
+    ta.value = ''; fit(); closePicker(); await pull(); ta.focus();
   };
   ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && innerWidth > 860) { e.preventDefault(); f.requestSubmit(); } };
-  d.addEventListener('close', () => { clearInterval(dmPoll); dmCur = null; d.remove(); });
-  d.addEventListener('click', e => { if (e.target === d) d.close(); });
-  document.body.append(d); d.showModal(); dmCur = { id, pull };
-  await pull(); clearInterval(dmPoll); dmPoll = setInterval(pull, 6000); ta.focus();
+  document.body.append(d); document.body.classList.add('dmopen'); dmCur = { id, pull };
+  await pull(); if (dmPanel !== d) return;
+  clearInterval(dmPoll); dmPoll = setInterval(pull, 6000); ta.focus();
 }
 async function dmIncoming(r) {
   if (!r || r.sender_id === uid) return;
@@ -6489,7 +6561,7 @@ function dmStart() {
   const me = uid; if (!me) return; dmLoadInbox();
   try { dmCh = sb().channel('ns-dm:' + me).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dm_messages', filter: 'recipient_id=eq.' + me }, p => dmIncoming(p.new)).subscribe(); } catch (e) { dmCh = null; }
 }
-function dmStop() { clearInterval(dmPoll); if (dmCh) { try { sb().removeChannel(dmCh); } catch (e) {} dmCh = null; } dmInboxL = []; dmUn = 0; document.querySelectorAll('dialog.dm-dlg').forEach(d => d.close()); }
+function dmStop() { clearInterval(dmPoll); if (dmCh) { try { sb().removeChannel(dmCh); } catch (e) {} dmCh = null; } dmInboxL = []; dmUn = 0; dmClose(); }
 function dmInboxPaint(b) {
   if (!dmInboxL.length) return frEmpty(b, LL('Nenhuma conversa ainda. Abra o perfil de alguém e toque em Mensagem.', 'No conversations yet. Open someone’s profile and tap Message.'));
   dmInboxL.forEach(x => {
