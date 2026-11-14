@@ -739,7 +739,7 @@ function loadPeer() {
 $('join').addEventListener('focusin', () => { loadPeer(); ensureIce(); }, { once: true });
 
 /* =====================  REDE E OTIMIZAÇÕES  ===================== */
-const APP_VERSION = '6.3';
+const APP_VERSION = '6.4';
 const CUSTOM_TURN = [];
 const PEER_OPTS = { config: { sdpSemantics: 'unified-plan', iceServers: [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -1114,6 +1114,7 @@ async function sendHello(c) {
       const pr = window.Acc && Acc.myProfile && Acc.myProfile();   // decorações e estilo do nome vão junto: o convidado sem conta não consegue lê-los no servidor
       if (pr && pr.pfx) hello.fx = String(pr.pfx).slice(0, 60);
       if (pr && pr.ns) hello.ns = { font: pr.ns.font || '', color: pr.ns.color || '', color2: pr.ns.color2 || '', fx: pr.ns.fx || '' };
+      console.info('[NetShare] enviei no hello:', { fx: hello.fx || null, ns: hello.ns || null, perfil: !!pr });
     }
     c.send(hello);
   } catch (e) {}
@@ -1211,6 +1212,7 @@ async function onHello(c, d) {
     people.set(id, { name, sharing: !!d.sharing, kind: d.sharing && (d.kind === 'cam' || d.kind === 'screen') ? d.kind : null,
                      cid, slot: cleanNum(d.slot, 0, MAX_SLOTS), since: performance.now() - theirs, mic: !!d.mic, deaf: !!d.deaf });
   }
+  console.info('[NetShare] hello recebido de', name, { sid: typeof d.sid === 'string', fx: d.fx || null, ns: d.ns || null, ver: d.ver });
   if (window.Acc && typeof d.sid === 'string') Acc.verify(id, d.sid, { fx: typeof d.fx === 'string' ? d.fx.slice(0, 60) : '', ns: d.ns && typeof d.ns === 'object' ? d.ns : null });
   const cur = conns.get(id);
   if (cur !== c && !(cur && cur.open && cur.verified)) {
