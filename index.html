@@ -188,6 +188,10 @@
   .acts { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
   .acts button { min-height: 29px; padding: 4px 8px; border-radius: 7px; font-size: .7rem; }
   .badge { color: var(--ok); font-size: .74rem; white-space: nowrap; }
+  .prt { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+  .vb { display: inline-flex; gap: 4px; font-size: .86rem; line-height: 1; }
+  #controls button.live { background: rgba(67,217,163,.16); border-color: rgba(67,217,163,.42); color: #8ff2cb; }
+  #controls button.live:hover:not(:disabled) { background: rgba(67,217,163,.24); box-shadow: none; }
 
   #controls { grid-column: 1/-1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px; border: 1px solid var(--line); border-radius: 16px; background: rgba(17,25,49,.84); box-shadow: 0 15px 40px rgba(0,0,0,.22); backdrop-filter: blur(18px); }
   #controls .sp { flex: 1; }
@@ -384,6 +388,11 @@
       </select>
     </label>
     <button id="btnStop" class="bad" disabled data-i18n="btnStop"></button>
+    <button id="btnMic" class="sec"></button>
+    <label class="mut"><span data-i18n="lblMic"></span>
+      <select id="micDev"><option value="" data-i18n="micDefault" selected></option></select>
+    </label>
+    <button id="btnDeaf" class="sec"></button>
     <label class="mut"><span data-i18n="lblFps"></span>
       <select id="fps">
         <option value="30" selected>30 FPS</option>
@@ -494,6 +503,10 @@ const I18N = {
   btnCam:'Ligar câmera', btnCamRe:'Reiniciar câmera', lblCam:'Câmera:', camFront:'Frontal', camBack:'Traseira',
   btnStop:'Parar', lblFps:'Fluidez:', lblRes:'Resolução:', res720:'720p (leve)', res1080:'1080p (Full HD)', res1440:'1440p (2K)', res2160:'2160p (4K)',
   btnLeave:'Sair da sala', lblVol:'Volume:', volTile:'Volume desta transmissão',
+  btnMicOn:'🎙️ Ligar microfone', btnMicOff:'🎙️ Desligar microfone', btnDeafOn:'🎧 Parar de ouvir tudo', btnDeafOff:'🎧 Voltar a ouvir', lblMic:'Microfone:', micDefault:'Padrão',
+  micDenied:'O navegador não deixou usar o microfone. Libere a permissão nas configurações do site e tente de novo.', micFail:'Não foi possível ligar o microfone: {e}', cantMic:'O microfone só funciona em páginas seguras (https).',
+  micNoPerm:'Você não tem permissão para falar neste canal', mutedByMod:'Você foi mutado: ninguém ouve o seu microfone.', deafByMod:'Um moderador desligou o seu áudio: você não consegue ouvir ninguém.', mutedDeafByMod:'Um moderador mutou você e desligou o seu áudio.', freedByMod:'Um moderador liberou o seu áudio.',
+  mute:'Mutar', unmute:'Desmutar', deafen:'Ensurdecer', undeafen:'Liberar áudio', tagMic:'microfone ligado', tagMuted:'mutado por moderador', tagDeaf:'não está ouvindo', tagDeafMod:'ensurdecido por moderador',
   you:'você', owner:'Dono da sala', kick:'Expulsar', ban:'Banir', makeOwner:'Passar posse',
   hideScreen:'Ocultar tela', showScreen:'Mostrar tela', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
   confirmKick:'Expulsar {name} da sala? A pessoa poderá entrar de novo.',
@@ -540,6 +553,10 @@ const I18N = {
   btnCam:'Turn on camera', btnCamRe:'Restart camera', lblCam:'Camera:', camFront:'Front', camBack:'Rear',
   btnStop:'Stop', lblFps:'Smoothness:', lblRes:'Resolution:', res720:'720p (light)', res1080:'1080p (Full HD)', res1440:'1440p (2K)', res2160:'2160p (4K)',
   btnLeave:'Leave room', lblVol:'Volume:', volTile:'Volume of this stream',
+  btnMicOn:'🎙️ Turn on microphone', btnMicOff:'🎙️ Turn off microphone', btnDeafOn:'🎧 Stop hearing everyone', btnDeafOff:'🎧 Hear again', lblMic:'Microphone:', micDefault:'Default',
+  micDenied:'The browser did not allow the microphone. Allow it in the site settings and try again.', micFail:'Could not turn on the microphone: {e}', cantMic:'The microphone only works on secure pages (https).',
+  micNoPerm:'You do not have permission to talk in this channel', mutedByMod:'You were muted: nobody can hear your microphone.', deafByMod:'A moderator turned off your audio: you cannot hear anyone.', mutedDeafByMod:'A moderator muted you and turned off your audio.', freedByMod:'A moderator restored your audio.',
+  mute:'Mute', unmute:'Unmute', deafen:'Deafen', undeafen:'Undeafen', tagMic:'microphone on', tagMuted:'muted by a moderator', tagDeaf:'not listening', tagDeafMod:'deafened by a moderator',
   you:'you', owner:'Room owner', kick:'Kick', ban:'Ban', makeOwner:'Make owner',
   hideScreen:'Hide screen', showScreen:'Show screen', hideBtn:'Hide', soundOn:'Turn sound on', soundOff:'Mute',
   confirmKick:'Kick {name} from the room? They will be able to join again.',
@@ -586,6 +603,10 @@ const I18N = {
   btnCam:'Ligar câmara', btnCamRe:'Reiniciar câmara', lblCam:'Câmara:', camFront:'Frontal', camBack:'Traseira',
   btnStop:'Parar', lblFps:'Fluidez:', lblRes:'Resolução:', res720:'720p (leve)', res1080:'1080p (Full HD)', res1440:'1440p (2K)', res2160:'2160p (4K)',
   btnLeave:'Sair da sala', lblVol:'Volume:', volTile:'Volume desta transmissão',
+  btnMicOn:'🎙️ Ligar microfone', btnMicOff:'🎙️ Desligar microfone', btnDeafOn:'🎧 Deixar de ouvir tudo', btnDeafOff:'🎧 Voltar a ouvir', lblMic:'Microfone:', micDefault:'Predefinido',
+  micDenied:'O navegador não permitiu usar o microfone. Autorize nas definições do site e tente outra vez.', micFail:'Não foi possível ligar o microfone: {e}', cantMic:'O microfone só funciona em páginas seguras (https).',
+  micNoPerm:'Não tem permissão para falar neste canal', mutedByMod:'Foi silenciado: ninguém ouve o seu microfone.', deafByMod:'Um moderador desligou o seu áudio: não consegue ouvir ninguém.', mutedDeafByMod:'Um moderador silenciou-o e desligou o seu áudio.', freedByMod:'Um moderador libertou o seu áudio.',
+  mute:'Silenciar', unmute:'Deixar falar', deafen:'Desligar áudio', undeafen:'Ligar áudio', tagMic:'microfone ligado', tagMuted:'silenciado por moderador', tagDeaf:'não está a ouvir', tagDeafMod:'sem áudio por moderador',
   you:'você', owner:'Dono da sala', kick:'Expulsar', ban:'Banir', makeOwner:'Passar posse',
   hideScreen:'Ocultar ecrã', showScreen:'Mostrar ecrã', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
   confirmKick:'Expulsar {name} da sala? A pessoa poderá entrar novamente.',
@@ -691,7 +712,7 @@ function loadPeer() {
 $('join').addEventListener('focusin', () => { loadPeer(); ensureIce(); }, { once: true });
 
 /* =====================  REDE E OTIMIZAÇÕES  ===================== */
-const APP_VERSION = '6.2';
+const APP_VERSION = '6.3';
 const CUSTOM_TURN = [];
 const PEER_OPTS = { config: { sdpSemantics: 'unified-plan', iceServers: [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -758,6 +779,15 @@ const calls = new Map();
 const pendingCalls = new Map();
 const people = new Map();
 const tiles = new Map();
+
+/* ---- voz (microfone) e moderação de áudio ---- */
+let micStream = null, micTok = 0, selfDeaf = false;
+const vcalls = new Map();        // minha voz -> cada pessoa (chamada só de áudio, marcada com metadata.k = 'voice')
+const vplay = new Map();         // voz que chega: id -> { call, el }
+const pendingVoice = new Map();
+const lastVoiceTry = new Map();
+const modMap = new Map();        // chave ('c:cid', 'n:nome', 'u:usuário') -> { m: mutado, d: ensurdecido, ts }
+let modVer = 0, prevMyMod = { m: 0, d: 0 };
 
 let own = { id: null, epoch: 0 };
 const bans = new Set();
@@ -843,6 +873,7 @@ function destroyTile(t) {
 function resetState() {
   ignoreUntil.clear(); conns.clear(); spare.clear(); dialing.clear(); calls.clear(); pendingCalls.clear(); people.clear(); rx.clear(); lastResend.clear();
   tiles.forEach(destroyTile); tiles.clear();
+  vcalls.clear(); pendingVoice.clear(); lastVoiceTry.clear(); [...vplay.keys()].forEach(dropVoiceIn);
   own = { id: null, epoch: 0 }; bans.clear(); bansName.clear(); hidden.clear();
   clearTimeout(heirTimer); clearTimeout(kickTimer); kickTimer = 0; ownerWindow = 0;
 }
@@ -883,6 +914,7 @@ function claimSlot(i) {
       probeTimer = setTimeout(() => {
         probe();
         if (isOwner()) broadcast({ t: 'owner', id: own.id, epoch: own.epoch });
+        broadcastMods(); syncVoiceOut();
         if (me === peer && !leaving) tick();
       }, 5000 + Math.random() * 3000);
     };
@@ -1048,7 +1080,7 @@ async function sendHello(c) {
   if (!c.open || leaving) return;
   try {
     const hello = { t: 'hello', name: myName, sharing: !!myStream, kind: myKind, age: c.sentAge, hasPass: !!roomKey, proof,
-                    slot: mySlot, ver: APP_VERSION, cid: clientId };
+                    slot: mySlot, ver: APP_VERSION, cid: clientId, mic: !!micStream, deaf: selfDeaf };
     if (accSid) hello.sid = accSid;
     c.send(hello);
   } catch (e) {}
@@ -1084,6 +1116,13 @@ async function onData(c, d) {
       if (nm) bansName.add(nm);
       if ((cid && cid === clientId) || (nm && nm === norm(myName))) kickOut('banned');
     }
+  } else if (d.t === 'vstate') {
+    const p = people.get(id);
+    if (p) { p.mic = !!d.mic; p.deaf = !!d.deaf; render(); }
+  } else if (d.t === 'mod') {
+    onMod(id, d);
+  } else if (d.t === 'mods') {
+    onMods(id, d.l);
   } else if (d.t === 'resend') {
     resendTo(id);
   } else if (d.t === 'kicked') {
@@ -1132,7 +1171,7 @@ async function onHello(c, d) {
   clearTimeout(c.vt);
   if (!people.has(id)) {
     people.set(id, { name, sharing: !!d.sharing, kind: d.sharing && (d.kind === 'cam' || d.kind === 'screen') ? d.kind : null,
-                     cid, slot: cleanNum(d.slot, 0, MAX_SLOTS), since: performance.now() - theirs });
+                     cid, slot: cleanNum(d.slot, 0, MAX_SLOTS), since: performance.now() - theirs, mic: !!d.mic, deaf: !!d.deaf });
   }
   if (window.Acc && typeof d.sid === 'string') Acc.verify(id, d.sid);
   const cur = conns.get(id);
@@ -1145,17 +1184,21 @@ async function onHello(c, d) {
   if (['searching', 'created'].includes(msgKey())) msg('');
   const pc = pendingCalls.get(id);
   if (pc) { pendingCalls.delete(id); answerCall(pc); }
+  const pv = pendingVoice.get(id);
+  if (pv) { pendingVoice.delete(id); answerVoice(pv); }
   if (myStream) callPeer(id);
+  if (micStream) callVoice(id);
   render();
 }
 
 function sendState(c) {
-  try { c.send({ t: 'state', own: { id: own.id, epoch: own.epoch }, bans: [...bans].slice(0, 200), bn: [...bansName].slice(0, 200) }); } catch (e) {}
+  try { c.send({ t: 'state', own: { id: own.id, epoch: own.epoch }, bans: [...bans].slice(0, 200), bn: [...bansName].slice(0, 200), mods: modSnapshot() }); } catch (e) {}
 }
 function onState(c, d) {
   c.accepted = true;
   const o = d.own;
   if (o && typeof o.id === 'string') mergeOwner({ id: o.id, epoch: o.epoch }, 'hello');
+  if (Array.isArray(d.mods)) onMods(c.peer, d.mods);
   if (!roomIsVoice && c.peer === own.id) {
     const b = cleanList(d.bans, 200, 64), n = cleanList(d.bn, 200, 24).map(norm);
     if (b.includes(clientId) || n.includes(norm(myName))) { kickOut('banned'); return; }
@@ -1174,6 +1217,7 @@ function broadcast(m) { connIds().forEach(id => { const c = verifiedConn(id); if
 function drop(id) {
   conns.delete(id); people.delete(id); pendingCalls.delete(id); hidden.delete(id); rx.delete(id);
   const c = calls.get(id); if (c) c.close(); calls.delete(id);
+  const vc = vcalls.get(id); if (vc) { try { vc.close(); } catch (e) {} } vcalls.delete(id); dropVoiceIn(id); pendingVoice.delete(id);
   removeTile(id);
   if (own.id === id) ownerLeft();
   render();
@@ -1249,9 +1293,287 @@ function kickPerson(id, ban) {
   setTimeout(() => { allConns(id).forEach(x => { try { x.close(); } catch (e) {} }); }, 300);
 }
 
+/* =====================  MICROFONE, OUVIR E MODERAÇÃO DE ÁUDIO  =====================
+   - Voz = chamada só de áudio (metadata.k = 'voice'), separada da transmissão de tela/câmera.
+   - Cada pessoa liga/desliga o próprio microfone e pode "parar de ouvir tudo".
+   - Moderação: quem tem poder (dono da sala avulsa; dono/admin do servidor na sala de voz) pode
+     MUTAR (ninguém ouve a pessoa) e ENSURDECER (a pessoa não ouve ninguém). Quem manda é conferido por quem recebe. */
+const keyOk = k => typeof k === 'string' && /^[cnu]:/.test(k) && k.length > 2 && k.length <= 70;
+const cleanKeys = a => Array.isArray(a) ? a.slice(0, 3).map(k => cleanStr(k, 70)).filter(keyOk) : [];
+// identidade de moderação: no servidor vale a conta verificada (usuário) + este navegador; na sala avulsa, este navegador + o nome
+const peerKeys = p => {
+  const k = [];
+  if (roomIsVoice) { if (p.prof && p.prof.username) k.push('u:' + p.prof.username); if (p.cid) k.push('c:' + p.cid); }
+  else { if (p.cid) k.push('c:' + p.cid); if (p.name) k.push('n:' + norm(p.name)); }
+  return k;
+};
+const myKeys = () => {
+  const k = ['c:' + clientId];
+  const pr = window.Acc && Acc.myProfile && Acc.myProfile();
+  if (roomIsVoice) { if (pr && pr.username) k.unshift('u:' + pr.username); }
+  else if (myName) k.push('n:' + norm(myName));
+  return k;
+};
+function modOf(keys) {
+  let best = null;
+  for (const k of keys) { const e = modMap.get(k); if (e && (!best || e.ts > best.ts)) best = e; }
+  return best || { m: 0, d: 0, ts: 0 };
+}
+
+// poder: 3 = dono, 2 = admin, 1 = membro/participante, 0 = desconhecido
+function rankOfPeer(id) {
+  if (!roomIsVoice) return id === own.id ? 3 : 1;
+  const p = people.get(id);
+  return window.Srv && Srv.voiceRank && p && p.prof ? Srv.voiceRank(p.prof.username) : 0;
+}
+function myRank() {
+  if (!roomIsVoice) return isOwner() ? 3 : 1;
+  return window.Srv && Srv.voiceMyRank ? Srv.voiceMyRank() : 0;
+}
+function rankOfKeys(keys) {
+  let r = 0;
+  if (keys.some(k => myKeys().includes(k))) r = Math.max(r, myRank());
+  people.forEach((p, id) => { if (peerKeys(p).some(k => keys.includes(k))) r = Math.max(r, rankOfPeer(id)); });
+  if (roomIsVoice && window.Srv && Srv.voiceRank) keys.forEach(k => { if (k[0] === 'u') r = Math.max(r, Srv.voiceRank(k.slice(2))); });
+  return r;
+}
+const modAuth = (sender, keys) => { const sr = rankOfPeer(sender); return sr >= 2 && sr > rankOfKeys(keys); };
+
+function canModPeer(id) {
+  const p = people.get(id); if (!p || !verifiedConn(id)) return false;
+  if (roomIsVoice && !(p.prof && p.prof.username)) return false;   // no servidor, só com conta conferida
+  const mr = myRank();
+  return mr >= 2 && mr > rankOfPeer(id);
+}
+
+function setMod(keys, m, d, ts) {
+  let changed = false;
+  keys.forEach(k => {
+    const e = modMap.get(k);
+    if (e && e.ts >= ts) return;
+    modMap.set(k, { m: m ? 1 : 0, d: d ? 1 : 0, ts }); changed = true;
+  });
+  if (modMap.size > 150) {   // poda só os registros "liberados" mais antigos
+    const old = [...modMap].filter(([, e]) => !e.m && !e.d).sort((a, b) => a[1].ts - b[1].ts);
+    while (modMap.size > 120 && old.length) modMap.delete(old.shift()[0]);
+  }
+  return changed;
+}
+const clampTs = x => Math.min(cleanNum(x, 0, 8.64e15), Date.now() + 60000);
+function onMod(sender, d) {
+  const keys = cleanKeys(d.k); if (!keys.length) return;
+  if (!modAuth(sender, keys)) return;
+  if (setMod(keys, d.m, d.d, clampTs(d.ts))) applyMods();
+}
+function onMods(sender, list) {
+  if (!Array.isArray(list)) return;
+  let ch = false;
+  list.slice(0, 100).forEach(x => {
+    if (!Array.isArray(x)) return;
+    const k = cleanStr(x[0], 70); if (!keyOk(k)) return;
+    if (!modAuth(sender, [k])) return;
+    if (setMod([k], x[1], x[2], clampTs(x[3]))) ch = true;
+  });
+  if (ch) applyMods();
+}
+const modSnapshot = () => [...modMap].slice(0, 100).map(([k, e]) => [k, e.m, e.d, e.ts]);
+function broadcastMods() { if (modMap.size && myRank() >= 2) broadcast({ t: 'mods', l: modSnapshot() }); }
+
+function setPeerMod(id, patch) {
+  if (!canModPeer(id)) return;
+  const p = people.get(id), keys = peerKeys(p), cur = modOf(keys);
+  const m = patch.m != null ? patch.m : cur.m, d = patch.d != null ? patch.d : cur.d;
+  const ts = Math.max(Date.now(), cur.ts + 1);
+  setMod(keys, m, d, ts);
+  broadcast({ t: 'mod', k: keys, m, d, ts });
+  applyMods();
+}
+
+function notify(k) { msgK(k); setTimeout(() => { if (msgKey() === k) msg(''); }, 7000); }
+function applyMods() {
+  modVer++;
+  const me = modOf(myKeys());
+  if (me.m && micStream) micStop();
+  const was = prevMyMod; prevMyMod = { m: me.m, d: me.d };
+  if ((me.m && !was.m) || (me.d && !was.d)) notify(me.m && me.d ? 'mutedDeafByMod' : me.m ? 'mutedByMod' : 'deafByMod');
+  else if (!me.m && !me.d && (was.m || was.d)) notify('freedByMod');
+  syncVoiceOut(); syncAudio(); updateButtons(); render();
+}
+
+/* ---- o que eu escuto ---- */
+const deaf = () => selfDeaf || !!modOf(myKeys()).d;
+function silenced(id) { const p = people.get(id); return !!p && !!modOf(peerKeys(p)).m; }
+const forcedMute = id => deaf() || silenced(id);
+function syncAudio() {
+  tiles.forEach((t, id) => {
+    if (t.local) return;
+    const v = t.video;
+    if (forcedMute(id)) { t.forced = true; if (!v.muted) v.muted = true; return; }
+    if (t.forced) {   // acabou o silêncio forçado: volta a tocar com som, se a pessoa não tinha mutado este vídeo
+      t.forced = false;
+      if (!t.userMuted && v.srcObject) {
+        v.muted = false; t.autoMuted = false;
+        const pr = v.play(); if (pr && pr.catch) pr.catch(() => { v.muted = true; t.autoMuted = true; });
+      }
+    }
+  });
+  vplay.forEach((r, id) => {
+    const a = r.el; if (!a) return;
+    a.muted = forcedMute(id);
+    a.volume = Math.min(1, Math.max(0, masterVol));
+    if (!a.muted && a.srcObject && a.paused) { const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); }
+  });
+}
+
+function dropVoiceIn(id) {
+  const r = vplay.get(id); if (!r) return;
+  vplay.delete(id);
+  try { r.call.close(); } catch (e) {}
+  if (r.el) { try { r.el.srcObject = null; } catch (e) {} r.el.remove(); }
+}
+function onVoiceCall(call) {
+  const id = call.peer;
+  if (verifiedConn(id)) { answerVoice(call); return; }
+  pendingVoice.set(id, call);
+  setTimeout(() => { if (pendingVoice.get(id) === call) { pendingVoice.delete(id); try { call.close(); } catch (e) {} } }, 25000);
+}
+function answerVoice(call) {
+  const id = call.peer;
+  dropVoiceIn(id);
+  call.answer();   // só recebe: a minha voz sai por outra chamada
+  const rec = { call, el: null };
+  vplay.set(id, rec);
+  call.on('stream', s => {
+    if (vplay.get(id) !== rec) return;
+    if (!rec.el) {
+      const a = document.createElement('audio'); a.autoplay = true; a.setAttribute('playsinline', ''); a.style.display = 'none';
+      document.body.append(a); rec.el = a;
+    }
+    if (rec.el.srcObject !== s) rec.el.srcObject = s;
+    syncAudio();
+    const pr = rec.el.play(); if (pr && pr.catch) pr.catch(() => {});   // se o navegador barrar, o primeiro toque na página libera
+  });
+  call.on('close', () => { if (vplay.get(id) === rec) dropVoiceIn(id); });
+  call.on('error', () => { if (vplay.get(id) === rec) dropVoiceIn(id); });
+}
+
+/* ---- o que eu falo ---- */
+function callVoice(id) {
+  if (!micStream || !peer || !peer.open || vcalls.has(id) || !verifiedConn(id)) return;
+  const p = people.get(id);
+  if (!p || modOf(peerKeys(p)).d || modOf(myKeys()).m) return;   // quem está ensurdecido não recebe a minha voz
+  const now = Date.now();
+  if (now - (lastVoiceTry.get(id) || 0) < 3000) return;
+  lastVoiceTry.set(id, now);
+  let c = null;
+  try { c = peer.call(id, micStream, { metadata: { k: 'voice' } }); } catch (e) { return; }
+  if (!c) return;
+  vcalls.set(id, c);
+  const gone = () => { if (vcalls.get(id) === c) vcalls.delete(id); };
+  c.on('close', gone); c.on('error', gone);
+}
+function syncVoiceOut() {
+  if (!micStream) return;
+  const myM = modOf(myKeys());
+  vcalls.forEach((c, id) => {
+    const p = people.get(id);
+    if (!p || myM.m || modOf(peerKeys(p)).d) { try { c.close(); } catch (e) {} vcalls.delete(id); }
+  });
+  connIds().forEach(id => callVoice(id));
+}
+
+async function fillMicList() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  let list = [];
+  try { list = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput'); } catch (e) { return; }
+  const sel = $('micDev');
+  let want = sel.value; if (!want) { try { want = localStorage.getItem('sala-mic') || ''; } catch (e) { want = ''; } }
+  sel.textContent = '';
+  const def = document.createElement('option'); def.value = ''; def.dataset.i18n = 'micDefault'; def.textContent = T('micDefault'); sel.append(def);
+  list.forEach((d, i) => {
+    if (!d.deviceId || d.deviceId === 'default' || d.deviceId === 'communications') return;
+    const o = document.createElement('option'); o.value = d.deviceId;
+    o.textContent = d.label || (T('lblMic').replace(':', '') + ' ' + (i + 1));
+    sel.append(o);
+  });
+  sel.value = [...sel.options].some(o => o.value === want) ? want : '';
+}
+
+async function micStart() {
+  if (micStream || !roomCanSpeak || !peer) return;
+  if (!canUseCamera) { msgK('cantMic'); return; }
+  if (modOf(myKeys()).m) { notify('mutedByMod'); return; }
+  const tok = ++micTok;
+  const base = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+  const dev = $('micDev').value;
+  let s = null, err = null;
+  try { s = await navigator.mediaDevices.getUserMedia({ audio: dev ? Object.assign({ deviceId: { exact: dev } }, base) : base }); }
+  catch (e) {
+    err = e;
+    if (dev && e && ['OverconstrainedError', 'NotFoundError'].includes(e.name)) {   // microfone escolhido não existe mais: usa o padrão
+      try { s = await navigator.mediaDevices.getUserMedia({ audio: base }); err = null; $('micDev').value = ''; } catch (e2) { err = e2; }
+    }
+  }
+  if (!s) {
+    if (tok !== micTok) return;
+    if (err && ['NotAllowedError', 'SecurityError', 'PermissionDeniedError'].includes(err.name)) notify('micDenied');
+    else { msgK('micFail', { e: (err && err.message) || String(err) }); setTimeout(() => { if (msgKey() === 'micFail') msg(''); }, 7000); }
+    return;
+  }
+  if (tok !== micTok || leaving || !peer || modOf(myKeys()).m) { s.getTracks().forEach(t => t.stop()); return; }
+  micStream = s;
+  s.getAudioTracks().forEach(t => { t.onended = () => { if (micStream === s) micStop(); }; });
+  lastVoiceTry.clear();
+  fillMicList();   // agora com os nomes dos microfones
+  connIds().forEach(id => callVoice(id));
+  broadcast({ t: 'vstate', mic: true, deaf: selfDeaf });
+  updateButtons(); render();
+}
+function micStop() {
+  micTok++;
+  if (!micStream) return;
+  const s = micStream; micStream = null;
+  s.getTracks().forEach(t => { t.onended = null; try { t.stop(); } catch (e) {} });
+  [...vcalls.values()].forEach(c => { try { c.close(); } catch (e) {} });
+  vcalls.clear(); lastVoiceTry.clear();
+  broadcast({ t: 'vstate', mic: false, deaf: selfDeaf });
+  updateButtons(); render();
+}
+function setSelfDeaf(on) {
+  if (modOf(myKeys()).d) return;   // ensurdecido por moderador: só o moderador libera
+  selfDeaf = !!on;
+  syncAudio();
+  broadcast({ t: 'vstate', mic: !!micStream, deaf: selfDeaf });
+  updateButtons(); render();
+}
+$('btnMic').onclick = () => { if (micStream) micStop(); else micStart(); };
+$('btnDeaf').onclick = () => setSelfDeaf(!selfDeaf);
+$('micDev').onchange = () => {
+  try { localStorage.setItem('sala-mic', $('micDev').value); } catch (e) {}
+  if (micStream) { micStop(); micStart(); }
+};
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+  navigator.mediaDevices.addEventListener('devicechange', () => { if (!$('room').classList.contains('hidden')) fillMicList(); });
+}
+
+function voiceBadges(id, you) {
+  const p = you ? null : people.get(id);
+  const md = you ? modOf(myKeys()) : (p ? modOf(peerKeys(p)) : { m: 0, d: 0 });
+  const on = you ? !!micStream : !!(p && p.mic);
+  const dv = you ? selfDeaf : !!(p && p.deaf);
+  const items = [];
+  if (md.m) items.push(['🔇', T('tagMuted')]); else if (on) items.push(['🎙️', T('tagMic')]);
+  if (md.d) items.push(['🔕', T('tagDeafMod')]); else if (dv) items.push(['🎧', T('tagDeaf')]);
+  if (!items.length) return null;
+  const box = document.createElement('span'); box.className = 'vb';
+  items.forEach(([ic, tt]) => { const e = document.createElement('span'); e.textContent = ic; e.title = tt; box.append(e); });
+  return box;
+}
+
 /* =====================  RECEBER VÍDEO  ===================== */
 function onCall(call) {
   if (!isRoomPeer(call.peer)) { try { call.close(); } catch (e) {} return; }
+  if (call.metadata && call.metadata.k === 'voice') { onVoiceCall(call); return; }   // voz do microfone: não vira "tela" na grade
   if (verifiedConn(call.peer)) { answerCall(call); return; }
   pendingCalls.set(call.peer, call);
   setTimeout(() => {
@@ -1526,6 +1848,7 @@ $('btnStop').onclick = stopShare;
 
 function leaveRoom() {
   stopShare();
+  micStop(); selfDeaf = false; modMap.clear(); prevMyMod = { m: 0, d: 0 };
   leaving = true;
   closeAll(); resetState();
   msg('');
@@ -1542,6 +1865,15 @@ function updateButtons() {
   $('btnScreen').title = $('btnCam').title = roomCanSpeak ? '' : (lang === 'en' ? 'You do not have permission to talk in this channel' : 'Você não tem permissão para falar neste canal');
   $('btnScreen').textContent = !canShareScreen ? T('btnScreenNA') : myKind === 'screen' ? T('btnScreenRe') : T('btnScreen');
   $('btnCam').textContent = myKind === 'cam' ? T('btnCamRe') : T('btnCam');
+  const mm = modOf(myKeys()), micOn = !!micStream, deafNow = selfDeaf || !!mm.d;
+  $('btnMic').disabled = !roomCanSpeak || !canUseCamera || !!mm.m;
+  $('btnMic').title = !roomCanSpeak ? T('micNoPerm') : mm.m ? T('mutedByMod') : '';
+  $('btnMic').textContent = micOn ? T('btnMicOff') : T('btnMicOn');
+  $('btnMic').classList.toggle('live', micOn); $('btnMic').classList.toggle('sec', !micOn);
+  $('btnDeaf').disabled = !!mm.d;
+  $('btnDeaf').title = mm.d ? T('deafByMod') : '';
+  $('btnDeaf').textContent = deafNow ? T('btnDeafOff') : T('btnDeafOn');
+  $('btnDeaf').classList.toggle('bad', deafNow); $('btnDeaf').classList.toggle('sec', !deafNow);
 }
 
 /* =====================  INTERFACE  ===================== */
@@ -1557,6 +1889,7 @@ $('vol').oninput = () => {
   masterVol = $('vol').value / 100;
   try { localStorage.setItem('sala-vol', String(masterVol)); } catch (e) {}
   tiles.forEach(t => { if (!t.local) applyVolume(t); });
+  syncAudio();
 };
 
 function updateSoundBtn(t) {
@@ -1574,7 +1907,8 @@ function updateTileTexts(t) {
 function startRemotePlayback(t) {
   const v = t.video;
   if (!v.srcObject) return;
-  v.muted = !!t.userMuted;
+  const fm = forcedMute(t.id); if (fm) t.forced = true;
+  v.muted = !!t.userMuted || fm;
   const pr = v.play();
   if (!pr || !pr.then) return;
   const ok = () => { t.needTap = false; };
@@ -1593,8 +1927,9 @@ function unlockPlayback(e) {
     if (t.local || !t.video.srcObject) return;
     const v = t.video;
     if (v.paused) startRemotePlayback(t);
-    else if (v.muted && t.autoMuted && !t.userMuted) { v.muted = false; t.autoMuted = false; updateSoundBtn(t); }
+    else if (v.muted && t.autoMuted && !t.userMuted && !forcedMute(t.id)) { v.muted = false; t.autoMuted = false; updateSoundBtn(t); }
   });
+  vplay.forEach(r => { if (r.el && r.el.srcObject && r.el.paused && !r.el.muted) r.el.play().catch(() => {}); });
 }
 ['pointerup', 'click', 'touchend', 'keydown'].forEach(ev => document.addEventListener(ev, unlockPlayback, true));
 document.addEventListener('visibilitychange', () => {
@@ -1610,7 +1945,7 @@ function showTile(id, stream, call, isLocal) {
     video.setAttribute('playsinline', ''); video.setAttribute('webkit-playsinline', ''); video.preload = 'auto';
     const label = document.createElement('div'); label.className = 'label';
     el.append(video);
-    t = { el, video, label, call: null, stream: null, note: null, snd: null, hbtn: null, noPreview: false, timer: 0, fps: 0, res: '', lastFrames: 0, lastT: 0, created: performance.now(), userMuted: false, autoMuted: false, needTap: false, hooked: null, local: !!isLocal, vol: 1, vslider: null };
+    t = { id, el, video, label, call: null, stream: null, note: null, snd: null, hbtn: null, noPreview: false, timer: 0, fps: 0, res: '', lastFrames: 0, lastT: 0, created: performance.now(), userMuted: false, autoMuted: false, needTap: false, hooked: null, local: !!isLocal, vol: 1, vslider: null };
     if (isLocal && myKind === 'screen') {
       t.noPreview = true;
       t.note = document.createElement('div'); t.note.className = 'note';
@@ -1631,6 +1966,7 @@ function showTile(id, stream, call, isLocal) {
       t.snd = document.createElement('button'); t.snd.className = 'tbtn snd';
       t.snd.onclick = e => {
         e.stopPropagation();
+        if (forcedMute(id)) return;   // ensurdecido / mutado por moderador: não dá para religar o som
         t.video.muted = !t.video.muted; t.userMuted = t.video.muted; t.autoMuted = false;
         if (!t.video.muted) t.video.play().catch(() => {});
         updateSoundBtn(t);
@@ -1690,7 +2026,7 @@ function showTile(id, stream, call, isLocal) {
   if (!t.noPreview && t.video.srcObject !== stream) {
     t.video.srcObject = stream;
     if (isLocal) { t.video.muted = true; t.video.play().catch(() => {}); }
-    else { if (t.userMuted) { t.video.muted = true; t.video.play().catch(() => {}); } else startRemotePlayback(t); }
+    else { if (t.userMuted || forcedMute(id)) { if (forcedMute(id)) t.forced = true; t.video.muted = true; t.video.play().catch(() => {}); } else startRemotePlayback(t); }
   }
   t.call = call;
   if (!isLocal && t.hooked !== stream) {
@@ -1771,8 +2107,8 @@ window.addEventListener('resize', render);
 let lastSig = '';
 function renderPeople() {
   $('count').textContent = people.size + 1;
-  const list = [...people].map(([id, p]) => [id, p.name, p.sharing ? 1 : 0, p.kind || '', p.prof ? [p.prof.username, p.prof.avatar_path, p.prof.bio] : 0]);
-  const sig = JSON.stringify([lang, own.id, myId, myName, !!myStream, myKind, [...hidden], list, isOwner(), roomIsVoice, window.Acc ? Acc.sigKey() : '', window.Srv && Srv.colorSig ? Srv.colorSig() : '']);
+  const list = [...people].map(([id, p]) => [id, p.name, p.sharing ? 1 : 0, p.kind || '', p.prof ? [p.prof.username, p.prof.avatar_path, p.prof.bio] : 0, p.mic ? 1 : 0, p.deaf ? 1 : 0]);
+  const sig = JSON.stringify([lang, own.id, myId, myName, !!myStream, myKind, [...hidden], list, isOwner(), roomIsVoice, window.Acc ? Acc.sigKey() : '', window.Srv && Srv.colorSig ? Srv.colorSig() : '', modVer, !!micStream, selfDeaf, myRank(), window.Srv && Srv.voiceSig ? Srv.voiceSig() : '']);
   if (sig === lastSig) return;
   lastSig = sig;
 
@@ -1802,15 +2138,23 @@ function renderPeople() {
       }
       top.append(who);
     } else top.append(n);
+    const right = document.createElement('span'); right.className = 'prt';
+    const vb = voiceBadges(id, you); if (vb) right.append(vb);
     if (sharing) {
       const b = document.createElement('span'); b.className = 'badge';
       b.textContent = kind === 'cam' ? T('badgeCam') : T('badgeScreen');
-      top.append(b);
+      right.append(b);
     }
+    if (right.children.length) top.append(right);
     li.append(top);
     if (!you) {
       const acts = document.createElement('div'); acts.className = 'acts';
       if (sharing) acts.append(mkBtn(hidden.has(id) ? T('showScreen') : T('hideScreen'), 'sec', () => toggleHide(id)));
+      if (canModPeer(id)) {
+        const md = modOf(peerKeys(people.get(id)));
+        acts.append(mkBtn(md.m ? T('unmute') : T('mute'), 'sec', () => setPeerMod(id, { m: md.m ? 0 : 1 })));
+        acts.append(mkBtn(md.d ? T('undeafen') : T('deafen'), 'sec', () => setPeerMod(id, { d: md.d ? 0 : 1 })));
+      }
       if (isOwner() && !roomIsVoice) {
         acts.append(mkBtn(T('kick'), 'sec', () => kickPerson(id, false)));
         acts.append(mkBtn(T('ban'), 'bad', () => kickPerson(id, true)));
@@ -1826,6 +2170,7 @@ function renderPeople() {
 
 function doRender() {
   renderPeople();
+  syncAudio(); syncVoiceOut();
 
   tiles.forEach((t, id) => {
     const me = id === 'me';
@@ -3429,6 +3774,7 @@ const okHex = c => (typeof c === 'string' && HEX.test(c)) ? c.toLowerCase() : ''
 const PAL = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#6c7cff', '#9b59b6', '#e91e63', '#99aab5'];
 const fmtDate = iso => new Date(iso).toLocaleString([], { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+let vsrv = null, vmem = [], vmemT = 0;   // servidor do canal de voz em que estou e os membros dele (independe do servidor aberto na tela)
 let voiceCh = null, uid = null, servers = [], cur = null, chans = [], mem = [], chan = null, rt = null, rt2 = null, myRole = 'member', voiceJoin = false, lastSend = 0;
 let roles = [], mroles = new Map(), emojis = [], siteOwner = false;
 let cats = [];   // categorias de canais do servidor aberto
@@ -3951,6 +4297,7 @@ async function loadMembers() {
   const { data } = await sb().rpc('list_members', { p_server: s.id });
   if (cur !== s) return;
   mem = data || [];
+  if (vsrv && s.id === vsrv) vmem = mem;
   const m = mem.find(x => x.user_id === uid);
   if (!m) { closeView(); loadServers(); return; }   // fui expulso
   const before = myRole; myRole = m.role;
@@ -4704,6 +5051,19 @@ function unsub() {
   rt = null; rt2 = null;
 }
 
+/* ----- poder dentro da sala de voz (dono = 3, admin = 2, membro = 1): quem recebe confere quem mandou ----- */
+const rankOfRole = r => r === 'owner' ? 3 : r === 'admin' ? 2 : r ? 1 : 0;
+const voiceRank = un => { if (!un) return 0; const m = vmem.find(x => x.username === un); return m ? rankOfRole(m.role) : 0; };
+const voiceMyRank = () => { const m = vmem.find(x => x.user_id === uid); return m ? rankOfRole(m.role) : 0; };
+const voiceSig = () => vmem.map(m => (m.username || '') + ':' + m.role).join('|');
+async function loadVoiceMem() {
+  const id = vsrv; if (!id) return;
+  try {
+    const { data } = await sb().rpc('list_members', { p_server: id });
+    if (vsrv === id && Array.isArray(data)) { vmem = data; if (typeof render === 'function') render(); }
+  } catch (e) {}
+}
+
 /* ----- voz: reaproveita a sala (e o compartilhamento de tela) de sempre ----- */
 async function joinVoice(c) {
   let { data, error } = await sb().from('channels').select('voice_key,user_limit').eq('id', c.id).single();   // chave sempre fresca; quem foi banido não consegue ler
@@ -4712,6 +5072,9 @@ async function joinVoice(c) {
   window.__roomLimit = data.user_limit > 0 ? Math.min(12, data.user_limit) : 0;   // limite de pessoas do canal (0 = ilimitado)
   window.__roomSpeak = canWriteChan(c);                                             // quem não pode falar só assiste
   voiceCh = c.id; voiceJoin = true; renderChans();
+  vsrv = cur.id; vmem = mem; loadVoiceMem();
+  clearInterval(vmemT);
+  vmemT = setInterval(() => { if (!voiceCh) { clearInterval(vmemT); vsrv = null; vmem = []; return; } loadVoiceMem(); }, 30000);
   $('inRoom').value = 'v' + c.id.replace(/-/g, '').slice(0, 20);
   $('inPass').value = data.voice_key;                   // só membros leem esta chave
   window.__roomLabel = '🔊 ' + c.name + ' · ' + cur.name;
@@ -5775,7 +6138,7 @@ function cardExtras(p, box) {
     b.style.marginTop = '10px'; box.append(b);
   }
 }
-return { onAuth, cardExtras, badgeEl, colorOfUser, colorSig, statusButton };
+return { onAuth, cardExtras, badgeEl, colorOfUser, colorSig, statusButton, voiceRank, voiceMyRank, voiceSig };
 })();
 </script>
 
