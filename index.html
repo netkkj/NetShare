@@ -6272,7 +6272,7 @@ function dlgAdmin() {
               if (chosenLib === it.path) chosenLib = '';
               loadLib(); refresh();
             }, 'bad');
-            x.title = 'Apagar da biblioteca'; x.style.cssText = 'position:absolute;top:-8px;right:-8px;padding:0 6px;font-size:.75rem;line-height:1.4;border-radius:999px;min-width:0';
+            x.title = 'Apagar da biblioteca'; x.style.cssText = 'position:absolute;top:-7px;right:-7px;z-index:2;width:20px;height:20px;min-width:0;min-height:0;padding:0;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:800;line-height:1;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.45);transform:none';
             w.append(b, x); libGrid.append(w);
           });
         };
