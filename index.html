@@ -190,6 +190,10 @@
   .badge { color: var(--ok); font-size: .74rem; white-space: nowrap; }
   .prt { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
   .vb { display: inline-flex; gap: 4px; font-size: .86rem; line-height: 1; }
+  .vroster { display: grid; gap: 2px; margin: 1px 8px 6px 34px; }
+  .vrow { display: flex; align-items: center; gap: 8px; padding: 3px 8px; border-radius: 8px; cursor: pointer; font-size: .82rem; min-width: 0; }
+  .vrow:hover { background: var(--surface-hover); }
+  .vrow .mname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
   #controls button.live { background: rgba(67,217,163,.16); border-color: rgba(67,217,163,.42); color: #8ff2cb; }
   #controls button.live:hover:not(:disabled) { background: rgba(67,217,163,.24); box-shadow: none; }
 
@@ -507,6 +511,8 @@ const I18N = {
   micDenied:'O navegador não deixou usar o microfone. Libere a permissão nas configurações do site e tente de novo.', micFail:'Não foi possível ligar o microfone: {e}', cantMic:'O microfone só funciona em páginas seguras (https).',
   micNoPerm:'Você não tem permissão para falar neste canal', mutedByMod:'Você foi mutado: ninguém ouve o seu microfone.', deafByMod:'Um moderador desligou o seu áudio: você não consegue ouvir ninguém.', mutedDeafByMod:'Um moderador mutou você e desligou o seu áudio.', freedByMod:'Um moderador liberou o seu áudio.',
   mute:'Mutar', unmute:'Desmutar', deafen:'Ensurdecer', undeafen:'Liberar áudio', tagMic:'microfone ligado', tagMuted:'mutado por moderador', tagDeaf:'não está ouvindo', tagDeafMod:'ensurdecido por moderador',
+  dc:'Desconectar', dcTime:'Desconectar por tempo…', confirmDc:'Desconectar {name} da call? A pessoa poderá entrar de novo na hora.', askDcTime:'Por quantos minutos {name} fica impedido de voltar à call? (1 a 1440)',
+  eBlocked:'Um moderador impediu você de entrar nesta call por um tempo. Tente de novo mais tarde.', eDisc:'Um moderador desconectou você da call. Você pode entrar de novo.',
   you:'você', owner:'Dono da sala', kick:'Expulsar', ban:'Banir', makeOwner:'Passar posse',
   hideScreen:'Ocultar tela', showScreen:'Mostrar tela', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
   confirmKick:'Expulsar {name} da sala? A pessoa poderá entrar de novo.',
@@ -557,6 +563,8 @@ const I18N = {
   micDenied:'The browser did not allow the microphone. Allow it in the site settings and try again.', micFail:'Could not turn on the microphone: {e}', cantMic:'The microphone only works on secure pages (https).',
   micNoPerm:'You do not have permission to talk in this channel', mutedByMod:'You were muted: nobody can hear your microphone.', deafByMod:'A moderator turned off your audio: you cannot hear anyone.', mutedDeafByMod:'A moderator muted you and turned off your audio.', freedByMod:'A moderator restored your audio.',
   mute:'Mute', unmute:'Unmute', deafen:'Deafen', undeafen:'Undeafen', tagMic:'microphone on', tagMuted:'muted by a moderator', tagDeaf:'not listening', tagDeafMod:'deafened by a moderator',
+  dc:'Disconnect', dcTime:'Disconnect for a while…', confirmDc:'Disconnect {name} from the call? They will be able to join again right away.', askDcTime:'For how many minutes is {name} blocked from coming back to the call? (1 to 1440)',
+  eBlocked:'A moderator blocked you from joining this call for a while. Try again later.', eDisc:'A moderator disconnected you from the call. You can join again.',
   you:'you', owner:'Room owner', kick:'Kick', ban:'Ban', makeOwner:'Make owner',
   hideScreen:'Hide screen', showScreen:'Show screen', hideBtn:'Hide', soundOn:'Turn sound on', soundOff:'Mute',
   confirmKick:'Kick {name} from the room? They will be able to join again.',
@@ -607,6 +615,8 @@ const I18N = {
   micDenied:'O navegador não permitiu usar o microfone. Autorize nas definições do site e tente outra vez.', micFail:'Não foi possível ligar o microfone: {e}', cantMic:'O microfone só funciona em páginas seguras (https).',
   micNoPerm:'Não tem permissão para falar neste canal', mutedByMod:'Foi silenciado: ninguém ouve o seu microfone.', deafByMod:'Um moderador desligou o seu áudio: não consegue ouvir ninguém.', mutedDeafByMod:'Um moderador silenciou-o e desligou o seu áudio.', freedByMod:'Um moderador libertou o seu áudio.',
   mute:'Silenciar', unmute:'Deixar falar', deafen:'Desligar áudio', undeafen:'Ligar áudio', tagMic:'microfone ligado', tagMuted:'silenciado por moderador', tagDeaf:'não está a ouvir', tagDeafMod:'sem áudio por moderador',
+  dc:'Desligar da chamada', dcTime:'Desligar por tempo…', confirmDc:'Desligar {name} da chamada? A pessoa poderá voltar a entrar de imediato.', askDcTime:'Durante quantos minutos {name} fica impedido de voltar à chamada? (1 a 1440)',
+  eBlocked:'Um moderador impediu-o de entrar nesta chamada durante algum tempo. Tente outra vez mais tarde.', eDisc:'Um moderador desligou-o da chamada. Pode voltar a entrar.',
   you:'você', owner:'Dono da sala', kick:'Expulsar', ban:'Banir', makeOwner:'Passar posse',
   hideScreen:'Ocultar ecrã', showScreen:'Mostrar ecrã', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
   confirmKick:'Expulsar {name} da sala? A pessoa poderá entrar novamente.',
@@ -786,6 +796,7 @@ const vcalls = new Map();        // minha voz -> cada pessoa (chamada só de áu
 const vplay = new Map();         // voz que chega: id -> { call, el }
 const pendingVoice = new Map();
 const lastVoiceTry = new Map();
+const dcMap = new Map();         // bloqueio temporário de voltar à call: chave -> { until, ts }
 const modMap = new Map();        // chave ('c:cid', 'n:nome', 'u:usuário') -> { m: mutado, d: ensurdecido, ts }
 let modVer = 0, prevMyMod = { m: 0, d: 0 };
 
@@ -914,7 +925,7 @@ function claimSlot(i) {
       probeTimer = setTimeout(() => {
         probe();
         if (isOwner()) broadcast({ t: 'owner', id: own.id, epoch: own.epoch });
-        broadcastMods(); syncVoiceOut();
+        broadcastMods(); syncVoiceOut(); enforceBlocks();
         if (me === peer && !leaving) tick();
       }, 5000 + Math.random() * 3000);
     };
@@ -1021,7 +1032,7 @@ function dial(id) {
 
 /* =====================  CONEXÕES E HANDSHAKE  ===================== */
 const MAX_PER_PEER = 3;
-const DENIABLE = ['name', 'required', 'open', 'banned', 'wrong'];
+const DENIABLE = ['name', 'required', 'open', 'banned', 'wrong', 'blocked'];
 const addSpare = (id, c) => { let x = spare.get(id); if (!x) spare.set(id, x = new Set()); x.add(c); };
 const allConns = id => { const l = []; const p = conns.get(id); if (p) l.push(p); const x = spare.get(id); if (x) x.forEach(y => { if (y !== p) l.push(y); }); return l; };
 const verifiedConn = id => allConns(id).find(x => x.open && x.verified) || null;
@@ -1119,6 +1130,10 @@ async function onData(c, d) {
   } else if (d.t === 'vstate') {
     const p = people.get(id);
     if (p) { p.mic = !!d.mic; p.deaf = !!d.deaf; render(); }
+  } else if (d.t === 'dc') {
+    onDc(id, d);
+  } else if (d.t === 'blocks') {
+    onBlocks(id, d.l);
   } else if (d.t === 'mod') {
     onMod(id, d);
   } else if (d.t === 'mods') {
@@ -1141,6 +1156,7 @@ async function onHello(c, d) {
   const name = cleanName(d.name), cid = cleanStr(d.cid, 64);
   if (!name || !cid) { try { c.close(); } catch (e) {} return; }
   if (bans.has(cid) || bansName.has(norm(name))) return refuse('banned');
+  if (blockedKeys(['c:' + cid])) return refuse('blocked');
 
   const theirHas = !!d.hasPass, myHas = !!roomKey;
   let authOk = theirHas === myHas;
@@ -1192,13 +1208,14 @@ async function onHello(c, d) {
 }
 
 function sendState(c) {
-  try { c.send({ t: 'state', own: { id: own.id, epoch: own.epoch }, bans: [...bans].slice(0, 200), bn: [...bansName].slice(0, 200), mods: modSnapshot() }); } catch (e) {}
+  try { c.send({ t: 'state', own: { id: own.id, epoch: own.epoch }, bans: [...bans].slice(0, 200), bn: [...bansName].slice(0, 200), mods: modSnapshot(), blocks: blockSnapshot() }); } catch (e) {}
 }
 function onState(c, d) {
   c.accepted = true;
   const o = d.own;
   if (o && typeof o.id === 'string') mergeOwner({ id: o.id, epoch: o.epoch }, 'hello');
   if (Array.isArray(d.mods)) onMods(c.peer, d.mods);
+  if (Array.isArray(d.blocks)) onBlocks(c.peer, d.blocks);
   if (!roomIsVoice && c.peer === own.id) {
     const b = cleanList(d.bans, 200, 64), n = cleanList(d.bn, 200, 24).map(norm);
     if (b.includes(clientId) || n.includes(norm(myName))) { kickOut('banned'); return; }
@@ -1208,7 +1225,7 @@ function onState(c, d) {
 }
 
 function kickOut(reason) {
-  const map = { name:'eName', required:'eRequired', open:'eOpen', full:'eFull', banned:'eBanned', kicked:'eKicked', wrong:'eWrong' };
+  const map = { name:'eName', required:'eRequired', open:'eOpen', full:'eFull', banned:'eBanned', kicked:'eKicked', wrong:'eWrong', blocked:'eBlocked', disc:'eDisc' };
   leaveRoom();
   setJoinErr(map[reason] || 'eWrong', { n: roomLimit > 0 ? roomLimit : MAX_SLOTS });
 }
@@ -1377,7 +1394,11 @@ function onMods(sender, list) {
   if (ch) applyMods();
 }
 const modSnapshot = () => [...modMap].slice(0, 100).map(([k, e]) => [k, e.m, e.d, e.ts]);
-function broadcastMods() { if (modMap.size && myRank() >= 2) broadcast({ t: 'mods', l: modSnapshot() }); }
+function broadcastMods() {
+  if (myRank() < 2) return;
+  if (modMap.size) broadcast({ t: 'mods', l: modSnapshot() });
+  if (blockSnapshot().length) broadcast({ t: 'blocks', l: blockSnapshot() });
+}
 
 function setPeerMod(id, patch) {
   if (!canModPeer(id)) return;
@@ -1387,6 +1408,46 @@ function setPeerMod(id, patch) {
   setMod(keys, m, d, ts);
   broadcast({ t: 'mod', k: keys, m, d, ts });
   applyMods();
+}
+
+/* ---- desconectar da call (com tempo opcional para voltar) ---- */
+const blockedKeys = keys => keys.some(k => { const e = dcMap.get(k); return !!e && e.until > Date.now(); });
+const blockSnapshot = () => [...dcMap].filter(([, e]) => e.until > Date.now()).slice(0, 100).map(([k, e]) => [k, e.until, e.ts]);
+function setBlock(keys, until, ts) {
+  keys.forEach(k => { const e = dcMap.get(k); if (!e || e.ts < ts) dcMap.set(k, { until, ts }); });
+  dcMap.forEach((e, k) => { if (e.until <= Date.now()) dcMap.delete(k); });
+}
+const clampUntil = x => { x = cleanNum(x, 0, Date.now() + 86400000 + 60000); return x > Date.now() ? x : 0; };
+function applyDc(keys, until, ts) {
+  if (until > 0) setBlock(keys, until, ts);
+  if (keys.some(k => myKeys().includes(k))) { kickOut(until > 0 ? 'blocked' : 'disc'); return; }   // era comigo
+  people.forEach((p, id) => {
+    if (peerKeys(p).some(k => keys.includes(k))) setTimeout(() => { allConns(id).forEach(x => { try { x.close(); } catch (e) {} }); }, 300);
+  });
+}
+function onDc(sender, d) {
+  const keys = cleanKeys(d.k); if (!keys.length || !modAuth(sender, keys)) return;
+  applyDc(keys, clampUntil(d.until), cleanNum(d.ts, 0, 8.64e15));
+}
+function onBlocks(sender, list) {
+  if (!Array.isArray(list)) return;
+  list.slice(0, 100).forEach(x => {
+    if (!Array.isArray(x)) return;
+    const k = cleanStr(x[0], 70), until = clampUntil(x[1]);
+    if (!keyOk(k) || !until || !modAuth(sender, [k])) return;
+    applyDc([k], until, cleanNum(x[2], 0, 8.64e15));
+  });
+}
+function enforceBlocks() {   // quem está bloqueado (inclusive quem só foi reconhecido pela conta depois) perde a conexão comigo
+  if (!dcMap.size) return;
+  people.forEach((p, id) => { if (blockedKeys(peerKeys(p))) allConns(id).forEach(x => { try { x.close(); } catch (e) {} }); });
+}
+function disconnectPeer(id, minutes) {
+  if (!roomIsVoice || !canModPeer(id)) return;
+  const keys = peerKeys(people.get(id)), ts = Date.now();
+  const until = minutes > 0 ? ts + minutes * 60000 : 0;
+  broadcast({ t: 'dc', k: keys, until, ts });
+  applyDc(keys, until, ts);
 }
 
 function notify(k) { msgK(k); setTimeout(() => { if (msgKey() === k) msg(''); }, 7000); }
@@ -1848,7 +1909,7 @@ $('btnStop').onclick = stopShare;
 
 function leaveRoom() {
   stopShare();
-  micStop(); selfDeaf = false; modMap.clear(); prevMyMod = { m: 0, d: 0 };
+  micStop(); selfDeaf = false; modMap.clear(); dcMap.clear(); prevMyMod = { m: 0, d: 0 };
   leaving = true;
   closeAll(); resetState();
   msg('');
@@ -2154,6 +2215,16 @@ function renderPeople() {
         const md = modOf(peerKeys(people.get(id)));
         acts.append(mkBtn(md.m ? T('unmute') : T('mute'), 'sec', () => setPeerMod(id, { m: md.m ? 0 : 1 })));
         acts.append(mkBtn(md.d ? T('undeafen') : T('deafen'), 'sec', () => setPeerMod(id, { d: md.d ? 0 : 1 })));
+        if (roomIsVoice) {   // sala de voz de servidor: tirar só da call (sem expulsar do servidor)
+          const nm = people.get(id).name;
+          acts.append(mkBtn(T('dc'), 'bad', () => { if (confirm(T('confirmDc', { name: nm }))) disconnectPeer(id, 0); }));
+          acts.append(mkBtn(T('dcTime'), 'bad', () => {
+            const v = prompt(T('askDcTime', { name: nm }));
+            if (v == null) return;
+            const n = Math.floor(+String(v).replace(',', '.'));
+            if (n >= 1) disconnectPeer(id, Math.min(n, 1440));
+          }));
+        }
       }
       if (isOwner() && !roomIsVoice) {
         acts.append(mkBtn(T('kick'), 'sec', () => kickPerson(id, false)));
@@ -2170,7 +2241,7 @@ function renderPeople() {
 
 function doRender() {
   renderPeople();
-  syncAudio(); syncVoiceOut();
+  syncAudio(); syncVoiceOut(); enforceBlocks();
 
   tiles.forEach((t, id) => {
     const me = id === 'me';
@@ -3774,7 +3845,8 @@ const okHex = c => (typeof c === 'string' && HEX.test(c)) ? c.toLowerCase() : ''
 const PAL = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#6c7cff', '#9b59b6', '#e91e63', '#99aab5'];
 const fmtDate = iso => new Date(iso).toLocaleString([], { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-let vsrv = null, vmem = [], vmemT = 0;   // servidor do canal de voz em que estou e os membros dele (independe do servidor aberto na tela)
+let vsrv = null, vmem = [], vmemT = 0;
+const vpMap = new Map(); let vpViewId = null;   // quem está em cada canal de voz de cada servidor (presença em tempo real)   // servidor do canal de voz em que estou e os membros dele (independe do servidor aberto na tela)
 let voiceCh = null, uid = null, servers = [], cur = null, chans = [], mem = [], chan = null, rt = null, rt2 = null, myRole = 'member', voiceJoin = false, lastSend = 0;
 let roles = [], mroles = new Map(), emojis = [], siteOwner = false;
 let cats = [];   // categorias de canais do servidor aberto
@@ -4441,6 +4513,7 @@ function renderMembers() {
 }
 
 function renderChans() {
+  vpCheck();
   const box = $('svChans'); box.textContent = '';
   const en0 = String(lang).startsWith('en'), L = (x, y) => en0 ? y : x, mng = can('manage_channels');
   const row = (c, inCat) => {
@@ -4466,7 +4539,7 @@ function renderChans() {
       dropWire(r, d => d.type === 'chan' && d.id !== c.id && groupAccepts(chanGroup(c), d.id)
         ? { mode: 'half', go: after => placeChan(d.id, chanGroup(c), c.id, after) } : null);
     }
-    return r;
+    return withRoster(r, c);
   };
   const ids = new Set(cats.map(x => x.id));
   // canais sem categoria (como era antes)
@@ -5024,6 +5097,7 @@ $('svForm').onsubmit = async e => {
 function subscribe() {
   unsub();
   const id = cur.id, f = 'server_id=eq.' + id;
+  vpViewId = id; vpGet(id, 'view');
   rt = sb().channel('srv:' + id)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: f }, p => { if (chan && p.new.channel_id === chan.id) { addMsg(p.new); noteMention(p.new, true); } else noteMention(p.new, false); })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, p => { const n = document.getElementById('m' + p.old.id); if (n) { n.remove(); regroup(); } pinDrop(p.old.id); })
@@ -5049,6 +5123,100 @@ function subscribe() {
 function unsub() {
   [rt, rt2].forEach(c => { if (c) { try { sb().removeChannel(c); } catch (e) {} } });
   rt = null; rt2 = null;
+  if (vpViewId) { const e = vpMap.get(vpViewId); if (e) { e.refs.delete('view'); if (!e.refs.size) vpRemove(e); } vpViewId = null; }
+}
+
+/* ----- lista de quem está nas calls (presença em tempo real, um canal por servidor) ----- */
+function vpGet(id, who) {
+  let e = vpMap.get(id);
+  if (!e) {
+    e = { id, ch: null, roster: [], refs: new Set(), ready: false, tracked: null };
+    vpMap.set(id, e);
+    try {
+      e.ch = sb().channel('ns-voice:' + id, { config: { presence: { key: uid }, broadcast: { self: false } } });
+      e.ch.on('presence', { event: 'sync' }, () => vpSync(e))
+        .on('broadcast', { event: 'vdc' }, m => { onVoiceDc(e, m && m.payload); })
+        .subscribe(st => { if (st === 'SUBSCRIBED') { e.ready = true; e.tracked = null; vpTrack(e); } });
+    } catch (x) { e.ch = null; }
+  }
+  e.refs.add(who);
+  return e;
+}
+function vpRemove(e) { try { if (e.ch) sb().removeChannel(e.ch); } catch (x) {} vpMap.delete(e.id); }
+function vpSync(e) {
+  if (!e.ch) return;
+  const seen = new Set(), list = [];
+  try {
+    Object.values(e.ch.presenceState()).forEach(arr => (arr || []).forEach(p => {
+      if (!p || typeof p.uid !== 'string' || typeof p.ch !== 'string' || seen.has(p.uid)) return;
+      seen.add(p.uid); list.push({ uid: p.uid, u: typeof p.u === 'string' ? p.u.slice(0, 20) : '', ch: p.ch });
+    }));
+  } catch (x) {}
+  e.roster = list;
+  if (cur && cur.id === e.id) renderChans();
+}
+function vpTrack(e) {   // só quem está numa call anuncia presença
+  if (!e.ch || !e.ready) return;
+  const want = e.refs.has('call') && voiceCh && vsrv === e.id ? voiceCh : null;
+  if (want === e.tracked) return;
+  e.tracked = want;
+  try { if (want) e.ch.track({ uid, u: myUser() || '', ch: want, ts: Date.now() }); else e.ch.untrack(); } catch (x) {}
+}
+function vpCheck() {
+  const inCall = !!voiceCh && !!vsrv && !!uid;
+  if (inCall && !vpMap.has(vsrv)) vpGet(vsrv, 'call');
+  [...vpMap.values()].forEach(e => {
+    if (inCall && e.id === vsrv) e.refs.add('call'); else e.refs.delete('call');
+    vpTrack(e);
+    if (!e.refs.size) vpRemove(e);
+  });
+}
+setInterval(vpCheck, 5000);
+function vrow(r) {
+  const m = mem.find(x => x.user_id === r.uid) || { user_id: r.uid, username: r.u, display_name: r.u || '?' };
+  const d = el('div', 'vrow'); d.append(A().avatar(m, 22));
+  const nm = el('b', 'mname', m.display_name || m.username || '?'); paintName(nm, m.user_id, m.username);
+  d.append(nm); d.setAttribute('role', 'button'); d.tabIndex = 0;
+  const open = () => { $('svMem').classList.remove('open'); A().showCard(m); };
+  d.onclick = open; d.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } };
+  return d;
+}
+function withRoster(r, c) {
+  if (c.kind !== 'voice' || !cur) return r;
+  const ve = vpMap.get(cur.id), list = ve ? ve.roster.filter(x => x.ch === c.id) : [];
+  if (!list.length) return r;
+  const f = document.createDocumentFragment(), box = el('div', 'vroster');
+  list.forEach(x => box.append(vrow(x)));
+  f.append(r, box);
+  return f;
+}
+
+/* ----- desconectar da call pelo perfil (funciona mesmo de fora da call) ----- */
+async function voiceDisconnect(m, minutes) {
+  const e = cur && vpMap.get(cur.id);
+  if (!e || !e.ch || !e.ready) return err(LL('Sem conexão em tempo real agora. Tente de novo em instantes.', 'No live connection right now. Try again in a moment.'));
+  const ts = Date.now(), until = minutes > 0 ? ts + minutes * 60000 : 0;
+  const payload = { from: uid, to: m.user_id, until, ts };
+  try { await e.ch.send({ type: 'broadcast', event: 'vdc', payload }); } catch (x) { return err(x); }
+  if (vsrv === e.id && voiceCh) onVoiceDc(e, payload);   // eu também estou na call: o canal não devolve a minha própria mensagem
+}
+// Quem está na call recebe o pedido, confere os cargos de verdade no servidor (quem pediu precisa ser dono/admin e ter mais poder) e desconecta.
+async function onVoiceDc(e, p) {
+  if (!p || typeof p !== 'object' || !vsrv || e.id !== vsrv || !voiceCh) return;
+  const from = String(p.from || ''), to = String(p.to || '');
+  if (!from || !to || from === to) return;
+  await loadVoiceMem();
+  if (vsrv !== e.id || !voiceCh) return;
+  const fm = vmem.find(x => x.user_id === from), tm = vmem.find(x => x.user_id === to);
+  if (!fm || !tm) return;
+  const fr = rankOfRole(fm.role), tr = rankOfRole(tm.role);
+  if (fr < 2 || fr <= tr) return;
+  const keys = [];
+  if (tm.username) keys.push('u:' + tm.username);
+  people.forEach(pp => { if (tm.username && pp.prof && pp.prof.username === tm.username && pp.cid) keys.push('c:' + pp.cid); });
+  if (to === uid && !keys.includes('c:' + clientId)) keys.push('c:' + clientId);
+  if (!keys.length) return;
+  applyDc(keys.slice(0, 3), clampUntil(p.until), cleanNum(p.ts, 0, 8.64e15));
 }
 
 /* ----- poder dentro da sala de voz (dono = 3, admin = 2, membro = 1): quem recebe confere quem mandou ----- */
@@ -5072,7 +5240,7 @@ async function joinVoice(c) {
   window.__roomLimit = data.user_limit > 0 ? Math.min(12, data.user_limit) : 0;   // limite de pessoas do canal (0 = ilimitado)
   window.__roomSpeak = canWriteChan(c);                                             // quem não pode falar só assiste
   voiceCh = c.id; voiceJoin = true; renderChans();
-  vsrv = cur.id; vmem = mem; loadVoiceMem();
+  vsrv = cur.id; vmem = mem; loadVoiceMem(); vpCheck();
   clearInterval(vmemT);
   vmemT = setInterval(() => { if (!voiceCh) { clearInterval(vmemT); vsrv = null; vmem = []; return; } loadVoiceMem(); }, 30000);
   $('inRoom').value = 'v' + c.id.replace(/-/g, '').slice(0, 20);
@@ -6137,6 +6305,24 @@ function cardExtras(p, box) {
     }, 'sec');
     b.style.marginTop = '10px'; box.append(b);
   }
+  /* dono/admin: tirar da call (mesmo sem estar nela), com tempo opcional para voltar */
+  { const ve = vpMap.get(cur.id);
+    if (ve && ve.roster.some(x => x.uid === m.user_id) && isAdm() && m.user_id !== uid && m.role !== 'owner' && (myRole === 'owner' || m.role === 'member')) {
+      const wrap = el('div', 'acts'); wrap.style.marginTop = '10px';
+      wrap.append(
+        mk(LL('Desconectar da call', 'Disconnect from call'), async () => {
+          if (!confirm(LL('Desconectar ' + m.display_name + ' da call? A pessoa poderá entrar de novo na hora.', 'Disconnect ' + m.display_name + ' from the call? They can join again right away.'))) return;
+          await voiceDisconnect(m, 0); $('dlgCard').close();
+        }, 'bad'),
+        mk(LL('Desconectar por tempo…', 'Disconnect for a while…'), async () => {
+          const v = prompt(LL('Por quantos minutos ' + m.display_name + ' fica impedido de voltar à call? (1 a 1440)', 'For how many minutes is ' + m.display_name + ' blocked from coming back to the call? (1 to 1440)'));
+          if (v == null) return;
+          const n = Math.floor(+String(v).replace(',', '.'));
+          if (!(n >= 1)) return;
+          await voiceDisconnect(m, Math.min(n, 1440)); $('dlgCard').close();
+        }, 'bad'));
+      box.append(wrap);
+    } }
 }
 return { onAuth, cardExtras, badgeEl, colorOfUser, colorSig, statusButton, voiceRank, voiceMyRank, voiceSig };
 })();
