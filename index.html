@@ -2439,6 +2439,12 @@ function apply(node, username, fallback) {
   if (ULOW.test(u)) want(u);
   paint(node);
 }
+function setFor(username, s) {   // estilo de outra pessoa que chegou por outro caminho (ex.: cartão de perfil de um convidado)
+  const u = String(username || '').toLowerCase(); if (!ULOW.test(u)) return;
+  const old = cache.get(u); if (old && old.own) return;
+  cache.set(u, { t: Date.now(), s: clean(s) });
+  paintAll();
+}
 function setMine(username, s) {
   const u = String(username || '').toLowerCase(); if (!ULOW.test(u)) return;
   cache.set(u, { own: true, t: Infinity, s: clean(s) });
@@ -2523,7 +2529,7 @@ function editor(host, init, getName, onChange) {
   return { refresh, get: () => cur };
 }
 
-return { clean, apply, setMine, editor, style, tr, paintAll };
+return { clean, apply, setMine, setFor, editor, style, tr, paintAll };
 })();
 </script>
 <style>
@@ -2823,7 +2829,7 @@ window.Acc = (() => {
       avatar_path: PATH_RE.test(r.avatar_path || '') ? r.avatar_path : null,
       banner_path: PATH_RE.test(r.banner_path || '') ? r.banner_path : null,
       ns: window.NS ? NS.clean({ font: r.name_font, color: r.name_color, color2: r.name_color2, fx: r.name_fx }) : null,
-      pfx: window.PFX ? PFX.clean(r.profile_fx) : ''
+      pfx: (window.PFX && r.profile_fx !== undefined) ? PFX.clean(r.profile_fx) : null   // null = não veio do servidor, buscar depois
     };
   }
 
@@ -3313,6 +3319,7 @@ window.Acc = (() => {
     try {
       const { data, error } = await sb.rpc('ns_get_profile', { p_user: uidArg, p_username: uidArg ? null : un });
       if (!error) { const r = Array.isArray(data) ? data[0] : data; if (r) return r; }
+      else console.warn('[NetShare] ns_get_profile falhou:', error.message);
     } catch (e) {}
     try {
       const col = 'id,username,display_name,bio,avatar_path,banner_path,profile_fx';
@@ -3375,7 +3382,12 @@ window.Acc = (() => {
       const av = info.querySelector('.av'), fxHost = body;
       if (p.pfx != null) PFX.apply(fxHost, p.pfx, av);
       else if (sb && (p.username || p.user_id)) fetchProfileRow(p)
-        .then(data => { if (data && body.contains(info)) PFX.apply(fxHost, data.profile_fx, av); }).catch(() => {});
+        .then(data => {
+          if (!data || !body.contains(info)) return;
+          PFX.apply(fxHost, data.profile_fx, av);
+          if (window.NS && p.username && (data.name_font !== undefined || data.name_color !== undefined || data.name_fx !== undefined))
+            NS.setFor(p.username, { font: data.name_font, color: data.name_color, color2: data.name_color2, fx: data.name_fx });
+        }).catch(() => {});
     }
     if (!$('dlgCard').open) $('dlgCard').showModal();
   }
