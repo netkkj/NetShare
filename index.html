@@ -3130,6 +3130,9 @@ applyLang();
   .who .gb { flex-wrap: nowrap; overflow: hidden; max-width: 120px; }
   .gbadge { --c: #6c7cff; display: inline-block; padding: 1px 7px; border: 1px solid var(--c); border-radius: 999px; background: rgba(255,255,255,.04); background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--c); font-size: .68rem; font-weight: 800; line-height: 1.55; white-space: nowrap; }
   .gbadge .bicon { width: 14px; height: 14px; object-fit: contain; vertical-align: -3px; margin-right: 4px; border-radius: 3px; }
+  .gbadge.bonly { padding: 2px 5px; cursor: pointer; }
+  .gbadge.bonly .bicon { margin-right: 0; vertical-align: -3px; }
+  .bdg-tip { position: fixed; z-index: 99999; max-width: 220px; padding: 6px 10px; border-radius: 8px; background: #11162a; color: #fff; border: 1px solid rgba(255,255,255,.18); font-size: .78rem; font-weight: 700; box-shadow: 0 6px 20px rgba(0,0,0,.45); pointer-events: none; }
   .rchips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
   .rpick { display: grid; gap: 4px; margin-top: 6px; }
 
@@ -3979,21 +3982,33 @@ function paintRoleTag(d) {
 /* ----- tags do site (aparecem só no cartão de perfil da pessoa) ----- */
 const bcache = new Map(), bpend = new Set(); let btimer = 0;
 const ULOW = /^[a-z0-9_]{3,20}$/;
-function setBadgeEl(s, label, iconPath, iconUrl) {
-  s.textContent = '';
+let bdgTipEl = null, bdgTipT = 0;
+function showBadgeTip(host, text) {
+  if (bdgTipEl) bdgTipEl.remove(); clearTimeout(bdgTipT);
+  const t = el('div', 'bdg-tip', text); document.body.append(t); bdgTipEl = t;
+  const r = host.getBoundingClientRect(), w = t.offsetWidth;
+  t.style.left = Math.max(6, Math.min(innerWidth - w - 6, r.left + r.width / 2 - w / 2)) + 'px';
+  t.style.top = (r.bottom + 6 + t.offsetHeight > innerHeight ? Math.max(6, r.top - t.offsetHeight - 6) : r.bottom + 6) + 'px';
+  bdgTipT = setTimeout(() => { t.remove(); if (bdgTipEl === t) bdgTipEl = null; }, 2600);
+}
+function setBadgeEl(s, label, iconPath, iconUrl, only) {
+  s.textContent = ''; s.classList.remove('bonly'); s.onclick = null; s.removeAttribute('role');
   const u = iconUrl || (iconPath && A().imgUrl('badge-icons', iconPath));
-  if (u) { const i = new Image(); i.className = 'bicon'; i.alt = ''; i.decoding = 'async'; i.referrerPolicy = 'no-referrer'; i.src = u; s.append(i); }
-  s.append(document.createTextNode(label));
+  if (u) { const i = new Image(); i.className = 'bicon'; i.alt = only ? label : ''; i.decoding = 'async'; i.referrerPolicy = 'no-referrer'; i.src = u; s.append(i); }
+  if (u && only) {   // só a imagem: o nome aparece ao passar o mouse ou clicar/tocar
+    s.classList.add('bonly'); s.title = label; s.setAttribute('role', 'img'); s.setAttribute('aria-label', label);
+    s.onclick = e => { e.stopPropagation(); showBadgeTip(s, label); };
+  } else s.append(document.createTextNode(label));
 }
 function fillBadge(n) {
   const c = bcache.get(n.dataset.u), now = Date.now();
   const list = c ? c.list.filter(b => !b.exp || new Date(b.exp).getTime() > now) : [];
-  const sig = list.map(b => b.label + b.color + (b.icon || '')).join('|');
+  const sig = list.map(b => b.label + b.color + (b.icon || '') + (b.only ? '1' : '')).join('|');
   if (n.dataset.sig === sig) return;
   n.dataset.sig = sig; n.textContent = '';
   list.forEach(b => {
-    const s = el('span', 'gbadge'); setBadgeEl(s, b.label, b.icon); s.style.setProperty('--c', b.color);
-    if (b.exp) s.title = 'Temporária · até ' + fmtDate(b.exp);
+    const s = el('span', 'gbadge'); setBadgeEl(s, b.label, b.icon, '', b.only); s.style.setProperty('--c', b.color);
+    if (b.exp) s.title = (b.only ? b.label + ' · ' : '') + 'Temporária · até ' + fmtDate(b.exp);
     n.append(s);
   });
 }
@@ -4015,7 +4030,7 @@ async function flushBadges() {
   let rows = null;
   try { const { data, error } = await sb().rpc('ns_get_badges', { p_usernames: names }); if (!error) rows = data || []; } catch (e) {}
   const now = Date.now(), by = new Map(names.map(n => [n, []]));
-  (rows || []).forEach(b => { const l = by.get(b.username), c = okHex(b.color); if (l && c) l.push({ label: cleanStr(b.label, 40), color: c, exp: b.expires_at || null, icon: (typeof b.icon_path === 'string' && A().imgUrl('badge-icons', b.icon_path)) ? b.icon_path : '' }); });
+  (rows || []).forEach(b => { const l = by.get(b.username), c = okHex(b.color); if (l && c) l.push({ label: cleanStr(b.label, 40), color: c, exp: b.expires_at || null, icon: (typeof b.icon_path === 'string' && A().imgUrl('badge-icons', b.icon_path)) ? b.icon_path : '', only: b.icon_only === true && typeof b.icon_path === 'string' && !!b.icon_path }); });
   // se a consulta falhou, tenta de novo em ~1 minuto
   names.forEach(n => bcache.set(n, { t: rows ? now : now - 240000, list: by.get(n) }));
   paintBadges();
@@ -5395,7 +5410,7 @@ function dlgAdmin() {
         const refresh = () => {
           const lab = fullLabel() || 'Prévia';
           const keep = !chosen && !chosenLib && !iconRemove && editing && editing.icon_path ? editing.icon_path : '';
-          setBadgeEl(prev, lab, keep || chosenLib, chosen ? chosen.url : '');
+          setBadgeEl(prev, lab, keep || chosenLib, chosen ? chosen.url : '', onlyIn.checked);
           prev.style.setProperty('--c', cp.get() || '#6c7cff');
           rmImg.classList.toggle('hidden', !(chosen || chosenLib || keep));
         };
@@ -5415,8 +5430,8 @@ function dlgAdmin() {
           let hash = ''; try { hash = await sha256(f); } catch (x) { return err('Não foi possível ler a imagem neste navegador.'); }
           if (chosen) { URL.revokeObjectURL(chosen.url); chosen = null; }
           const hit = lib.find(x => x.hash === hash);        // mesma imagem já salva: reaproveita, sem enviar de novo
-          if (hit) { chosenLib = hit.path; iconRemove = false; imgInfo.textContent = 'Essa imagem já estava salva — vou reaproveitar, sem gastar espaço.'; drawLib(); refresh(); return; }
-          chosenLib = ''; chosen = { f, ty, hash, url: URL.createObjectURL(f) }; iconRemove = false; drawLib(); refresh();
+          if (hit) { chosenLib = hit.path; iconRemove = false; onlyIn.checked = true; imgInfo.textContent = 'Essa imagem já estava salva — vou reaproveitar, sem gastar espaço.'; drawLib(); refresh(); return; }
+          chosenLib = ''; chosen = { f, ty, hash, url: URL.createObjectURL(f) }; iconRemove = false; onlyIn.checked = true; drawLib(); refresh();
         };
         const imgRow = el('div', 'pe-actions'); imgRow.style.alignItems = 'center'; imgRow.append(pickImg, rmImg);
         imgBox.append(el('span', 'mut', 'Imagem da tag (opcional)'), imgRow, imgInfo, imgFile); form.append(imgBox);
@@ -5431,7 +5446,7 @@ function dlgAdmin() {
             const w = el('div'); w.style.cssText = 'position:relative';
             const b = mk('', () => {
               if (chosen) { URL.revokeObjectURL(chosen.url); chosen = null; }
-              chosenLib = chosenLib === it.path ? '' : it.path; iconRemove = false; drawLib(); refresh();
+              chosenLib = chosenLib === it.path ? '' : it.path; iconRemove = false; if (chosenLib) onlyIn.checked = true; drawLib(); refresh();
             }, 'sec');
             b.style.cssText = 'padding:6px;min-width:0;' + (chosenLib === it.path ? 'outline:2px solid #6c7cff;' : '');
             b.title = 'Usada em ' + (it.uses || 0) + ' tag(s)';
@@ -5453,6 +5468,8 @@ function dlgAdmin() {
           lib = error ? [] : (data || []); drawLib();
         };
         loadLib();
+        const onlyIn = chk(form, 'Mostrar só a imagem (o nome acima aparece ao passar o mouse ou clicar)', false);
+        onlyIn.onchange = () => refresh();
         const presets = el('div', 'chips');
         [['Dono do site', '#f1c40f'], ['Beta', '#3498db'], ['Staff', '#e74c3c'], ['Apoiador', '#e91e63'], ['VIP', '#9b59b6'], ['Verificado', '#49d9ff']]
           .forEach(([lab, c]) => presets.append(mk(lab, () => { lIn.value = lab; cp.set(c); refresh(); }, 'sec')));
@@ -5484,6 +5501,9 @@ function dlgAdmin() {
           let exp; try { exp = expiry(); } catch (x) { return err(x); }
           e.target.disabled = true;
           const params = { p_label: label, p_color: cp.get(), p_expires_at: exp };
+          const hasIcon = !!(chosen || chosenLib || (!iconRemove && editing && editing.icon_path));
+          const onlyVal = !!(onlyIn.checked && hasIcon);
+          if (onlyVal || (editing && editing.icon_only)) params.p_icon_only = onlyVal;
           const oldIcon = editing && editing.icon_path ? editing.icon_path : '';
           let newPath = '';
           if (chosen) {                                   // imagem nova: nome = hash do arquivo, então nunca duplica; entra na biblioteca
@@ -5500,14 +5520,14 @@ function dlgAdmin() {
             : await sb().rpc('ns_admin_give_badge', Object.assign({ p_username: user }, params));
           e.target.disabled = false;
           if (error) {
-            return err(missingFn(error) && 'p_icon' in params ? 'Falta rodar a migração SQL v25 no Supabase para usar imagem na tag. (Só emoji e texto funcionam sem ela.)' : error);
+            return err(missingFn(error) && ('p_icon' in params || 'p_icon_only' in params) ? 'Falta rodar a migração SQL v25 no Supabase para usar imagem na tag. (Só emoji e texto funcionam sem ela.)' : error);
           }
           reset(); loadLib(); bcache.clear(); wantBadges(mem.map(m => m.username)); load();
         });
         const cancelBtn = mk('Cancelar edição', () => reset(), 'sec');
         acts.append(okBtn, cancelBtn); form.append(acts);
         const reset = () => {
-          editing = null; uIn.value = ''; uIn.readOnly = false; lIn.value = ''; eIn.value = ''; cp.set('#6c7cff'); setDur(false);
+          editing = null; uIn.value = ''; uIn.readOnly = false; lIn.value = ''; eIn.value = ''; onlyIn.checked = false; cp.set('#6c7cff'); setDur(false);
           if (chosen) URL.revokeObjectURL(chosen.url); chosen = null; chosenLib = ''; iconRemove = false; imgInfo.textContent = 'PNG, JPG, WEBP ou GIF · até 256 KB · aparece pequena antes do nome da tag'; drawLib();
           okBtn.textContent = 'Dar tag'; cancelBtn.classList.add('hidden'); refresh();
         };
@@ -5518,13 +5538,13 @@ function dlgAdmin() {
           const sel = rows.filter(r => !q || (r.username || '').includes(q) || r.label.toLowerCase().includes(q));
           if (!sel.length) box.append(el('p', 'mut', rows.length ? 'Nada encontrado.' : 'Nenhuma tag criada ainda.'));
           sel.forEach(r => {
-            const p = el('span', 'gbadge'); setBadgeEl(p, r.label, r.icon_path); p.style.setProperty('--c', okHex(r.color) || '#6c7cff');
+            const p = el('span', 'gbadge'); setBadgeEl(p, r.label, r.icon_path, '', r.icon_only === true); p.style.setProperty('--c', okHex(r.color) || '#6c7cff');
             const st = r.expires_at ? (r.active ? 'expira em ' + fmtDate(r.expires_at) : 'expirou em ' + fmtDate(r.expires_at)) : 'permanente';
             const info = grow(el('b', '', '@' + (r.username || '?')), el('div', 'mut', (r.display_name || '') + ' · ' + st));
             const ed = mk('Editar', () => {
               if (chosen) URL.revokeObjectURL(chosen.url); chosen = null; chosenLib = ''; iconRemove = false; drawLib();
               const mm = String(r.label || '').match(EMO_RE);
-              editing = r; uIn.value = '@' + r.username; uIn.readOnly = true;
+              editing = r; onlyIn.checked = r.icon_only === true; uIn.value = '@' + r.username; uIn.readOnly = true;
               eIn.value = mm ? mm[1] : ''; lIn.value = mm ? mm[2] : r.label;
               cp.set(okHex(r.color) || '#6c7cff'); setDur(true);
               okBtn.textContent = 'Salvar tag'; cancelBtn.classList.remove('hidden'); refresh(); form.scrollIntoView({ block: 'nearest' });
