@@ -3572,6 +3572,9 @@ applyLang();
   .gb:empty { display: none; }
   .who .gb { flex-wrap: nowrap; overflow: hidden; max-width: 120px; }
   .gbadge { --c: #6c7cff; display: inline-block; padding: 1px 7px; border: 1px solid var(--c); border-radius: 999px; background: rgba(255,255,255,.04); background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--c); font-size: .68rem; font-weight: 800; line-height: 1.55; white-space: nowrap; }
+  @supports (text-box: trim-both cap alphabetic) {
+    .gbadge:not(:has(.bicon)) { text-box: trim-both cap alphabetic; padding: 6px 8px; line-height: 1; }   /* centraliza pelas letras, sem depender da fonte escolhida */
+  }
   .gbadge .bicon { width: 14px; height: 14px; object-fit: contain; vertical-align: -3px; margin-right: 4px; border-radius: 3px; }
   .gbadge.bonly { padding: 2px 5px; cursor: pointer; }
   .gbadge.bonly .bicon { margin-right: 0; vertical-align: -3px; }
@@ -3874,7 +3877,7 @@ const PAL = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '
 const fmtDate = iso => new Date(iso).toLocaleString([], { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 let vsrv = null, vmem = [], vmemT = 0;
-const vpMap = new Map(); let vpViewId = null;   // quem está em cada canal de voz de cada servidor (presença em tempo real)   // servidor do canal de voz em que estou e os membros dele (independe do servidor aberto na tela)
+const vpMap = new Map(); let vpViewId = null; const vpSess = Math.random().toString(36).slice(2, 8);   // quem está em cada canal de voz de cada servidor (presença em tempo real)   // servidor do canal de voz em que estou e os membros dele (independe do servidor aberto na tela)
 let voiceCh = null, uid = null, servers = [], cur = null, chans = [], mem = [], chan = null, rt = null, rt2 = null, myRole = 'member', voiceJoin = false, lastSend = 0;
 let roles = [], mroles = new Map(), emojis = [], siteOwner = false;
 let cats = [];   // categorias de canais do servidor aberto
@@ -5161,16 +5164,22 @@ function vpGet(id, who) {
     e = { id, ch: null, roster: [], refs: new Set(), ready: false, tracked: null };
     vpMap.set(id, e);
     try {
-      e.ch = sb().channel('ns-voice:' + id, { config: { presence: { key: uid }, broadcast: { self: false } } });
+      e.ch = sb().channel('ns-voice:' + id, { config: { presence: { key: uid + '.' + vpSess }, broadcast: { self: false } } });
       e.ch.on('presence', { event: 'sync' }, () => vpSync(e))
         .on('broadcast', { event: 'vdc' }, m => { onVoiceDc(e, m && m.payload); })
-        .subscribe(st => { if (st === 'SUBSCRIBED') { e.ready = true; e.tracked = null; vpTrack(e); } });
+        .subscribe(st => {
+          if (st === 'SUBSCRIBED') { e.ready = true; e.tracked = null; vpTrack(e); vpSync(e); }
+          else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') {   // rede ruim: recria o canal em instantes
+            e.ready = false; clearTimeout(e.retry);
+            e.retry = setTimeout(() => { if (vpMap.get(e.id) !== e) return; const w = [...e.refs]; vpRemove(e); w.forEach(x => vpGet(e.id, x)); }, 4000);
+          }
+        });
     } catch (x) { e.ch = null; }
   }
   e.refs.add(who);
   return e;
 }
-function vpRemove(e) { try { if (e.ch) sb().removeChannel(e.ch); } catch (x) {} vpMap.delete(e.id); }
+function vpRemove(e) { clearTimeout(e.retry); try { if (e.ch) sb().removeChannel(e.ch); } catch (x) {} vpMap.delete(e.id); }
 function vpSync(e) {
   if (!e.ch) return;
   const seen = new Set(), list = [];
@@ -5187,7 +5196,7 @@ function vpTrack(e) {   // só quem está numa call anuncia presença
   if (!e.ch || !e.ready) return;
   const want = e.refs.has('call') && voiceCh && vsrv === e.id ? voiceCh : null;
   if (want === e.tracked) return;
-  e.tracked = want;
+  e.tracked = want; e.trackedAt = Date.now();
   try { if (want) e.ch.track({ uid, u: myUser() || '', ch: want, ts: Date.now() }); else e.ch.untrack(); } catch (x) {}
 }
 function vpCheck() {
@@ -5195,11 +5204,17 @@ function vpCheck() {
   if (inCall && !vpMap.has(vsrv)) vpGet(vsrv, 'call');
   [...vpMap.values()].forEach(e => {
     if (inCall && e.id === vsrv) e.refs.add('call'); else e.refs.delete('call');
+    if (e.tracked && Date.now() - (e.trackedAt || 0) > 40000) e.tracked = null;   // reafirma a presença de tempos em tempos
     vpTrack(e);
     if (!e.refs.size) vpRemove(e);
   });
 }
 setInterval(vpCheck, 5000);
+document.addEventListener('visibilitychange', () => {   // voltou para a aba/app: reafirma a presença e atualiza a lista
+  if (document.hidden) return;
+  vpMap.forEach(e => { if (e.tracked) e.tracked = null; });
+  vpCheck(); vpMap.forEach(vpSync);
+});
 function vrow(r) {
   const m = mem.find(x => x.user_id === r.uid) || { user_id: r.uid, username: r.u, display_name: r.u || '?' };
   const d = el('div', 'vrow'); d.append(A().avatar(m, 22));
