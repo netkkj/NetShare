@@ -2906,12 +2906,13 @@ applyLang();
   .sv-chdesc { margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--line); color: var(--mut); font-weight: 500; font-size: .86rem; }
   .sv-top .x { width: 36px; min-height: 36px; padding: 0; }
   .sv-burger { display: none; width: 36px; min-height: 36px; padding: 0; }
-  #svMsgs { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; overflow-y: auto; }
+  #svMsgs { display: flex; flex-direction: column; gap: 14px; padding: 14px 16px; overflow-y: auto; }
   .msg { position: relative; display: flex; gap: 11px; }
   .msg .mb { min-width: 0; }
   .msg .mh { display: flex; align-items: baseline; gap: 8px; font-size: .9rem; }
   .msg .mh span { font-size: .72rem; }
   .msg .mt { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; color: #dbe2f4; font-size: .93rem; }
+  .msg:not(.cont) .mt { margin-top: 6px; }
   #svForm { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); min-width: 0; width: 100%; }
   #svForm input { flex: 1 1 0; width: auto; min-width: 0; }
   #svForm button { flex: 0 0 auto; min-width: 48px; padding: 0 14px; }
@@ -2977,7 +2978,7 @@ applyLang();
   .msg .mh .mname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .msg .mh { flex-wrap: wrap; row-gap: 2px; }
   /* mensagens seguidas da mesma pessoa (menos de 5 min): sem foto e sem nome repetidos */
-  .msg.cont { margin-top: -8px; }
+  .msg.cont { margin-top: -9px; }
   .msg.cont > .av { visibility: hidden; height: 0; }
   .msg.cont .mh { display: none; }
   .msg .mact { position: absolute; right: 0; top: -6px; display: none; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--card-solid); box-shadow: 0 6px 18px rgba(0,0,0,.3); }
@@ -3015,7 +3016,7 @@ applyLang();
     .sv-top { min-height: 52px; padding: env(safe-area-inset-top) 10px 0 10px; gap: 8px; }
     .sv-top .x, .sv-burger { width: 40px; min-height: 40px; flex: 0 0 auto; }
     .sv-chdesc { display: none; }
-    #svMsgs { padding: 12px 10px; gap: 12px; }
+    #svMsgs { padding: 12px 10px; gap: 14px; }
     .msg { gap: 9px; }
     .msg .mt { font-size: .95rem; }
     .msg .mh { gap: 6px; }
@@ -3055,7 +3056,7 @@ applyLang();
   #stMenu .stopt { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 0; padding: 9px 10px; border: 0; border-radius: 9px; background: transparent; box-shadow: none; color: var(--fg); text-align: left; }
   #stMenu .stopt:hover, #stMenu .stopt.on { background: var(--surface-hover); }
   #stMenu .stx { display: grid; line-height: 1.25; } #stMenu .stx small { font-size: .72rem; }
-  .msg.mentioned { margin-left: -6px; margin-right: -6px; padding: 4px 6px 4px 3px; border-left: 3px solid #facc15; border-radius: 8px; background: rgba(250, 204, 21, .16); }
+  .msg.mentioned { margin-left: -6px; margin-right: -6px; padding: 7px 6px 7px 3px; border-left: 3px solid #facc15; border-radius: 8px; background: rgba(250, 204, 21, .16); }
   .msg.mentioned:hover { background: rgba(250, 204, 21, .21); }
   .mention { padding: 0 4px; border-radius: 5px; background: rgba(108, 124, 255, .25); color: #b7c0ff; font-weight: 700; }
   .mention.click { cursor: pointer; } .mention.click:hover { background: rgba(108, 124, 255, .4); }
@@ -3077,7 +3078,7 @@ applyLang();
   .sv-top .pinbtn { flex: 0 0 auto; width: auto; min-height: 36px; padding: 0 11px; font-size: .85rem; }
   .mpinned { margin-left: 8px; font-size: .72rem; font-weight: 700; color: #f5c451; }
   /* mensagem fixada: a faixa fica FORA do avatar (borda + recuo, mesma geometria da menção) */
-  .msg.pinned { margin-left: -6px; margin-right: -6px; padding: 4px 6px 4px 3px; border-left: 3px solid rgba(245, 196, 81, .75); border-radius: 8px; }
+  .msg.pinned { margin-left: -6px; margin-right: -6px; padding: 7px 6px 7px 3px; border-left: 3px solid rgba(245, 196, 81, .75); border-radius: 8px; }
   .msg.mentioned.pinned { border-left-color: #facc15; }
   /* título (###) logo abaixo do nome: dá um respiro */
   .mtx > .mh1:first-child, .mtx > .mh2:first-child, .mtx > .mh3:first-child { margin-top: 6px; }
