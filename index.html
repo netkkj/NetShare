@@ -2849,6 +2849,23 @@ applyLang();
   #nsToast { position: fixed; top: max(14px, env(safe-area-inset-top)); right: 14px; z-index: 95; display: grid; gap: 8px; width: min(360px, calc(100vw - 28px)); }
   .nstoast { padding: 10px 12px; border-radius: 12px; background: #facc15; color: #1a1500; font-size: .88rem; font-weight: 700; line-height: 1.35; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); cursor: pointer; overflow: hidden; text-overflow: ellipsis; }
   .dlg select { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: rgba(5, 9, 22, .65); color: var(--fg); font: inherit; }
+
+  /* ---------- reações por canal e mensagens fixadas ---------- */
+  #svMsgs.noreact .rbtn, #svMsgs.noreact .rchip.radd { display: none; }
+  #svMsgs.noreact .rchip { pointer-events: none; }
+  .sv-top .pinbtn { flex: 0 0 auto; width: auto; min-height: 36px; padding: 0 11px; font-size: .85rem; }
+  .mpinned { margin-left: 8px; font-size: .72rem; font-weight: 700; color: #f5c451; }
+  .msg.pinned { box-shadow: inset 3px 0 0 rgba(245, 196, 81, .55); }
+  .msg.mentioned.pinned { box-shadow: none; }
+  .mact .pinb.on { background: rgba(245, 196, 81, .28); }
+  .msg.flash { animation: nsflash 1.9s ease; }
+  @keyframes nsflash { 0%, 55% { background: rgba(108, 124, 255, .32); } 100% { background: transparent; } }
+  .pinlist { display: grid; gap: 10px; max-height: 60vh; overflow-y: auto; }
+  .pinrow { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255, 255, 255, .03); }
+  .pinhead { display: flex; align-items: center; gap: 8px; font-size: .88rem; flex-wrap: wrap; }
+  .pinact { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pinact button { min-height: 34px; padding: 5px 12px; font-size: .8rem; }
+  @media (max-width: 860px) { .sv-top .pinbtn { min-height: 40px; } }
   .edited { margin-left: 6px; color: var(--mut); font-size: .7rem; }
   .medit { width: 100%; min-height: 56px; padding: 8px 10px; border: 1px solid var(--acc); border-radius: 10px; outline: none; resize: vertical; background: rgba(5,9,22,.65); color: var(--fg); font: inherit; }
   .cemoji { width: 1.45em; height: 1.45em; vertical-align: -.32em; object-fit: contain; }
@@ -3038,7 +3055,7 @@ const cleanEmoji = e => ({ id: String(e.id), name: String(e.name || '').replace(
 const rail = el('aside', 'hidden'); rail.id = 'srvRail';
 const view = el('section', 'hidden'); view.id = 'srvView';
 view.innerHTML = '<div class="sv-side" id="svSide"><div class="sv-banner hidden" id="svBanner"></div><button type="button" class="sv-head" id="svName"></button><div class="sv-desc hidden" id="svDesc"></div><div class="sv-list" id="svChans"></div></div>' +
-  '<div class="sv-main"><div class="sv-top"><button type="button" class="sec sv-burger" id="svBurger">☰</button><strong id="svTitle"></strong><button type="button" class="sec x" id="svClose">✕</button></div>' +
+  '<div class="sv-main"><div class="sv-top"><button type="button" class="sec sv-burger" id="svBurger">☰</button><strong id="svTitle"></strong><button type="button" class="sec pinbtn hidden" id="svPins">📌</button><button type="button" class="sec x" id="svClose">✕</button></div>' +
   '<div id="svMsgs"></div><form id="svForm" class="hidden"><button type="button" class="sec" id="svEmoji">😊</button><textarea id="svInput" rows="1" maxlength="1000" autocomplete="off"></textarea><button type="submit">➤</button></form></div>' +
   '<div class="sv-mem" id="svMem"></div>';
 document.body.append(rail, view);
@@ -3328,6 +3345,91 @@ function noteMention(r, open) {
   });
   $('svForm').addEventListener('submit', () => { mentClose(); setTimeout(fit, 0); });
 }
+/* ===== reações por canal e mensagens fixadas ===== */
+const needV24 = () => LL('Falta rodar a migração SQL v24 no Supabase para usar reações por canal e mensagens fixadas.', 'The v24 SQL migration still needs to be run in Supabase to use per-channel reactions and pinned messages.');
+const reactOn = c => !c || c.reactions_enabled !== false;
+let pins = [], pinSet = new Set();
+async function loadChanExtras() {
+  const s = cur; if (!s) return;
+  let m = new Map();
+  try { const { data, error } = await sb().from('channels').select('id,reactions_enabled').eq('server_id', s.id); if (!error && data) m = new Map(data.map(x => [x.id, x.reactions_enabled !== false])); } catch (e) {}
+  chans.forEach(c => { c.reactions_enabled = m.has(c.id) ? m.get(c.id) : true; });   // sem a migração v24: reações liberadas
+}
+function paintPinBtn() {
+  const b = $('svPins'); if (!b) return;
+  b.classList.toggle('hidden', !chan);
+  b.textContent = '📌' + (pins.length ? ' ' + pins.length : '');
+  b.title = LL('Mensagens fixadas', 'Pinned messages');
+}
+function syncChanFlags() {
+  const box = $('svMsgs'); if (box) box.classList.toggle('noreact', !!chan && !reactOn(chan));
+  paintPinBtn();
+}
+function markPinned(d) {
+  const id = String(d.id || '').slice(1), on = pinSet.has(id), h = d.querySelector('.mh');
+  d.classList.toggle('pinned', on);
+  let tg = d.querySelector('.mpinned');
+  if (on && !tg && h) { tg = el('span', 'mpinned', '📌 ' + LL('Fixada', 'Pinned')); h.append(tg); }
+  if (!on && tg) tg.remove();
+  const pb = d.querySelector('.pinb'); if (pb) { pb.title = on ? LL('Desafixar', 'Unpin') : LL('Fixar mensagem', 'Pin message'); pb.classList.toggle('on', on); }
+}
+function refreshPinMarks() { $('svMsgs').querySelectorAll('.msg').forEach(markPinned); paintPinBtn(); }
+function pinPut(r) {
+  if (!r || !r.pinned_at) return;
+  const i = pins.findIndex(x => String(x.id) === String(r.id));
+  if (i >= 0) pins[i] = { ...pins[i], ...r }; else pins.push(r);
+  pinSet.add(String(r.id)); refreshPinMarks();
+}
+function pinDrop(id) {
+  if (!pinSet.has(String(id))) return;
+  pins = pins.filter(x => String(x.id) !== String(id)); pinSet.delete(String(id)); refreshPinMarks();
+}
+function syncPin(n) {
+  if (!chan || String(n.channel_id) !== String(chan.id) || !('pinned_at' in n)) return;
+  if (n.pinned_at) pinPut(n); else pinDrop(n.id);
+}
+async function loadPins(c) {
+  const { data, error } = await sb().from('messages').select('id,channel_id,server_id,user_id,content,created_at,edited_at,pinned_at,pinned_by')
+    .eq('channel_id', c.id).not('pinned_at', 'is', null).order('pinned_at', { ascending: false }).limit(50);
+  if (chan !== c) return;
+  pins = error ? [] : (data || []); pinSet = new Set(pins.map(x => String(x.id)));
+  refreshPinMarks();
+}
+async function setPin(id, on) {
+  const { data, error } = await sb().rpc('ns_pin_message', { p_message: String(id), p_pinned: !!on });
+  if (error) { err(missingFn(error) ? needV24() : error); return false; }
+  if (on) { const r = msgData.get(String(id)); if (r) pinPut({ ...r, pinned_at: data || new Date().toISOString() }); }
+  else pinDrop(id);
+  return true;
+}
+function jumpTo(id) {
+  const d = document.getElementById('m' + id);
+  if (!d) { toast(LL('Essa mensagem é antiga e não está carregada no histórico.', 'That message is old and not loaded in the history.')); return; }
+  d.scrollIntoView({ block: 'center', behavior: 'smooth' }); d.classList.add('flash'); setTimeout(() => d.classList.remove('flash'), 1900);
+}
+function dlgPins() {
+  if (!chan) return;
+  const c = chan, mng = can('manage_messages');
+  modal(LL('Mensagens fixadas', 'Pinned messages') + ' · #' + c.name, (w, close) => {
+    if (!pins.length) {
+      w.append(el('p', 'mut', LL('Nenhuma mensagem fixada neste canal ainda.', 'No pinned messages in this channel yet.') + (mng ? LL(' Passe o mouse sobre uma mensagem (ou toque nela) e clique em 📌 para fixar.', ' Hover a message (or tap it) and click 📌 to pin it.') : '')));
+      return;
+    }
+    const list = el('div', 'pinlist');
+    pins.slice().sort((a, b) => (Date.parse(b.pinned_at) || 0) - (Date.parse(a.pinned_at) || 0)).forEach(r => {
+      const m = memOf(r.user_id) || { display_name: '?' }, row = el('div', 'pinrow'), top = el('div', 'pinhead');
+      const nm = el('b', '', m.display_name); paintName(nm, r.user_id, m.username);
+      top.append(A().avatar(m, 26), nm, el('span', 'mut', new Date(r.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })));
+      const body = el('div', 'mtx'); mdInto(body, r.content || '');
+      const acts = el('div', 'pinact');
+      acts.append(mk(LL('Ir para a mensagem', 'Jump to message'), () => { close(); jumpTo(r.id); }, 'sec'));
+      if (mng) acts.append(mk(LL('Desafixar', 'Unpin'), async () => { if (await setPin(r.id, false)) { row.remove(); if (!pins.length) close(); } }, 'sec'));
+      row.append(top, body, acts); list.append(row);
+    });
+    w.append(list);
+  }, true);
+}
+$('svPins').onclick = dlgPins;
 function onAuth(id) {
   if (id === uid) { if (uid) renderRail(); return; }
   uid = id; siteOwner = false; closeView(); servers = []; renderRail(); syncRail();
@@ -3353,7 +3455,7 @@ $('svName').onclick = () => cur && dlgSettings();
 async function openServer(id) {
   const s = servers.find(x => x.id === id); if (!s) return;
   cur = s; chan = null; roles = []; mroles = new Map(); emojis = []; everyonePolicy = 'admins'; unreadMent.clear(); unsub(); closePicker(); renderRail();
-  setSrvName(); $('svTitle').textContent = ''; $('svMsgs').textContent = ''; $('svForm').classList.add('hidden'); $('svMem').textContent = '';
+  setSrvName(); $('svTitle').textContent = ''; $('svMsgs').textContent = ''; $('svForm').classList.add('hidden'); $('svMem').textContent = ''; pins = []; pinSet = new Set(); syncChanFlags();
   paintDesc();
   view.classList.remove('hidden'); layout();
   await Promise.all([loadChans(), loadMembers(), loadRoles(), loadEmojis(), loadEveryone()]);
@@ -3373,6 +3475,7 @@ async function loadChans() {
   if (error) ({ data } = await qc('id,name,kind,voice_key,position'));   // v13 ainda não rodou
   const old = new Map(chans.map(c => [c.id, c.voice_key]));
   chans = data || [];
+  await loadChanExtras();
   await loadCats();
   const inRoom = !$('room').classList.contains('hidden');
   const v = voiceCh && chans.find(c => c.id === voiceCh);
@@ -3380,8 +3483,8 @@ async function loadChans() {
     if (!v) { voiceCh = null; leaveRoom(); }                                            // canal apagado ou perdi o acesso
     else if (old.has(v.id) && old.get(v.id) !== v.voice_key) { leaveRoom(); setTimeout(() => joinVoice(v), 300); }   // chave trocada: entra de novo com a nova
   }
-  if (chan) { const nc = chans.find(x => x.id === chan.id); if (nc) { Object.assign(chan, nc); paintTitle(chan); applyWriteState(); } }   // canal aberto foi editado
-  if (chan && !chans.some(c => c.id === chan.id)) { chan = null; $('svMsgs').textContent = ''; $('svTitle').textContent = ''; $('svForm').classList.add('hidden'); }
+  if (chan) { const nc = chans.find(x => x.id === chan.id); if (nc) { Object.assign(chan, nc); paintTitle(chan); applyWriteState(); syncChanFlags(); } }   // canal aberto foi editado
+  if (chan && !chans.some(c => c.id === chan.id)) { chan = null; $('svMsgs').textContent = ''; $('svTitle').textContent = ''; $('svForm').classList.add('hidden'); syncChanFlags(); }
 }
 async function loadCats() {
   const s = cur; if (!s) { cats = []; return; }
@@ -3950,7 +4053,7 @@ async function pickChan(c) {
     if (inRoom) { leaveRoom(); setTimeout(() => joinVoice(c), 300); return; }
     return joinVoice(c);
   }
-  chan = c; unreadMent.delete(c.id); msgIds.clear(); msgData.clear(); reacts.clear(); renderChans(); closePicker();
+  chan = c; unreadMent.delete(c.id); msgIds.clear(); msgData.clear(); reacts.clear(); pins = []; pinSet = new Set(); syncChanFlags(); renderChans(); closePicker();
   paintTitle(c); $('svMsgs').textContent = ''; $('svForm').classList.remove('hidden'); $('svInput').placeholder = t('msgPh'); applyWriteState(); $('svEmoji').title = t('emojiBtn');
   let res = await sb().rpc('ns_list_messages', { p_channel: c.id });
   if (res.error) res = await sb().rpc('list_messages', { p_channel: c.id });   // migração v7 ainda não rodou
@@ -3958,7 +4061,7 @@ async function pickChan(c) {
   if (res.error) return err(res.error);
   (res.data || []).reverse().forEach(r => addMsg(r));
   $('svMsgs').scrollTop = $('svMsgs').scrollHeight;
-  loadReacts(c);
+  loadReacts(c); loadPins(c);
 }
 async function loadReacts(c) {
   const { data, error } = await sb().rpc('ns_list_reactions', { p_channel: c.id });
@@ -3986,13 +4089,14 @@ function addMsg(r) {
   d.append(presDot(r.user_id, 'pos-msg')); markMention(d, r);
 
   const act = el('div', 'mact');
-  const rb = mk('😊', e => { e.stopPropagation(); openPicker(e.currentTarget, p => toggleReact(r.id, pickKey(p))); }, 'sec'); rb.title = t('react'); act.append(rb);
+  const rb = mk('😊', e => { e.stopPropagation(); openPicker(e.currentTarget, p => toggleReact(r.id, pickKey(p))); }, 'sec rbtn'); rb.title = t('react'); act.append(rb);
+  if (can('manage_messages')) { const pb = mk('📌', e => { e.stopPropagation(); setPin(r.id, !pinSet.has(String(r.id))); }, 'sec pinb'); act.append(pb); }
   if (r.user_id === uid) { const eb = mk('✎', e => { e.stopPropagation(); startEdit(d, r); }, 'sec'); eb.title = t('edit'); act.append(eb); }
   if (r.user_id === uid || can('manage_messages')) {
-    const x = mk('✕', async () => { const { error } = await sb().from('messages').delete().eq('id', r.id); if (error) err(error); else { d.remove(); regroup(); } }, 'sec');
+    const x = mk('✕', async () => { const { error } = await sb().from('messages').delete().eq('id', r.id); if (error) err(error); else { d.remove(); regroup(); pinDrop(r.id); } }, 'sec');
     x.title = t('del'); act.append(x);
   }
-  d.append(act);
+  d.append(act); markPinned(d);
   // no celular (sem hover): tocar na mensagem mostra as ações
   d.addEventListener('click', e => {
     if (window.matchMedia('(hover: none)').matches && !e.target.closest('button, textarea, .click')) d.classList.toggle('sel');
@@ -4037,6 +4141,7 @@ function startEdit(d, r) {
 }
 function updateMsg(n) {
   if (!n) return;
+  syncPin(n);
   const key = String(n.id), r = msgData.get(key); if (!r) return;
   r.content = n.content; r.edited_at = n.edited_at || r.edited_at;
   const d = document.getElementById('m' + key), mt = d && d.querySelector('.mt');
@@ -4064,6 +4169,7 @@ function renderReacts(id) {
 }
 async function toggleReact(id, key) {
   const r = msgData.get(String(id)); if (!r || !key) return;
+  if (!reactOn(chan)) return err(LL('As reações estão desativadas neste canal.', 'Reactions are turned off in this channel.'));
   const { data, error } = await sb().rpc('ns_toggle_reaction', { p_message: r.id, p_emoji: key });
   if (error) return err(error);
   reactSet(String(id), key, uid, data === true); renderReacts(String(id));
@@ -4090,7 +4196,7 @@ function subscribe() {
   const id = cur.id, f = 'server_id=eq.' + id;
   rt = sb().channel('srv:' + id)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: f }, p => { if (chan && p.new.channel_id === chan.id) { addMsg(p.new); noteMention(p.new, true); } else noteMention(p.new, false); })
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, p => { const n = document.getElementById('m' + p.old.id); if (n) { n.remove(); regroup(); } })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, p => { const n = document.getElementById('m' + p.old.id); if (n) { n.remove(); regroup(); } pinDrop(p.old.id); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'channels', filter: f }, async () => { await loadChans(); renderChans(); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'server_members', filter: f }, () => loadMembers())
     .subscribe();
@@ -4249,6 +4355,10 @@ function dlgEditChannel(c, isNew) {
     slowL.append(el('span', '', L('Temporizador do chat (tempo de espera para escrever de novo)', 'Chat timer (wait time before writing again)')), slowSel, slowNum);
     const slowP = el('p', 'mut', L('Quanto cada pessoa precisa esperar para mandar outra mensagem neste canal. Dono, admins e quem gerencia canais não são limitados.', 'How long each person must wait to send another message in this channel. The owner, admins and channel managers are not limited.'));
     w.append(slowL, slowP);
+    const reactBox = el('div');
+    const reactChk = chk(reactBox, L('Permitir reações com emojis nas mensagens deste canal', 'Allow emoji reactions on messages in this channel'), c.reactions_enabled !== false);
+    reactBox.append(el('p', 'mut', L('Desligado: ninguém consegue reagir às mensagens deste canal. As reações que já existem continuam aparecendo, só que sem poder mexer.', 'Off: nobody can react to messages in this channel. Existing reactions stay visible but can no longer be changed.')));
+    w.append(reactBox);
     const getSlow = () => slowSel.value !== 'custom' ? +slowSel.value : Math.max(0, Math.min(21600, parseInt(slowNum.value, 10) || 0));
 
     /* limite de pessoas (só canal de voz) */
@@ -4287,7 +4397,7 @@ function dlgEditChannel(c, isNew) {
     const syncAcc = () => { viewHost.classList.toggle('hidden', !privChk.checked); writeHost.classList.toggle('hidden', !lockChk.checked); };
     privChk.onchange = syncAcc; lockChk.onchange = syncAcc; syncAcc();
     const syncKind = () => {
-      isV = c.kind === 'voice'; paintIcon(); slowL.classList.toggle('hidden', isV); slowP.classList.toggle('hidden', isV);
+      isV = c.kind === 'voice'; paintIcon(); slowL.classList.toggle('hidden', isV); slowP.classList.toggle('hidden', isV); reactBox.classList.toggle('hidden', isV);
       if (limL) { limL.classList.toggle('hidden', !isV); limP.classList.toggle('hidden', !isV); }
       privChk.parentNode.lastChild.textContent = isV ? L('Canal de voz privado (só os cargos escolhidos entram)', 'Private voice channel (only the chosen roles can join)') : L('Canal privado (só os cargos escolhidos veem)', 'Private channel (only the chosen roles can see it)');
       lockChk.parentNode.lastChild.textContent = isV ? L('Restringir quem pode falar (transmitir tela e câmera); os demais só assistem', 'Restrict who can talk (share screen and camera); others only watch') : L('Restringir quem pode escrever; os demais só leem', 'Restrict who can write; others can only read');
@@ -4334,6 +4444,10 @@ function dlgEditChannel(c, isNew) {
             const rs = await sb().rpc('ns_set_channel_slowmode', { p_channel: c.id, p_seconds: sl });
             if (rs.error) err(missingFn(rs.error) ? needV17() : '[v17 · temporizador] ' + rs.error.message);
           }
+        }
+        if (c.kind === 'text' && reactChk.checked !== (c.reactions_enabled !== false)) {
+          const rr = await sb().rpc('ns_set_channel_reactions', { p_channel: String(c.id), p_enabled: reactChk.checked });
+          if (rr.error) err(missingFn(rr.error) ? needV24() : '[v24 · reações] ' + rr.error.message);
         }
         if (catSel && catSel.value !== (c.category_id || '')) {
           const rc = await sb().rpc('ns_set_channel_category', { p_channel: c.id, p_category: catSel.value || null });
