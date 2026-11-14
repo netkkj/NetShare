@@ -6333,6 +6333,7 @@ function dlgAdmin() {
             : await sb().rpc('ns_admin_give_badge', Object.assign({ p_username: user }, params));
           e.target.disabled = false;
           if (error) {
+            console.warn('[NetShare] salvar tag falhou:', { editando: editing ? { id: editing.id, tipo: typeof editing.id, campos: Object.keys(editing) } : null, params, erro: error.message, codigo: error.code });
             return err(missingFn(error) && ('p_icon' in params || 'p_icon_only' in params) ? 'Falta rodar a migração SQL v25 no Supabase para usar imagem na tag. (Só emoji e texto funcionam sem ela.)' : error);
           }
           reset(); loadLib(); bcache.clear(); wantBadges(mem.map(m => m.username)); load();
