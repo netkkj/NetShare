@@ -2880,9 +2880,9 @@ applyLang();
     .sbtn.smine .av { --s: 100%; }
     .eyebrow { flex-wrap: wrap; gap: 2px 7px; font-size: .68rem; letter-spacing: .06em; }
     #accBar { gap: 8px; padding: 10px; }
-    #accBar .acc-who { flex: 1 1 0; min-width: 0; }
-    #accBar > button:not(.stbtn) { flex: 1 1 calc(50% - 8px); }
-    #accBar .stbtn { flex: 0 0 auto; }
+    #accBar .acc-who { flex: 1 1 100%; min-width: 0; }                 /* avatar + nome ocupam a primeira linha inteira */
+    #accBar > button { flex: 1 1 auto; min-width: 0; justify-content: center; text-align: center; }
+    #accBar .stbtn { display: inline-flex; align-items: center; justify-content: center; }
   }
   @media (max-width: 380px) {
     :root { --rail: 50px; }
