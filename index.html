@@ -5085,7 +5085,12 @@ function openPicker(anchor, onPick, noCustom) {
   const r = anchor.getBoundingClientRect(), vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
   const w = box.offsetWidth, h = box.offsetHeight;
   const dmh = anchor.closest('#dmView'), hr = dmh && dmh.getBoundingClientRect();
-  box.style.left = (hr ? Math.min(Math.max(8, hr.right - w - 8), vw - w - 8) : Math.min(Math.max(8, r.right - w), vw - w - 8)) + 'px';
+  if (hr) {   // conversa privada: alinha ao botão (esquerda se ele está na metade esquerda do painel, senão direita), sempre dentro do painel
+    const leftSide = (r.left + r.right) / 2 < (hr.left + hr.right) / 2;
+    let x = leftSide ? r.left : r.right - w;
+    x = Math.min(Math.max(x, hr.left + 8), hr.right - w - 8);
+    box.style.left = Math.max(8, x) + 'px';
+  } else box.style.left = Math.min(Math.max(8, r.right - w), vw - w - 8) + 'px';
   const above = r.top - 16, below = vh - r.bottom - 16;
   if (above >= Math.min(h, 260) || above >= below) {         // abre para cima e cresce para cima
     box.style.maxHeight = Math.min(360, above) + 'px'; box.style.bottom = (vh - r.top + 8) + 'px';
