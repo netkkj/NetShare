@@ -3306,8 +3306,29 @@ window.Acc = (() => {
     } catch (e) {}
   }
 
+  async function completeProfile(p) {
+    try {
+      const col = 'id,username,display_name,bio,avatar_path,banner_path,profile_fx';
+      const q = c => { let b = sb.from('profiles').select(c); b = p.user_id ? b.eq('id', p.user_id) : b.eq('username', String(p.username).toLowerCase()); return b.maybeSingle(); };
+      let r = await q(col);
+      if (r.error) r = await q(col.replace(',profile_fx', ''));
+      const prof = r.error ? null : cleanProfile(r.data);
+      if (!prof) return null;
+      return { ...p, ...prof, user_id: p.user_id || r.data.id };
+    } catch (e) { return null; }
+  }
   function showCard(p) {
     if (!p) return;
+    const isMe = !!(session && me && ((p.user_id && p.user_id === session.user.id) || (p.username && p.username === me.username)));
+    if (isMe) return renderCard({ ...p, ...me, user_id: session.user.id });
+    // chamadas sem bio/banner (ex.: conversa privada): busca o perfil completo antes de abrir
+    if (sb && (p.bio === undefined || p.banner_path === undefined) && (p.username || p.user_id)) {
+      completeProfile(p).then(full => renderCard(full || p));
+      return;
+    }
+    renderCard(p);
+  }
+  function renderCard(p) {
     const body = $('cardBody');
     body.textContent = '';
     const ban = el('div', 'pc-banner');
@@ -6452,7 +6473,7 @@ frPanel.addEventListener('touchstart', e => { frSx = e.touches[0].clientX; frSy 
 frPanel.addEventListener('touchend', e => { const t = e.changedTouches[0]; if (innerWidth <= 860 && t.clientX - frSx < -90 && Math.abs(t.clientY - frSy) < 40) frSet(false); }, { passive: true });
 
 /* ===== mensagens diretas ===== */
-var dmCur = null, dmCh = null, dmPoll = 0, dmInboxL = [], dmUn = 0;
+var dmCur = null, dmCh = null, dmCh2 = null, dmXT = 0, dmPoll = 0, dmInboxL = [], dmUn = 0;
 const DM_MSG = { closed: ['Essa pessoa só recebe mensagens de amigos.', 'This person only receives messages from friends.'], rate: ['Calma! Mensagens demais em pouco tempo.', 'Slow down! Too many messages.'], self: ['Você não pode mandar mensagem para si mesmo.', 'You cannot message yourself.'], not_found: ['Pessoa não encontrada.', 'Person not found.'] };
 const dmMsg = c => c === 'sql' ? LL('Falta rodar a migração SQL v29 no Supabase para usar mensagens.', 'The v29 SQL migration still needs to be run in Supabase to use messages.') : DM_MSG[c] ? LL(DM_MSG[c][0], DM_MSG[c][1]) : String(c);
 const need30 = () => LL('Falta rodar a migração SQL v30 no Supabase para usar essa opção.', 'The v30 SQL migration still needs to be run in Supabase to use this option.');
@@ -6518,31 +6539,134 @@ async function dmOpen(p) {
   };
   const fit = () => { ta.style.height = 'auto'; const h = ta.scrollHeight; ta.style.height = Math.min(h, 160) + 'px'; ta.style.overflowY = h > 160 ? 'auto' : 'hidden'; };
   ta.oninput = fit;
-  let last = 0, prev = null;
+  let last = 0;
   const empty = el('p', 'mut dm-empty', LL('Esta é a sua conversa com ' + o.display_name + '. Diga oi! 👋', 'This is your conversation with ' + o.display_name + '. Say hi! 👋'));
+  const rows = new Map();     // id -> { r, d, mt, mre, sig }
+  const reactM = new Map();   // id -> Map(emoji -> Set(user))
+  const dmErr = e => toast(missingFn(e) ? LL('Falta rodar a migração SQL v31 no Supabase para reagir, editar e apagar mensagens privadas.', 'The v31 SQL migration still needs to be run in Supabase to react to, edit and delete private messages.') : String((e && e.message) || e));
+  const regroupDm = () => {
+    let pv = null;
+    list.querySelectorAll('.msg').forEach(m => {
+      const ts = +m.dataset.ts || 0, dt = pv ? ts - (+pv.dataset.ts || 0) : -1;
+      m.classList.toggle('cont', !!pv && pv.dataset.uid === m.dataset.uid && dt >= 0 && dt < GROUP_MS);
+      pv = m;
+    });
+  };
+  const paintDmText = (mt, r) => {
+    mt.textContent = ''; const tx = el('div', 'mtx'), c = String(r.content || ''); mdInto(tx, c); mt.append(tx);
+    if (r.edited_at) mt.append(el('span', 'edited', t('edited')));
+    mt.classList.toggle('jumbo', isJumbo(c));
+  };
+  const renderDmReacts = key => {
+    const x = rows.get(key); if (!x) return;
+    const m = reactM.get(key) || new Map();
+    const sig = [...m].map(([e, s]) => e + ':' + [...s].sort().join(',')).sort().join('|') + '#' + (uid || '');
+    if (x.sig === sig) return; x.sig = sig;
+    x.mre.textContent = '';
+    if (!m.size) return;
+    [...m].forEach(([emo, users]) => {
+      const bt = mk('', () => toggleDm(key, emo), 'rchip' + (users.has(uid) ? ' mine' : ''));
+      bt.append(emoNode(emo), el('span', '', String(users.size))); x.mre.append(bt);
+    });
+    const add = mk('＋', e => openPicker(e.currentTarget, q => toggleDm(key, q.u), true), 'rchip radd'); add.title = t('react'); x.mre.append(add);
+  };
+  const toggleDm = async (key, emo) => {
+    const x = rows.get(key); if (!x || !emo) return;
+    const { data, error } = await sb().rpc('dm_toggle_reaction', { p_message: x.r.id, p_emoji: emo });
+    if (error) return dmErr(error);
+    let m = reactM.get(key); if (!m) reactM.set(key, m = new Map());
+    let st = m.get(emo);
+    if (data === true) { if (!st) m.set(emo, st = new Set()); st.add(uid); }
+    else if (st) { st.delete(uid); if (!st.size) m.delete(emo); }
+    renderDmReacts(key);
+  };
+  const loadDmReacts = async () => {
+    const { data, error } = await sb().rpc('dm_list_reactions', { p_other: id });
+    if (error || dmPanel !== d) return;
+    reactM.clear();
+    (data || []).forEach(x => {
+      const k = String(x.message_id); let m = reactM.get(k); if (!m) reactM.set(k, m = new Map());
+      let st = m.get(x.emoji); if (!st) m.set(x.emoji, st = new Set()); st.add(x.user_id);
+    });
+    rows.forEach((_, k) => renderDmReacts(k));
+  };
+  const dropRow = key => { const x = rows.get(key); if (!x) return; x.d.remove(); rows.delete(key); reactM.delete(key); };
+  const startDmEdit = key => {
+    const x = rows.get(key); if (!x || x.mt.querySelector('textarea')) return;
+    const ed = el('textarea', 'medit'); ed.maxLength = 1000; ed.value = x.r.content || '';
+    ed.rows = Math.min(8, (ed.value.match(/\n/g) || []).length + 2);
+    x.mt.textContent = ''; x.mt.classList.remove('jumbo'); x.mt.append(ed, el('div', 'mut', t('editHint')));
+    const cancel = () => paintDmText(x.mt, x.r);
+    const save = async () => {
+      const c = ed.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000);
+      if (!c) return;   // para esvaziar, use o botão de apagar
+      if (c === x.r.content) return cancel();
+      ed.disabled = true;
+      const { data, error } = await sb().rpc('dm_edit_message', { p_id: x.r.id, p_content: c });
+      if (error) { ed.disabled = false; dmErr(error); ed.focus(); return; }
+      x.r.content = c; x.r.edited_at = data || new Date().toISOString(); paintDmText(x.mt, x.r);
+    };
+    ed.onkeydown = e => {
+      if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+      else if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); save(); }
+    };
+    ed.focus(); ed.setSelectionRange(ed.value.length, ed.value.length);
+  };
   const addRow = r => {
-    const mine = r.sender_id === uid, w = mine ? meo : o, ts = Date.parse(r.created_at) || Date.now();
-    const cont = !!prev && prev.mine === mine && ts - prev.ts >= 0 && ts - prev.ts < GROUP_MS;
-    const m = el('div', 'msg' + (cont ? ' cont' : '')); m.dataset.uid = mine ? uid : id; m.dataset.ts = String(ts);
+    const key = String(r.id), mine = r.sender_id === uid, w = mine ? meo : o, ts = Date.parse(r.created_at) || Date.now();
+    const m = el('div', 'msg'); m.dataset.uid = mine ? uid : id; m.dataset.ts = String(ts);
     const av = A().avatar(w, 36), mb = el('div', 'mb'), mh = el('div', 'mh'), mn = el('strong', 'click mname', w.display_name);
     if (w.username && window.NS) NS.apply(mn, w.username);
     const oc = () => mine ? A().showCard({ user_id: uid, username: meo.username, display_name: meo.display_name, avatar_path: meo.avatar_path }) : openCard();
     mn.onclick = oc; av.onclick = oc; av.classList.add('click');
     mh.append(mn, el('span', 'mut', new Date(r.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
-    const mt = el('div', 'mt'), tx = el('div', 'mtx'), c = String(r.content || ''); mdInto(tx, c); mt.append(tx); mt.classList.toggle('jumbo', isJumbo(c));
-    mb.append(mh, mt); m.append(av, mb, presDot(mine ? uid : id, 'pos-msg')); list.append(m); prev = { mine, ts };
+    const mt = el('div', 'mt'), mre = el('div', 'mre'); paintDmText(mt, r);
+    mb.append(mh, mt, mre); m.append(av, mb, presDot(mine ? uid : id, 'pos-msg'));
+    const act = el('div', 'mact');
+    const rb = mk('😊', e => { e.stopPropagation(); openPicker(e.currentTarget, q => toggleDm(key, q.u), true); }, 'sec rbtn'); rb.title = t('react'); act.append(rb);
+    if (mine) {
+      const eb = mk('✎', e => { e.stopPropagation(); startDmEdit(key); }, 'sec'); eb.title = t('edit'); act.append(eb);
+      const xb = mk('✕', async () => {
+        const x = rows.get(key); if (!x) return;
+        const pv = String(x.r.content || '').replace(/\s+/g, ' ').trim();
+        if (!(await confirmBox(LL('Apagar mensagem?', 'Delete message?'), LL('Isso não pode ser desfeito.', 'This cannot be undone.'), { quote: pv.length > 140 ? pv.slice(0, 140) + '…' : pv }))) return;
+        const { error } = await sb().rpc('dm_delete_message', { p_id: x.r.id });
+        if (error) return dmErr(error);
+        dropRow(key); regroupDm(); if (!rows.size && !empty.parentNode) list.append(empty); dmLoadInbox();
+      }, 'sec'); xb.title = t('del'); act.append(xb);
+    }
+    m.append(act);
+    // no celular (sem hover): tocar na mensagem mostra as ações
+    m.addEventListener('click', e => { if (window.matchMedia('(hover: none)').matches && !e.target.closest('button, textarea, .click')) m.classList.toggle('sel'); });
+    list.append(m); rows.set(key, { r, d: m, mt, mre, sig: null });
   };
-  const paint = rows => {
+  const paint = (got, full) => {
     const near = list.scrollHeight - list.scrollTop - list.clientHeight < 90 || !last; let mineNew = false;
-    rows.forEach(r => { if (r.id <= last) return; last = r.id; if (empty.parentNode) empty.remove(); addRow(r); if (r.sender_id === uid) mineNew = true; });
-    if (!last && !empty.parentNode) list.append(empty);
+    const ids = new Set(got.map(r => String(r.id))), minId = got.length ? got[0].id : 0;
+    rows.forEach((x, k) => { if (ids.has(k)) return; if (full && x.r.id < minId) return; dropRow(k); });   // apagadas por quem enviou
+    got.forEach(r => {
+      const k = String(r.id), x = rows.get(k);
+      if (x) {
+        if ((x.r.content !== r.content || (x.r.edited_at || null) !== (r.edited_at || null)) && !x.mt.querySelector('textarea')) { x.r.content = r.content; x.r.edited_at = r.edited_at || null; paintDmText(x.mt, x.r); }
+        return;
+      }
+      if (empty.parentNode) empty.remove();
+      addRow(r); if (r.id > last) last = r.id;
+      if (r.sender_id === uid) mineNew = true;
+    });
+    regroupDm();
+    if (!rows.size && !empty.parentNode) list.append(empty);
     if (near || mineNew) list.scrollTop = list.scrollHeight;
   };
   const pull = async () => {
-    const { data, error } = await sb().from('dm_messages').select('id,sender_id,content,created_at').or('and(sender_id.eq.' + uid + ',recipient_id.eq.' + id + '),and(sender_id.eq.' + id + ',recipient_id.eq.' + uid + ')').order('created_at', { ascending: false }).limit(100);
+    const q = cols => sb().from('dm_messages').select(cols).or('and(sender_id.eq.' + uid + ',recipient_id.eq.' + id + '),and(sender_id.eq.' + id + ',recipient_id.eq.' + uid + ')').order('created_at', { ascending: false }).limit(100);
+    let { data, error } = await q('id,sender_id,content,created_at,edited_at');
+    if (error) ({ data, error } = await q('id,sender_id,content,created_at'));   // v31 ainda não rodou
     if (dmPanel !== d) return;
     if (error) { if (!last) list.append(el('p', 'mut', dmMsg(missingFn(error) ? 'sql' : error.message))); return; }
-    paint((data || []).reverse()); sb().rpc('dm_mark_read', { p_other: id }).then(() => dmLoadInbox());
+    paint((data || []).reverse(), (data || []).length >= 100);
+    sb().rpc('dm_mark_read', { p_other: id }).then(() => dmLoadInbox());
+    if (rows.size) loadDmReacts();
   };
   f.onsubmit = async e => {
     e.preventDefault(); const c = ta.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000); if (!c) return; go.disabled = true;
@@ -6568,8 +6692,15 @@ async function dmIncoming(r) {
 function dmStart() {
   const me = uid; if (!me) return; dmLoadInbox();
   try { dmCh = sb().channel('ns-dm:' + me).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dm_messages', filter: 'recipient_id=eq.' + me }, p => dmIncoming(p.new)).subscribe(); } catch (e) { dmCh = null; }
+  // canal à parte: se a migração v31 não existir, só estes recursos ficam sem tempo real
+  const kick = () => { clearTimeout(dmXT); dmXT = setTimeout(() => { if (dmCur) dmCur.pull(); }, 250); };
+  try { dmCh2 = sb().channel('ns-dmx:' + me)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'dm_messages' }, kick)
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'dm_messages' }, kick)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'dm_reactions' }, kick)
+    .subscribe(); } catch (e) { dmCh2 = null; }
 }
-function dmStop() { clearInterval(dmPoll); if (dmCh) { try { sb().removeChannel(dmCh); } catch (e) {} dmCh = null; } dmInboxL = []; dmUn = 0; dmClose(); }
+function dmStop() { clearInterval(dmPoll); if (dmCh) { try { sb().removeChannel(dmCh); } catch (e) {} dmCh = null; } if (dmCh2) { try { sb().removeChannel(dmCh2); } catch (e) {} dmCh2 = null; } dmInboxL = []; dmUn = 0; dmClose(); }
 function dmInboxPaint(b) {
   if (!dmInboxL.length) return frEmpty(b, LL('Nenhuma conversa ainda. Abra o perfil de alguém e toque em Mensagem.', 'No conversations yet. Open someone’s profile and tap Message.'));
   dmInboxL.forEach(x => {
