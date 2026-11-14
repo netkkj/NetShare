@@ -3132,7 +3132,7 @@ applyLang();
   .gbadge .bicon { width: 14px; height: 14px; object-fit: contain; vertical-align: -3px; margin-right: 4px; border-radius: 3px; }
   .gbadge.bonly { padding: 2px 5px; cursor: pointer; }
   .gbadge.bonly .bicon { margin-right: 0; vertical-align: -3px; }
-  .bdg-tip { position: fixed; z-index: 99999; max-width: 220px; padding: 6px 10px; border-radius: 8px; background: #11162a; color: #fff; border: 1px solid rgba(255,255,255,.18); font-size: .78rem; font-weight: 700; box-shadow: 0 6px 20px rgba(0,0,0,.45); pointer-events: none; }
+  .bdg-tip { position: fixed; z-index: 2147483647; text-align: center; line-height: 1.3; word-break: break-word; max-width: 220px; padding: 6px 10px; border-radius: 8px; background: #11162a; color: #fff; border: 1px solid rgba(255,255,255,.18); font-size: .78rem; font-weight: 700; box-shadow: 0 6px 20px rgba(0,0,0,.45); pointer-events: none; }
   .rchips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
   .rpick { display: grid; gap: 4px; margin-top: 6px; }
 
@@ -3462,7 +3462,12 @@ const can = p => isAdm() || roles.some(r => hasRole(uid, r.id) && (r.perms.inclu
 const topRole = u => roles.find(r => hasRole(u, r.id)) || null;
 const nameColor = u => { const r = u ? topRole(u) : null; return r ? r.color : ''; };
 // cor da tag de uma pessoa: cargo de dono (se a etiqueta aparece) ou o cargo mais alto
-const colorOf = u => (!ownerHidden() && (memOf(u) || {}).role === 'owner') ? ownerColor() : nameColor(u);
+const colorOf = u => {
+  const m = memOf(u) || {};
+  if (!ownerHidden() && m.role === 'owner') return ownerColor();
+  const nc = nameColor(u); if (nc) return nc;
+  return ((m.role === 'admin' || m.role === 'member') && !baseHidden(m.role) && baseCustomColor(m.role)) || '';
+};
 const colorOfUser = un => { if (!cur || !un) return ''; const m = mem.find(x => x.username === un); return m ? colorOf(m.user_id) : ''; };
 const paintName = (node, u, uname) => { const c = colorOf(u); if (window.NS) NS.apply(node, uname, c); else if (c) node.style.color = c; };
 const colorSig = () => cur ? mem.map(m => (m.username || '') + colorOf(m.user_id)).join('|') : '';
@@ -3519,7 +3524,9 @@ const railObs = new MutationObserver(syncRail);
 
 async function loadServers() {
   // se a migração v7 ainda não foi rodada, cai para a consulta antiga (sem descrição)
-  let r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path,owner_role_name,owner_role_color,owner_role_hidden,name_font,name_color,name_color2,name_fx,owner_role_font,owner_role_color2,owner_role_fx').order('created_at');
+  const BASE_COLS = ',admin_role_name,admin_role_color,admin_role_hidden,admin_role_font,admin_role_color2,admin_role_fx,member_role_name,member_role_color,member_role_hidden,member_role_font,member_role_color2,member_role_fx';
+  let r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path,owner_role_name,owner_role_color,owner_role_hidden,name_font,name_color,name_color2,name_fx,owner_role_font,owner_role_color2,owner_role_fx' + BASE_COLS).order('created_at');   // v26
+  if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path,owner_role_name,owner_role_color,owner_role_hidden,name_font,name_color,name_color2,name_fx,owner_role_font,owner_role_color2,owner_role_fx').order('created_at');
   if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path,owner_role_name,owner_role_color,owner_role_hidden,name_font,name_color,name_color2,name_fx').order('created_at');   // v12 ainda não rodou
   if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path,owner_role_name,owner_role_color,owner_role_hidden').order('created_at');   // v11 ainda não rodou
   if (r.error) r = await sb().from('servers').select('id,name,icon_path,owner_id,invite_code,description,banner_path').order('created_at');   // v9 ainda não rodou
@@ -3535,6 +3542,13 @@ async function loadServers() {
 const nsOf = s => (window.NS && s) ? NS.clean({ font: s.name_font, color: s.name_color, color2: s.name_color2, fx: s.name_fx }) : { font: '', color: '', color2: '', fx: '' };
 const nsOfRole = r => NS.clean({ font: r.name_font, color: r.color, color2: r.name_color2, fx: r.name_fx });
 const ownerNs = () => NS.clean({ font: cur && cur.owner_role_font, color: ownerColor(), color2: cur && cur.owner_role_color2, fx: cur && cur.owner_role_fx });
+/* cargos base: dono, admin e membro (nome, cor, estilo e etiqueta editáveis pelo dono do servidor) */
+const baseName = k => k === 'owner' ? ownerName() : (cleanStr(cur && cur[k + '_role_name'], 24) || t(k === 'admin' ? 'admin' : 'member'));
+const baseCustomColor = k => okHex(cur && cur[k + '_role_color']);
+const baseColor = k => k === 'owner' ? ownerColor() : (baseCustomColor(k) || (k === 'admin' ? '#6c7cff' : '#9da8c2'));
+const baseHidden = k => !!(cur && cur[k + '_role_hidden']);
+const baseNs = k => k === 'owner' ? ownerNs() : NS.clean({ font: cur && cur[k + '_role_font'], color: baseColor(k), color2: cur && cur[k + '_role_color2'], fx: cur && cur[k + '_role_fx'] });
+const baseStyled = k => !!(cur && (cur[k + '_role_color'] || cur[k + '_role_font'] || cur[k + '_role_fx']));
 const nsOfChan = c => NS.clean({ font: c.name_font, color: c.name_color, color2: c.name_color2, fx: c.name_fx });
 /* permissão de escrever (texto) ou falar (voz): canal sem restrição, ou cargo escolhido, ou quem gerencia canais */
 const canWriteChan = c => !!c && (myRole === 'owner' || !c.locked || (Array.isArray(c.write_roles) && c.write_roles.some(id => hasRole(uid, String(id)))));
@@ -3983,21 +3997,30 @@ function paintRoleTag(d) {
 const bcache = new Map(), bpend = new Set(); let btimer = 0;
 const ULOW = /^[a-z0-9_]{3,20}$/;
 let bdgTipEl = null, bdgTipT = 0;
+function hideBadgeTip() { clearTimeout(bdgTipT); if (bdgTipEl) { bdgTipEl.remove(); bdgTipEl = null; } }
+document.addEventListener('pointerdown', e => { if (bdgTipEl && !(e.target.closest && e.target.closest('.gbadge.bonly'))) hideBadgeTip(); }, true);
+/* o cartão de perfil é um <dialog> modal (camada do topo): a caixinha precisa ficar DENTRO dele para aparecer */
 function showBadgeTip(host, text) {
-  if (bdgTipEl) bdgTipEl.remove(); clearTimeout(bdgTipT);
-  const t = el('div', 'bdg-tip', text); document.body.append(t); bdgTipEl = t;
-  const r = host.getBoundingClientRect(), w = t.offsetWidth;
-  t.style.left = Math.max(6, Math.min(innerWidth - w - 6, r.left + r.width / 2 - w / 2)) + 'px';
-  t.style.top = (r.bottom + 6 + t.offsetHeight > innerHeight ? Math.max(6, r.top - t.offsetHeight - 6) : r.bottom + 6) + 'px';
-  bdgTipT = setTimeout(() => { t.remove(); if (bdgTipEl === t) bdgTipEl = null; }, 2600);
+  hideBadgeTip();
+  const t = el('div', 'bdg-tip', text), root = (host.closest && host.closest('dialog')) || document.body;
+  t.style.left = '0px'; t.style.top = '0px'; t.style.visibility = 'hidden'; root.append(t); bdgTipEl = t;
+  const r = host.getBoundingClientRect(), w = t.offsetWidth, h = t.offsetHeight;
+  const wantL = Math.max(6, Math.min(innerWidth - w - 6, r.left + r.width / 2 - w / 2));
+  const wantT = (r.bottom + 6 + h > innerHeight) ? Math.max(6, r.top - h - 6) : r.bottom + 6;
+  t.style.left = wantL + 'px'; t.style.top = wantT + 'px';
+  const g = t.getBoundingClientRect();                       // corrige se algum elemento pai desloca o "fixed"
+  t.style.left = (wantL + (wantL - g.left)) + 'px'; t.style.top = (wantT + (wantT - g.top)) + 'px';
+  t.style.visibility = '';
+  bdgTipT = setTimeout(() => { if (bdgTipEl === t) hideBadgeTip(); }, 3000);
 }
 function setBadgeEl(s, label, iconPath, iconUrl, only) {
-  s.textContent = ''; s.classList.remove('bonly'); s.onclick = null; s.removeAttribute('role');
+  s.textContent = ''; s.classList.remove('bonly'); s.onclick = null; s.onkeydown = null; s.removeAttribute('role'); s.removeAttribute('tabindex');
   const u = iconUrl || (iconPath && A().imgUrl('badge-icons', iconPath));
   if (u) { const i = new Image(); i.className = 'bicon'; i.alt = only ? label : ''; i.decoding = 'async'; i.referrerPolicy = 'no-referrer'; i.src = u; s.append(i); }
   if (u && only) {   // só a imagem: o nome aparece ao passar o mouse ou clicar/tocar
     s.classList.add('bonly'); s.title = label; s.setAttribute('role', 'img'); s.setAttribute('aria-label', label);
-    s.onclick = e => { e.stopPropagation(); showBadgeTip(s, label); };
+    s.tabIndex = 0; s.onclick = e => { e.preventDefault(); e.stopPropagation(); showBadgeTip(s, label); };
+    s.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showBadgeTip(s, label); } };
   } else s.append(document.createTextNode(label));
 }
 function fillBadge(n) {
@@ -4063,9 +4086,9 @@ function renderMembers() {
     h.append(sp); box.append(h); list.forEach(m => box.append(memRow(m)));
   };
   if (!ownerHidden()) section(ownerName(), take(m => m.role === 'owner'), ownerColor(), ownerNs());
-  section(t('grpAdmin'), take(m => m.role === 'admin'));
+  if (!baseHidden('admin')) section(cleanStr(cur && cur.admin_role_name, 24) || t('grpAdmin'), take(m => m.role === 'admin'), baseCustomColor('admin'), baseStyled('admin') ? baseNs('admin') : undefined);
   roles.filter(r => r.hoist).forEach(r => section(r.name, take(m => hasRole(m.user_id, r.id)), r.color, nsOfRole(r)));
-  section(t('grpMembers'), take(() => true));
+  { const showM = !baseHidden('member'); section(showM && cleanStr(cur && cur.member_role_name, 24) || t('grpMembers'), take(() => true), showM ? baseCustomColor('member') : '', showM && baseStyled('member') ? baseNs('member') : undefined); }
   { const mb = $('svMembers'); if (mb) { const n = mem.filter(m => stOf(m.user_id)).length; mb.textContent = '👥 ' + n; mb.title = n + ' online'; } }
   try { render(); } catch (e) {}                 // lista de participantes da call usa as mesmas cores
 }
@@ -5216,19 +5239,28 @@ function dlgRoles() {
     const getPerms = () => permIn.administrator.checked ? ['administrator'] : PERM_KEYS.filter(k => permIn[k].checked);
     form.append(permBox);
     const ownerHint = el('p', 'mut hidden', t('ownerRoleHint'));
-    const setMode = on => { hoistRow.classList.toggle('hidden', on); autoRow.classList.toggle('hidden', on); permBox.classList.toggle('hidden', on); ownerHint.classList.toggle('hidden', !on); };
+    const baseHint = k => k === 'owner' ? t('ownerRoleHint') : k === 'admin'
+      ? LL('Este é o cargo automático dos admins do servidor. Mude o nome e a cor (deixe o nome vazio para voltar ao padrão). Se você tirar a etiqueta, eles continuam admins, com as mesmas permissões.', 'This is the automatic role of the server admins. Change its name and color (leave the name empty to go back to the default). If you remove the tag, they are still admins with the same powers.')
+      : LL('Este é o cargo automático de todo membro. Mude o nome e a cor (deixe o nome vazio para voltar ao padrão). Se você tirar a etiqueta, só a etiqueta some: o membro continua sendo membro, e ele já não tem permissão extra nenhuma.', 'This is the automatic role of every member. Change its name and color (leave the name empty to go back to the default). If you remove the tag, only the tag disappears: they are still members, who have no extra powers anyway.');
+    const needV26 = () => LL('Falta rodar a migração SQL v26 no Supabase para editar o cargo de admin e de membro.', 'The v26 SQL migration still needs to be run in Supabase to edit the admin and member roles.');
+    const setMode = (on, kind) => { hoistRow.classList.toggle('hidden', on); autoRow.classList.toggle('hidden', on); permBox.classList.toggle('hidden', on); ownerHint.classList.toggle('hidden', !on); if (on) ownerHint.textContent = baseHint(kind || 'owner'); };
     const acts = el('div', 'pe-actions');
     const okBtn = mk(t('createRole'), async e => {
       const name = cleanStr(nameIn.value, 24);
-      if (editing && editing.owner) {                       // cargo de dono: só nome e cor (nome vazio = padrão)
+      if (editing && editing.base) {                        // cargo base (dono/admin/membro): só nome, cor e estilo (nome vazio = padrão)
+        const kind = editing.base, isO = kind === 'owner';
         e.target.disabled = true;
-        const { error } = await sb().rpc('ns_set_owner_role', { p_server: s.id, p_name: name, p_color: roleColor(), p_hidden: null });
+        const { error } = isO
+          ? await sb().rpc('ns_set_owner_role', { p_server: s.id, p_name: name, p_color: roleColor(), p_hidden: null })
+          : await sb().rpc('ns_set_base_role', { p_server: s.id, p_kind: kind, p_name: name, p_color: roleColor(), p_hidden: null });
         if (!error) {
           const ps = NS.clean(pendRole || {});
-          const r2 = await sb().rpc('ns_set_owner_role_style', { p_server: s.id, p_font: ps.font || null, p_color2: ps.color2 || null, p_fx: ps.fx || null });
-          if (r2.error) { e.target.disabled = false; err(missingFn(r2.error) ? needV12() : r2.error); }
+          const r2 = isO
+            ? await sb().rpc('ns_set_owner_role_style', { p_server: s.id, p_font: ps.font || null, p_color2: ps.color2 || null, p_fx: ps.fx || null })
+            : await sb().rpc('ns_set_base_role_style', { p_server: s.id, p_kind: kind, p_font: ps.font || null, p_color2: ps.color2 || null, p_fx: ps.fx || null });
+          if (r2.error) { e.target.disabled = false; err(missingFn(r2.error) ? (isO ? needV12() : needV26()) : r2.error); }
         }
-        e.target.disabled = false; if (error) return err(missingFn(error) ? t('needV9') : error);
+        e.target.disabled = false; if (error) return err(missingFn(error) ? (isO ? t('needV9') : needV26()) : error);
         resetForm(); await loadServers(); draw(); return;
       }
       if (!name) return err(t('roleNameReq'));
@@ -5246,9 +5278,11 @@ function dlgRoles() {
       editing = null; setMode(false); nameIn.placeholder = ''; nameIn.value = ''; loadStyle({ color: '#6c7cff' }); hoist.checked = true; autoChk.checked = false; setPerms([]);
       head.textContent = t('newRoleH'); okBtn.textContent = t('createRole'); cancelBtn.classList.add('hidden'); refreshPrev();
     };
-    const setOwnerHidden = async h => {
-      const { error } = await sb().rpc('ns_set_owner_role', { p_server: s.id, p_name: null, p_color: null, p_hidden: h });
-      if (error) return err(missingFn(error) ? t('needV9') : error);
+    const setBaseHidden = async (kind, h) => {
+      const { error } = kind === 'owner'
+        ? await sb().rpc('ns_set_owner_role', { p_server: s.id, p_name: null, p_color: null, p_hidden: h })
+        : await sb().rpc('ns_set_base_role', { p_server: s.id, p_kind: kind, p_name: null, p_color: null, p_hidden: h });
+      if (error) return err(missingFn(error) ? (kind === 'owner' ? t('needV9') : needV26()) : error);
       await loadServers(); draw();
     };
     /* arrastar e soltar: leva o cargo até a posição escolhida (usa o mesmo "mover" das setas, passo a passo) */
@@ -5262,26 +5296,31 @@ function dlgRoles() {
       }
       await loadRoles(); draw();
     };
-    const ownerRow = () => {
-      const row = el('div', 'lrow'), dot = el('span', 'rdot'); dot.style.setProperty('--c', ownerColor());
-      const g = el('div', 'grow'), nmE = el('b', '', ownerName()); NS.style(nmE, ownerNs(), ownerColor());
-      g.append(nmE, el('div', 'mut', t('ownerRoleAuto') + (ownerHidden() ? ' · ' + t('ownerRoleOff') : '')));
+    const baseRow = kind => {
+      const row = el('div', 'lrow'), dot = el('span', 'rdot'); dot.style.setProperty('--c', baseColor(kind));
+      const g = el('div', 'grow'), nmE = el('b', '', baseName(kind)); NS.style(nmE, baseNs(kind), baseColor(kind));
+      const sub = kind === 'owner' ? t('ownerRoleAuto') : kind === 'admin' ? LL('cargo automático dos admins', 'automatic admin role') : LL('cargo automático de todo membro', 'automatic member role');
+      g.append(nmE, el('div', 'mut', sub + (baseHidden(kind) ? ' · ' + t('ownerRoleOff') : '')));
       row.append(dot, g);
       if (myRole === 'owner') {
         const ed = mk('✎', () => {
-          editing = { owner: true }; setMode(true); nameIn.value = cleanStr(cur && cur.owner_role_name, 24); nameIn.placeholder = t('owner'); loadStyle(ownerNs());
-          head.textContent = t('editOwnerH'); okBtn.textContent = t('saveRole'); cancelBtn.classList.remove('hidden'); refreshPrev(); nameIn.focus();
+          editing = { base: kind }; setMode(true, kind); nameIn.value = cleanStr(cur && cur[kind + '_role_name'], 24); nameIn.placeholder = t(kind); loadStyle(baseNs(kind));
+          head.textContent = kind === 'owner' ? t('editOwnerH') : kind === 'admin' ? LL('Editar cargo de admin', 'Edit admin role') : LL('Editar cargo de membro', 'Edit member role');
+          okBtn.textContent = t('saveRole'); cancelBtn.classList.remove('hidden'); refreshPrev(); nameIn.focus();
         }, 'sec'); ed.title = t('edit');
-        const tg = ownerHidden() ? mk('👁', () => setOwnerHidden(false), 'sec') : mk('✕', () => { if (confirm(t('confirmOwnerHide'))) setOwnerHidden(true); }, 'bad');
-        tg.title = ownerHidden() ? t('ownerRoleShow') : t('ownerRoleHide');
+        const confirmTxt = kind === 'owner' ? t('confirmOwnerHide') : kind === 'admin'
+          ? LL('Tirar a etiqueta de admin? Os admins continuam admins, com as mesmas permissões; só o nome do cargo some.', 'Remove the admin tag? Admins keep their powers; only the role name disappears.')
+          : LL('Tirar a etiqueta de membro? Ninguém perde nada, porque membro já não tem permissão extra; só a etiqueta some.', 'Remove the member tag? Nobody loses anything, since members have no extra powers; only the tag disappears.');
+        const tg = baseHidden(kind) ? mk('👁', () => setBaseHidden(kind, false), 'sec') : mk('✕', () => { if (confirm(confirmTxt)) setBaseHidden(kind, true); }, 'bad');
+        tg.title = baseHidden(kind) ? LL('Mostrar a etiqueta', 'Show the tag') : LL('Tirar a etiqueta', 'Remove the tag');
         row.append(ed, tg);
       }
-      if (ownerHidden()) row.style.opacity = '.6';
+      if (baseHidden(kind)) row.style.opacity = '.6';
       return row;
     };
     const draw = () => {
       list.textContent = '';
-      list.append(ownerRow());
+      list.append(baseRow('owner'), baseRow('admin'), baseRow('member'));
       if (!roles.length) list.append(el('p', 'mut', t('noRoles')));
       roles.forEach((r, i) => {
         const row = el('div', 'lrow'), dot = el('span', 'rdot'); dot.style.setProperty('--c', r.color);
@@ -5703,10 +5742,12 @@ function cardExtras(p, box) {
   const sep = el('div', 'sgrp'); sep.append(el('span', '', t('roles')));
   box.append(sep);
   const chips = el('div', 'rchips');
-  const base = el('span', 'gbadge', m.role === 'owner' ? ownerName() : lab(m.role));
-  base.style.setProperty('--c', m.role === 'owner' ? ownerColor() : m.role === 'admin' ? '#6c7cff' : '#9da8c2');
-  if (m.role === 'owner') NS.style(base, ownerNs(), '');
-  if (!(m.role === 'owner' && ownerHidden())) chips.append(base);
+  const base = el('span', 'gbadge');
+  const paintBase = () => {
+    base.textContent = baseName(m.role); base.style.setProperty('--c', baseColor(m.role));
+    NS.style(base, baseNs(m.role), ''); base.style.display = baseHidden(m.role) ? 'none' : '';
+  };
+  paintBase(); chips.append(base);
   rs.forEach(r => { const c = el('span', 'gbadge', r.name); c.style.setProperty('--c', r.color); NS.style(c, nsOfRole(r), ''); chips.append(c); });
   box.append(chips);
   if (myRole === 'owner' && m.role !== 'owner') {
@@ -5717,7 +5758,7 @@ function cardExtras(p, box) {
       const { error } = await sb().rpc('set_member_role', { p_server: cur.id, p_user: m.user_id, p_role: sel.value });
       if (error) { err(error); sel.value = m.role; return; }
       m.role = sel.value; loadMembers();
-      base.textContent = lab(m.role); base.style.setProperty('--c', m.role === 'admin' ? '#6c7cff' : '#9da8c2');
+      paintBase();
     };
     box.append(sel);
   }
