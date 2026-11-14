@@ -2163,11 +2163,11 @@ window.PFX = (() => {
       const lr = L.getBoundingClientRect(), W = Math.round(lr.width), H = Math.round(lr.height);
       if (!W || !H) return;
       let rs = '';
-      const add = r => { if (r.width > 0 && r.height > 0) rs += '<rect x="' + Math.round(r.left - lr.left - 6) + '" y="' + Math.round(r.top - lr.top - 4) + '" width="' + Math.round(r.width + 12) + '" height="' + Math.round(r.height + 8) + '"/>'; };
+      const add = r => { if (r.width > 0 && r.height > 0) rs += '<rect x="' + Math.round(r.left - lr.left - 10) + '" y="' + Math.round(r.top - lr.top - 7) + '" width="' + Math.round(r.width + 20) + '" height="' + Math.round(r.height + 14) + '"/>'; };
       const root = host.querySelector('.pc-body') || host, rg = document.createRange(), w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
       for (let n; (n = w.nextNode());) { if (!n.nodeValue.trim()) continue; rg.selectNodeContents(n); Array.from(rg.getClientRects()).forEach(add); }
       root.querySelectorAll('button').forEach(b => add(b.getBoundingClientRect()));
-      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '"><rect width="' + W + '" height="' + H + '" fill="#fff"/><g fill="#000">' + rs + '</g></svg>';
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '"><defs><filter id="b" filterUnits="userSpaceOnUse" x="0" y="0" width="' + W + '" height="' + H + '"><feGaussianBlur stdDeviation="6"/></filter></defs><rect width="' + W + '" height="' + H + '" fill="#fff"/><g fill="#000" filter="url(#b)">' + rs + '</g></svg>';
       const u = 'url("data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '")';
       L.style.webkitMaskImage = L.style.maskImage = u; L.style.maskMode = 'luminance'; L.style.maskSize = '100% 100%'; L.style.maskRepeat = 'no-repeat';
     };
