@@ -3306,16 +3306,28 @@ window.Acc = (() => {
     } catch (e) {}
   }
 
-  async function completeProfile(p) {
+  // busca o perfil completo de outra pessoa: primeiro pela função do banco (v33), depois direto na tabela
+  async function fetchProfileRow(p) {
+    const uidArg = p.user_id || p.other_id || null, un = p.username ? String(p.username).toLowerCase() : null;
+    if (!uidArg && !un) return null;
+    try {
+      const { data, error } = await sb.rpc('ns_get_profile', { p_user: uidArg, p_username: uidArg ? null : un });
+      if (!error) { const r = Array.isArray(data) ? data[0] : data; if (r) return r; }
+    } catch (e) {}
     try {
       const col = 'id,username,display_name,bio,avatar_path,banner_path,profile_fx';
-      const q = c => { let b = sb.from('profiles').select(c); b = p.user_id ? b.eq('id', p.user_id) : b.eq('username', String(p.username).toLowerCase()); return b.maybeSingle(); };
+      const q = c => { let b = sb.from('profiles').select(c); b = uidArg ? b.eq('id', uidArg) : b.eq('username', un); return b.maybeSingle(); };
       let r = await q(col);
       if (r.error) r = await q(col.replace(',profile_fx', ''));
-      const prof = r.error ? null : cleanProfile(r.data);
-      if (!prof) return null;
-      return { ...p, ...prof, user_id: p.user_id || r.data.id };
-    } catch (e) { return null; }
+      if (!r.error && r.data) return r.data;
+    } catch (e) {}
+    return null;
+  }
+  async function completeProfile(p) {
+    const row = await fetchProfileRow(p);
+    const prof = row ? cleanProfile(row) : null;
+    if (!prof) return null;
+    return { ...p, ...prof, user_id: p.user_id || row.id };
   }
   function showCard(p) {
     if (!p) return;
@@ -3362,8 +3374,8 @@ window.Acc = (() => {
     if (window.PFX) {
       const av = info.querySelector('.av'), fxHost = body;
       if (p.pfx != null) PFX.apply(fxHost, p.pfx, av);
-      else if (sb && p.username) sb.from('profiles').select('profile_fx').eq('username', p.username).maybeSingle()
-        .then(({ data }) => { if (data && body.contains(info)) PFX.apply(fxHost, data.profile_fx, av); }).catch(() => {});
+      else if (sb && (p.username || p.user_id)) fetchProfileRow(p)
+        .then(data => { if (data && body.contains(info)) PFX.apply(fxHost, data.profile_fx, av); }).catch(() => {});
     }
     if (!$('dlgCard').open) $('dlgCard').showModal();
   }
@@ -4004,6 +4016,7 @@ const fmtDate = iso => new Date(iso).toLocaleString([], { day: '2-digit', month:
 
 let vsrv = null, vmem = [], vmemT = 0;
 const vpMap = new Map(); let vpViewId = null; const vpSess = Math.random().toString(36).slice(2, 8);   // quem está em cada canal de voz de cada servidor (presença em tempo real)   // servidor do canal de voz em que estou e os membros dele (independe do servidor aberto na tela)
+var callActive = null;
 let voiceCh = null, uid = null, servers = [], cur = null, chans = [], mem = [], chan = null, rt = null, rt2 = null, myRole = 'member', voiceJoin = false, lastSend = 0;
 let roles = [], mroles = new Map(), emojis = [], siteOwner = false;
 let cats = [];   // categorias de canais do servidor aberto
@@ -4091,6 +4104,7 @@ function syncRail() {
   rail.classList.toggle('hidden', !uid);
   document.body.classList.toggle('hasrail', !!uid);
   if (inJoin && voiceCh) { voiceCh = null; if (cur) renderChans(); }   // saiu da chamada: limpa e repinta a lista (senão o destaque do canal de voz fica preso)
+  if (inJoin && callActive) { const cid = callActive; callActive = null; try { sb().rpc('dm_call_respond', { p_id: cid, p_action: 'end' }).then(() => {}, () => {}); } catch (e) {} }
   if (inJoin && voiceJoin) { voiceJoin = false; $('inRoom').value = ''; $('inPass').value = ''; }
   if (inJoin && cur && view.classList.contains('hidden')) closeView();
   layout();
@@ -6535,7 +6549,8 @@ async function dmOpen(p) {
   const openCard = () => A().showCard({ user_id: id, username: o.username, display_name: o.display_name, avatar_path: o.avatar_path });
   avw.append(A().avatar(o, 40), presDot(id, 'pos-dm')); avw.onclick = openCard; who.onclick = openCard;
   who.append(nm, el('small', 'mut', o.username ? '@' + o.username : ''));
-  head.append(avw, who, mk('✕', dmClose, 'sec x'));
+  const callB = mk('📞', () => callStart(o), 'sec x'); callB.title = LL('Ligar', 'Call');
+  head.append(avw, who, callB, mk('✕', dmClose, 'sec x'));
   ta.rows = 1; ta.maxLength = 1000; ta.placeholder = LL('Escreva uma mensagem', 'Write a message'); ta.autocomplete = 'off'; emo.title = LL('Emojis', 'Emojis'); go.type = 'submit';
   f.append(emo, ta, go); d.append(head, list, f);
   const ins = t => {
@@ -6704,8 +6719,9 @@ function dmStart() {
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'dm_messages' }, kick)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'dm_reactions' }, kick)
     .subscribe(); } catch (e) { dmCh2 = null; }
+  callBoot();
 }
-function dmStop() { clearInterval(dmPoll); if (dmCh) { try { sb().removeChannel(dmCh); } catch (e) {} dmCh = null; } if (dmCh2) { try { sb().removeChannel(dmCh2); } catch (e) {} dmCh2 = null; } dmInboxL = []; dmUn = 0; dmClose(); }
+function dmStop() { callHalt(); clearInterval(dmPoll); if (dmCh) { try { sb().removeChannel(dmCh); } catch (e) {} dmCh = null; } if (dmCh2) { try { sb().removeChannel(dmCh2); } catch (e) {} dmCh2 = null; } dmInboxL = []; dmUn = 0; dmClose(); }
 function dmInboxPaint(b) {
   if (!dmInboxL.length) return frEmpty(b, LL('Nenhuma conversa ainda. Abra o perfil de alguém e toque em Mensagem.', 'No conversations yet. Open someone’s profile and tap Message.'));
   dmInboxL.forEach(x => {
@@ -6714,6 +6730,162 @@ function dmInboxPaint(b) {
     if (x.unread) r.append(el('span', 'ub', String(x.unread)));
     r.onclick = () => dmOpen({ other_id: x.other_id, username: x.username, display_name: x.display_name, avatar_path: x.avatar_path }); b.append(r);
   });
+}
+
+/* ===== ligação privada (estilo Discord): toca por até 5 minutos; quem recebe atende na tela ===== */
+var callCh = null, callInT = 0, callSql = false, callOut = null, callIn = new Map();
+const CALL_MS = 5 * 60 * 1000, UUID_RE = /^[0-9a-f-]{36}$/i;
+const CALL_MSG = {
+  closed: ['Essa pessoa só recebe mensagens e ligações de amigos.', 'This person only receives messages and calls from friends.'],
+  busy: ['Já existe uma ligação tocando entre vocês.', 'A call between you is already ringing.'],
+  rate: ['Calma! Ligações demais em pouco tempo.', 'Slow down! Too many calls.'],
+  self: ['Você não pode ligar para si mesmo.', 'You cannot call yourself.'],
+  auth: ['Entre na sua conta para ligar.', 'Sign in to call.']
+};
+const callMsg = c => c === 'sql' ? LL('Falta rodar a migração SQL v32 no Supabase para usar ligações.', 'The v32 SQL migration still needs to be run in Supabase to use calls.') : CALL_MSG[c] ? LL(CALL_MSG[c][0], CALL_MSG[c][1]) : String(c);
+const callResp = (id, a) => sb().rpc('dm_call_respond', { p_id: id, p_action: a });
+const mmss = ms => { const n = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0'); };
+
+const ring = (() => {
+  let ctx = null, iv = 0, on = false;
+  const burst = () => {
+    try {
+      if (ctx.resume) ctx.resume();
+      const t0 = ctx.currentTime;
+      [[0, .4], [.55, .95]].forEach(([a, b]) => [440, 480].forEach(fq => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = fq;
+        g.gain.setValueAtTime(0, t0 + a); g.gain.linearRampToValueAtTime(.09, t0 + a + .03);
+        g.gain.setValueAtTime(.09, t0 + b - .03); g.gain.linearRampToValueAtTime(0, t0 + b);
+        o.connect(g); g.connect(ctx.destination); o.start(t0 + a); o.stop(t0 + b + .02);
+      }));
+    } catch (e) {}
+  };
+  return {
+    start() { if (on) return; on = true; try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; } burst(); iv = setInterval(burst, 3000); },
+    stop() { on = false; clearInterval(iv); }
+  };
+})();
+function ringSync() { const want = !!callOut || [...callIn.values()].some(x => x && !x.silent); if (want) ring.start(); else ring.stop(); }
+
+const callBox = el('div'); callBox.id = 'callBox'; callBox.setAttribute('popover', 'manual'); document.body.append(callBox);
+function callShow(top) {   // popover = camada do topo: aparece até por cima de janelas abertas
+  if (!callBox.children.length) { try { callBox.hidePopover(); } catch (e) {} return; }
+  try { if (top && callBox.matches(':popover-open')) callBox.hidePopover(); if (!callBox.matches(':popover-open')) callBox.showPopover(); } catch (e) {}
+}
+async function callWho(id) {
+  const f = fr.find(x => x.other_id === id) || dmInboxL.find(x => x.other_id === id) || mem.find(x => x.user_id === id);
+  if (f) return { id, username: f.username || '', display_name: f.display_name || '?', avatar_path: f.avatar_path || null };
+  try {
+    const { data } = await sb().from('profiles').select('username,display_name,avatar_path').eq('id', id).maybeSingle();
+    if (data) return { id, username: data.username || '', display_name: cleanStr(data.display_name, 24) || '?', avatar_path: data.avatar_path || null };
+  } catch (e) {}
+  return { id, username: '', display_name: '?', avatar_path: null };
+}
+function callCard(w, sub) {
+  const card = el('div', 'callcard'), tx = el('div', 'ct'), nm = el('b', '', w.display_name), sb2 = el('small', 'mut', sub);
+  if (w.username && window.NS) NS.apply(nm, w.username);
+  tx.append(nm, sb2); card.append(A().avatar(w, 56), tx);
+  return { card, sub: sb2 };
+}
+async function callJoin(r, label) {
+  if (!r || !UUID_RE.test(r.id || '') || !r.room_key) return;
+  if (!$('room').classList.contains('hidden')) { leaveRoom(); await new Promise(res => setTimeout(res, 400)); }
+  window.__roomLimit = 2; window.__roomSpeak = true;
+  voiceCh = null; vsrv = null; vmem = []; clearInterval(vmemT);
+  voiceJoin = true; callActive = r.id;
+  $('inRoom').value = 'p' + r.id.replace(/-/g, '').slice(0, 20);
+  $('inPass').value = r.room_key;
+  window.__roomLabel = '📞 ' + label; window.__roomNs = 'v';
+  $('btnJoin').click();
+}
+
+/* quem liga */
+async function callStart(o) {
+  if (!uid) return;
+  if (callOut) return toast(LL('Você já está ligando para alguém.', 'You are already calling someone.'));
+  if (callActive || !$('room').classList.contains('hidden')) return toast(LL('Saia da call atual antes de ligar.', 'Leave your current call before calling.'));
+  const { data, error } = await sb().rpc('dm_call_start', { p_to: o.id });
+  if (error) return toast(callMsg(missingFn(error) ? 'sql' : error.message));
+  if (!UUID_RE.test(String(data || ''))) return toast(callMsg(data));
+  const w = { id: o.id, username: o.username, display_name: o.display_name, avatar_path: o.avatar_path };
+  const { card, sub } = callCard(w, '📞 ' + LL('Chamando…', 'Calling…'));
+  const acts = el('div', 'cacts');
+  acts.append(mk('✕ ' + LL('Cancelar', 'Cancel'), async () => { try { await callResp(data, 'cancel'); } catch (e) {} callOutEnd('canceled'); }, 'bad'));
+  card.append(acts); card.dataset.id = data;
+  const c = callOut = { id: data, w, card, deadline: Date.now() + CALL_MS, poll: 0, tick: 0 };
+  c.tick = setInterval(async () => {
+    const left = c.deadline - Date.now();
+    if (left <= 0) { try { await callResp(c.id, 'missed'); } catch (e) {} callOutEnd('missed'); return; }
+    sub.textContent = '📞 ' + LL('Chamando… ', 'Calling… ') + mmss(left);
+  }, 1000);
+  c.poll = setInterval(async () => {   // garantia caso o tempo real falhe
+    const { data: r } = await sb().from('dm_calls').select('id,caller_id,callee_id,status,room_key').eq('id', c.id).maybeSingle();
+    if (r) callRow(r);
+  }, 3000);
+  callBox.append(card); callShow(true); ringSync();
+}
+function callOutEnd(reason) {
+  const c = callOut; if (!c) return; callOut = null;
+  clearInterval(c.poll); clearInterval(c.tick); c.card.remove(); callShow(); ringSync();
+  if (reason === 'declined') toast('📞 ' + c.w.display_name + LL(' recusou a ligação.', ' declined the call.'));
+  else if (reason === 'missed') toast('📞 ' + c.w.display_name + LL(' não atendeu.', ' did not answer.'));
+}
+
+/* quem recebe */
+function dropIn(id) { if (!callIn.has(id)) return; const x = callIn.get(id); if (x) { clearInterval(x.tick); x.card.remove(); } callIn.delete(id); callShow(); ringSync(); }
+async function callIncoming(r) {
+  if (callIn.has(r.id) || r.id === callActive || !UUID_RE.test(r.id || '')) return;
+  const dl = Date.parse(r.expires_at) || (Date.now() + CALL_MS);
+  if (dl <= Date.now()) return;
+  callIn.set(r.id, null);   // reserva o lugar enquanto busca quem está ligando
+  const w = await callWho(r.caller_id);
+  if (!callIn.has(r.id)) return;
+  const { card, sub } = callCard(w, '📞 ' + LL('Ligando para você…', 'Calling you…'));
+  const acts = el('div', 'cacts');
+  const ok = mk('✓ ' + LL('Atender', 'Answer'), async e => {
+    e.currentTarget.disabled = true;
+    const { data, error } = await callResp(r.id, 'accept');
+    if (error || data !== 'accepted') { toast(error ? callMsg(missingFn(error) ? 'sql' : error.message) : LL('Essa ligação não está mais disponível.', 'That call is no longer available.')); dropIn(r.id); return; }
+    const { data: row } = await sb().from('dm_calls').select('id,room_key').eq('id', r.id).maybeSingle();
+    dropIn(r.id); callJoin(row, w.display_name);
+  }, 'callok');
+  const no = mk('✕ ' + LL('Recusar', 'Decline'), async () => { try { await callResp(r.id, 'decline'); } catch (e) {} dropIn(r.id); }, 'bad');
+  acts.append(ok, no); card.append(acts);
+  const x = { card, silent: presEffective() === 'dnd' || frMuteAll() || frMuted(r.caller_id), tick: 0 };
+  x.tick = setInterval(() => { const left = dl - Date.now(); if (left <= 0) dropIn(r.id); else sub.textContent = '📞 ' + LL('Ligando para você… ', 'Calling you… ') + mmss(left); }, 1000);
+  callIn.set(r.id, x); callBox.append(card); callShow(true); ringSync(); titleAlert();
+}
+
+function callRow(r) {
+  if (!r || !UUID_RE.test(r.id || '')) return;
+  if (r.callee_id === uid) { if (r.status === 'ringing') callIncoming(r); else dropIn(r.id); }
+  if (r.caller_id === uid && callOut && callOut.id === r.id) {
+    if (r.status === 'accepted') { const w = callOut.w; callOutEnd(); callJoin(r, w.display_name); }
+    else if (r.status !== 'ringing') callOutEnd(r.status);
+  }
+}
+async function callPollIn() {
+  if (callSql || !uid) return;
+  const { data, error } = await sb().from('dm_calls').select('id,caller_id,callee_id,status,expires_at').eq('callee_id', uid).eq('status', 'ringing').gt('expires_at', new Date().toISOString());
+  if (error) { if (missingFn(error)) callSql = true; return; }
+  (data || []).forEach(callRow);
+}
+function callBoot() {
+  const me = uid; if (!me) return; callHalt(); callSql = false;
+  try {
+    callCh = sb().channel('ns-callx:' + me)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'dm_calls', filter: 'callee_id=eq.' + me }, p => callRow(p.new))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'dm_calls', filter: 'caller_id=eq.' + me }, p => callRow(p.new))
+      .subscribe();
+  } catch (e) { callCh = null; }
+  callPollIn(); callInT = setInterval(() => { if (!document.hidden) callPollIn(); }, 10000);
+}
+function callHalt() {
+  clearInterval(callInT); callInT = 0;
+  if (callCh) { try { sb().removeChannel(callCh); } catch (e) {} callCh = null; }
+  if (callOut) callOutEnd(null);
+  [...callIn.keys()].forEach(dropIn); ringSync();
 }
 
 function frSet(on) {
@@ -6956,5 +7128,19 @@ return { onAuth, cardExtras, badgeEl, colorOfUser, colorSig, statusButton, voice
 })();
 </script>
 
+<style>
+  /* ---------- ligação privada ---------- */
+  #callBox { position: fixed; inset: auto; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); margin: 0; padding: 0; border: 0; background: transparent; overflow: visible; display: grid; gap: 10px; width: min(380px, calc(100vw - 20px)); color: var(--fg); z-index: 100000; }
+  #callBox:not(:popover-open) { display: none; }
+  .callcard { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px 14px; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--card-solid); box-shadow: var(--shadow); animation: nspop .18s ease-out; }
+  .callcard .ct { display: grid; min-width: 0; line-height: 1.35; }
+  .callcard .ct b { font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .callcard .av { animation: callpulse 1.4s ease-in-out infinite; }
+  .callcard .cacts { grid-column: 1 / -1; display: flex; gap: 8px; }
+  .callcard .cacts button { flex: 1 1 0; min-height: 44px; }
+  .callcard button.callok { background: linear-gradient(135deg, #2fbf8d, #43d9a3); border-color: rgba(67, 217, 163, .5); color: #04251b; }
+  @keyframes callpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(67, 217, 163, .55); } 50% { box-shadow: 0 0 0 10px rgba(67, 217, 163, 0); } }
+  @media (prefers-reduced-motion: reduce) { .callcard .av { animation: none; } }
+</style>
 </body>
 </html>
