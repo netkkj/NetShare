@@ -2082,13 +2082,14 @@ return { clean, apply, setMine, editor, style, tr, paintAll };
 <style>
   .pfx-host { position: relative; }
   .pfx-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 4; }
-  .pfx-layer img { position: absolute; left: var(--x); top: var(--y); width: var(--s); height: auto; filter: drop-shadow(0 0 4px rgba(255,255,255,.35)); animation: 0s linear infinite; animation-duration: var(--d); animation-delay: var(--l); }
+  .pfx-layer img { position: absolute; left: var(--x); top: var(--y); width: var(--s); height: auto; opacity: .92; filter: drop-shadow(0 0 5px rgba(255,255,255,.4)); animation: 0s linear infinite; animation-duration: var(--d); animation-delay: var(--l); }
   .pfx-fall img { animation-name: pfxfall; } .pfx-rise img { animation-name: pfxrise; } .pfx-twinkle img { animation-name: pfxtw; animation-timing-function: ease-in-out; animation-direction: alternate; }
   @keyframes pfxfall { from { top: -12%; transform: rotate(0); opacity: 0; } 10% { opacity: 1; } to { top: 105%; transform: translateX(26px) rotate(360deg); opacity: .9; } }
   @keyframes pfxrise { from { top: 108%; transform: translateX(0); opacity: 0; } 15% { opacity: 1; } to { top: -12%; transform: translateX(-22px); opacity: .8; } }
   @keyframes pfxtw { from { opacity: .1; transform: scale(.6) rotate(0); } to { opacity: 1; transform: scale(1.15) rotate(25deg); } }
-  .pfx-top { position: absolute; top: -4px; left: 0; right: 0; display: flex; justify-content: space-around; align-items: flex-start; z-index: 5; pointer-events: none; background: no-repeat top / auto 20px; background-repeat: repeat-x; }
-  .pfx-top img { height: auto; animation: pfxbob 3s ease-in-out infinite; filter: drop-shadow(0 3px 4px rgba(0,0,0,.45)); }
+  .pfx-top { position: absolute; top: -4px; left: 0; right: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 0 6px; z-index: 5; pointer-events: none; background: no-repeat top / auto 20px; background-repeat: repeat-x; }
+  .card-x { z-index: 10; }
+  .pfx-top img { flex: 0 1 auto; min-width: 0; height: auto; animation: pfxbob 3s ease-in-out infinite; filter: drop-shadow(0 3px 4px rgba(0,0,0,.45)); }
   .pfx-chip img { width: 18px; height: 18px; margin-right: 6px; vertical-align: -4px; } .pfx-dot { display: inline-block; width: 14px; height: 14px; margin-right: 6px; border-radius: 50%; vertical-align: -2px; }
   @keyframes pfxbob { 50% { transform: translateY(4px) rotate(4deg); } }
   .pfx-r-glow { box-shadow: 0 0 0 3px #8b9bff, 0 0 16px 4px rgba(108,124,255,.7) !important; }
@@ -2160,13 +2161,13 @@ window.PFX = (() => {
     if (av && s.ring !== 'none') av.classList.add('pfx-r-' + s.ring);
     if (s.fx !== 'none') {
       const f = FX[s.fx], L = E('div', 'pfx-layer pfx-' + f.m);
-      for (let i = 0; i < 16; i++) { const im = IM(f.p[i % f.p.length]); im.style.cssText = '--x:' + (r() * 94) + '%;--y:' + (r() * 90) + '%;--d:' + (f.m === 'twinkle' ? 1.6 + r() * 2 : 6 + r() * 7) + 's;--l:-' + (r() * 10) + 's;--s:' + (14 + r() * 14) + 'px'; L.append(im); }
+      for (let i = 0; i < 18; i++) { const im = IM(f.p[i % f.p.length]); im.style.cssText = '--x:' + (r() * 94) + '%;--y:' + (r() * 90) + '%;--d:' + (f.m === 'twinkle' ? 1.6 + r() * 2 : 6 + r() * 7) + 's;--l:-' + (r() * 10) + 's;--s:' + (20 + r() * 20) + 'px'; L.append(im); }
       host.append(L);
     }
     if (s.top !== 'none') {
       const T = TOP[s.top], t = E('div', 'pfx-top');
       if (T.v) t.style.backgroundImage = 'url("' + V + '")';
-      T.e.forEach(([src, w], i) => { const im = IM(src, w); im.style.animationDelay = (i * .35) + 's'; t.append(im); });
+      (T.e.length < 8 ? T.e.concat(T.e).slice(0, 8) : T.e).forEach(([src, w], i) => { const im = IM(src, Math.round(w * 1.15)); im.style.animationDelay = (i * .35) + 's'; t.append(im); });
       host.append(t);
     }
   }
