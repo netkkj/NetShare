@@ -307,7 +307,8 @@
 
   .dlg-card .dlg-in { gap: 0; padding: 0; }
   .pc-banner { aspect-ratio: 3 / 1; overflow: hidden; background: linear-gradient(135deg, var(--acc), var(--acc-2)); }
-  .pc-banner img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .pc-banner img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.04); transition: opacity .6s ease, transform .9s cubic-bezier(.2,.8,.2,1); }
+  .pc-banner img.in { opacity: 1; transform: none; }
   .pc-body { display: grid; gap: 4px; padding: 0 20px 22px; }
   .pc-body .av { --s: 84px; margin-top: -42px; border: 4px solid var(--card-solid); }
   .pc-body h3 { margin: 8px 0 0; font: 800 1.3rem/1.15 'Manrope', sans-serif; letter-spacing: -.03em; overflow-wrap: anywhere; }
@@ -2524,14 +2525,23 @@ return { clean, apply, setMine, editor, style, tr, paintAll };
 </script>
 <style>
   .pfx-host { position: relative; }
-  .pfx-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  .pfx-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; animation: pfxLayerIn 1.1s ease .25s both; }
+  @keyframes pfxLayerIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pfxTopIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: none; } }
+  @keyframes pcIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .pfx-host .av { transition: box-shadow .8s ease; }
+  #cardBody .pc-body > * { animation: pcIn .5s cubic-bezier(.2,.8,.2,1) both; }
+  #cardBody .pc-body > :nth-child(1) { animation-delay: .04s; } #cardBody .pc-body > :nth-child(2) { animation-delay: .09s; }
+  #cardBody .pc-body > :nth-child(3) { animation-delay: .14s; } #cardBody .pc-body > :nth-child(4) { animation-delay: .19s; }
+  #cardBody .pc-body > :nth-child(5) { animation-delay: .24s; } #cardBody .pc-body > :nth-child(6) { animation-delay: .29s; }
+  #cardBody .pc-body > :nth-child(7) { animation-delay: .34s; } #cardBody .pc-body > :nth-child(n+8) { animation-delay: .4s; }
   #cardBody .pc-body { position: relative; z-index: 1; }
   .pfx-layer img { position: absolute; left: var(--x); top: var(--y); width: var(--s); height: auto; opacity: .92; filter: drop-shadow(0 0 5px rgba(255,255,255,.4)); animation: 0s linear infinite; animation-duration: var(--d); animation-delay: var(--l); }
   .pfx-fall img { animation-name: pfxfall; } .pfx-rise img { animation-name: pfxrise; } .pfx-twinkle img { animation-name: pfxtw; animation-timing-function: ease-in-out; animation-direction: alternate; }
   @keyframes pfxfall { from { top: -12%; transform: rotate(0); opacity: 0; } 10% { opacity: 1; } to { top: 105%; transform: translateX(26px) rotate(360deg); opacity: .9; } }
   @keyframes pfxrise { from { top: 108%; transform: translateX(0); opacity: 0; } 15% { opacity: 1; } to { top: -12%; transform: translateX(-22px); opacity: .8; } }
   @keyframes pfxtw { from { opacity: .1; transform: scale(.6) rotate(0); } to { opacity: 1; transform: scale(1.15) rotate(25deg); } }
-  .pfx-top { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 46px 0 6px; z-index: 5; pointer-events: none; background: no-repeat top / auto 20px; background-repeat: repeat-x; }
+  .pfx-top { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 46px 0 6px; z-index: 5; pointer-events: none; background: no-repeat top / auto 20px; background-repeat: repeat-x; animation: pfxTopIn .85s cubic-bezier(.2,.8,.2,1) .1s both; }
   .card-x { z-index: 10; }
   .pfx-top img { flex: 0 1 auto; min-width: 0; height: auto; animation: pfxbob 3s ease-in-out infinite; filter: drop-shadow(0 3px 4px rgba(0,0,0,.45)); }
   .pfx-chip img { width: 18px; height: 18px; margin-right: 6px; vertical-align: -4px; } .pfx-dot { display: inline-block; width: 14px; height: 14px; margin-right: 6px; border-radius: 50%; vertical-align: -2px; }
@@ -2550,7 +2560,7 @@ return { clean, apply, setMine, editor, style, tr, paintAll };
   .pfx-chip.on { border-color: var(--acc); background: rgba(108,124,255,.25); }
   .pfx-prev { position: relative; height: 130px; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(135deg, #1b2350, #3a1f4f); }
   .pfx-fakeav { position: absolute; left: 18px; bottom: 14px; width: 56px; height: 56px; border-radius: 50%; background: #2a3263 url() center/cover; border: 3px solid #121a38; }
-  @media (prefers-reduced-motion: reduce) { .pfx-layer img, .pfx-top img, .pfx-r-rainbow { animation: none !important; } }
+  @media (prefers-reduced-motion: reduce) { .pfx-layer img, .pfx-top img, .pfx-r-rainbow, .pfx-layer, .pfx-top, #cardBody .pc-body > * { animation: none !important; } .pc-banner img { opacity: 1; transform: none; transition: none; } }
 </style>
 <script>
 /* Efeitos de perfil: partículas + decoração do topo + moldura do avatar. Salvo em profiles.profile_fx como "efeito|topo|moldura". */
@@ -3303,6 +3313,7 @@ window.Acc = (() => {
       const i = new Image();
       i.alt = ''; i.decoding = 'async'; i.referrerPolicy = 'no-referrer';
       i.onerror = () => i.remove();
+      i.onload = () => i.classList.add('in');
       i.src = bu;
       ban.append(i);
     }
