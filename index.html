@@ -3938,6 +3938,29 @@ applyLang();
     .fr-menu { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; padding: 8px 8px max(10px, env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; }
     .fr-menu button { min-height: 48px; }
   }
+
+  /* ---------- correção do celular: Amigos (#frView) e conversa privada (#dmView) são <aside> e herdavam da regra genérica
+     max-height:145px (painel espremido no topo), padding de 16px, cantos arredondados, sombra e blur ---------- */
+  #frView, #dmView {
+    max-height: none; height: auto; min-height: 0; overflow: hidden;
+    padding-left: 0; padding-right: 0; padding-bottom: 0;
+    border-top: 0; border-bottom: 0; border-radius: 0; backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
+  #frView { border-left: 0; }
+  #dmView { border-right: 0; }
+  .fr-body, .dm-list { min-height: 0; }
+  @media (max-width: 860px) {
+    #frView, #dmView { height: 100dvh; max-height: 100dvh; }
+    #frView { right: auto; }
+    #dmView { left: 0; }
+    .fr-head { padding-left: 12px; }
+    .fr-head strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fr-tabs { gap: 2px; padding-left: 6px; padding-right: 6px; }
+    .fr-tabs button { min-width: 0; padding: 4px 1px; font-size: .74rem; overflow: hidden; }
+    .fr-body { padding: 8px 6px; }
+    .fr-foot { font-size: .7rem; padding-left: 12px; padding-right: 12px; }
+    .dm-head { padding-left: 10px; }
+  }
 </style>
 
 <script>
