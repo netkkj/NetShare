@@ -2855,8 +2855,11 @@ applyLang();
   #svMsgs.noreact .rchip { pointer-events: none; }
   .sv-top .pinbtn { flex: 0 0 auto; width: auto; min-height: 36px; padding: 0 11px; font-size: .85rem; }
   .mpinned { margin-left: 8px; font-size: .72rem; font-weight: 700; color: #f5c451; }
-  .msg.pinned { box-shadow: inset 3px 0 0 rgba(245, 196, 81, .55); }
-  .msg.mentioned.pinned { box-shadow: none; }
+  /* mensagem fixada: a faixa fica FORA do avatar (borda + recuo, mesma geometria da menção) */
+  .msg.pinned { margin-left: -6px; margin-right: -6px; padding: 4px 6px 4px 3px; border-left: 3px solid rgba(245, 196, 81, .75); border-radius: 8px; }
+  .msg.mentioned.pinned { border-left-color: #facc15; }
+  /* título (###) logo abaixo do nome: dá um respiro */
+  .mtx > .mh1:first-child, .mtx > .mh2:first-child, .mtx > .mh3:first-child { margin-top: 6px; }
   .mact .pinb.on { background: rgba(245, 196, 81, .28); }
   .msg.flash { animation: nsflash 1.9s ease; }
   @keyframes nsflash { 0%, 55% { background: rgba(108, 124, 255, .32); } 100% { background: transparent; } }
@@ -2866,6 +2869,25 @@ applyLang();
   .pinact { display: flex; gap: 8px; flex-wrap: wrap; }
   .pinact button { min-height: 34px; padding: 5px 12px; font-size: .8rem; }
   @media (max-width: 860px) { .sv-top .pinbtn { min-height: 40px; } }
+
+  /* ---------- correção do celular: a barra de servidores é um <aside> e herdava max-height:145px, cantos e sombra da regra genérica ---------- */
+  #srvRail { max-height: none; height: auto; border-radius: 0; box-shadow: none; border-width: 0 1px 0 0; scrollbar-width: none; overscroll-behavior: contain; }
+  #srvRail::-webkit-scrollbar { display: none; }
+  @media (max-width: 860px) {
+    :root { --rail: 56px; }
+    #srvRail { padding-left: 0; padding-right: 0; }
+    #srvRail .sbtn { width: 42px; height: 42px; min-height: 42px; border-radius: 13px; }
+    .sbtn.smine .av { --s: 100%; }
+    .eyebrow { flex-wrap: wrap; gap: 2px 7px; font-size: .68rem; letter-spacing: .06em; }
+    #accBar { gap: 8px; padding: 10px; }
+    #accBar .acc-who { flex: 1 1 0; min-width: 0; }
+    #accBar > button:not(.stbtn) { flex: 1 1 calc(50% - 8px); }
+    #accBar .stbtn { flex: 0 0 auto; }
+  }
+  @media (max-width: 380px) {
+    :root { --rail: 50px; }
+    #srvRail .sbtn { width: 38px; height: 38px; min-height: 38px; }
+  }
   .edited { margin-left: 6px; color: var(--mut); font-size: .7rem; }
   .medit { width: 100%; min-height: 56px; padding: 8px 10px; border: 1px solid var(--acc); border-radius: 10px; outline: none; resize: vertical; background: rgba(5,9,22,.65); color: var(--fg); font: inherit; }
   .cemoji { width: 1.45em; height: 1.45em; vertical-align: -.32em; object-fit: contain; }
@@ -3179,12 +3201,12 @@ function paintPres() {
   document.querySelectorAll('.pdot[data-u]').forEach(n => { const k = stOf(n.dataset.u) || 'off'; n.dataset.st = k; n.title = presInfo(k)[0]; });
   document.querySelectorAll('.mem-row[data-u]').forEach(r => r.classList.toggle('off', !stOf(r.dataset.u)));
   document.querySelectorAll('.pstat[data-u]').forEach(n => { const k = stOf(n.dataset.u) || 'off'; n.dataset.st = k; n.textContent = presInfo(k)[0]; });
-  presBtns.forEach(b => {
-    if (!b.isConnected) { presBtns.delete(b); return; }
-    const k = presEffective(), d = b.querySelector('.sdot'), lb = b.querySelector('.stl');
-    if (d) d.dataset.st = k; if (lb) lb.textContent = presInfo(k)[0];
-    b.title = LL('Seu status: ', 'Your status: ') + presInfo(k)[0];
-  });
+  presBtns.forEach(b => { if (b.isConnected) paintStatusBtn(b); });
+}
+function paintStatusBtn(b) {
+  const k = presEffective(), d = b.querySelector('.sdot'), lb = b.querySelector('.stl');
+  if (d) d.dataset.st = k; if (lb) lb.textContent = presInfo(k)[0];
+  b.title = LL('Seu status: ', 'Your status: ') + presInfo(k)[0];
 }
 function presTrack() { if (!presCh) return; try { presCh.track({ status: presEffective(), ts: Date.now() }); } catch (e) {} }
 function presSet(k) {
@@ -3250,7 +3272,9 @@ function presMenu(anchor) {
 }
 function statusButton() {
   const b = mk('', () => presMenu(b), 'sec stbtn');
-  b.append(el('span', 'sdot'), el('span', 'stl'), document.createTextNode(' ▾')); presBtns.add(b); paintPres(); return b;
+  b.append(el('span', 'sdot'), el('span', 'stl'), document.createTextNode(' ▾'));
+  presBtns.forEach(x => { if (!x.isConnected) presBtns.delete(x); });   // limpa botões antigos
+  presBtns.add(b); paintStatusBtn(b); return b;
 }
 function meBtn() {
   const w = el('div', 'smewrap'), b = mk('', () => presMenu(b), 'sbtn smine');
