@@ -700,6 +700,7 @@ function applyLang() {
   if (typeof lastSig !== 'undefined') lastSig = '';
   if (window.Acc) Acc.refreshTexts();
   if (typeof render === 'function') render();
+  document.dispatchEvent(new Event('ns-lang'));   // servidores, amigos e conversas refazem os próprios textos
 }
 $('lang').onchange = () => {
   lang = $('lang').value;
@@ -3855,7 +3856,7 @@ applyLang();
   .fr-tabs { grid-template-columns: repeat(5, 1fr); }
 
   /* ---------- conversa privada: barra lateral à direita ---------- */
-  :root { --dmw: clamp(340px, 30vw, 440px); --dmo: 0px; }
+  :root { --dmw: clamp(380px, 33vw, 500px); --dmo: 0px; }
   body.dmopen { --dmo: var(--dmw); }
   #dmView { position: fixed; z-index: 28; top: 0; right: 0; bottom: 0; width: var(--dmw); display: flex; flex-direction: column; padding-top: env(safe-area-inset-top); background: var(--card-solid); border-left: 1px solid var(--line); box-shadow: -8px 0 30px rgba(0,0,0,.35); animation: dmIn .18s ease-out; }
   @keyframes dmIn { from { transform: translateX(14px); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -3868,6 +3869,8 @@ applyLang();
   .dm-head .x { width: 36px; min-height: 36px; padding: 0; }
   .dm-list { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px; padding: 14px 16px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
   .dm-empty { margin: auto; padding: 20px; text-align: center; }
+  #dmView .msg .mh { line-height: 1.2; row-gap: 0; }
+  #dmView .msg:not(.cont) .mt { margin-top: 1px; }
   .dm-form { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); min-width: 0; width: 100%; box-sizing: border-box; }
   .dm-form textarea { flex: 1 1 0; width: auto; min-width: 0; min-height: 46px; max-height: 160px; overflow-y: hidden; resize: none; box-sizing: border-box; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; outline: none; background: rgba(5,9,22,.65); color: var(--fg); font: inherit; line-height: 1.4; }
   .dm-form textarea:focus { border-color: var(--acc); }
@@ -6433,7 +6436,13 @@ frPanel.innerHTML = '<div class="fr-head"><strong id="frTitle"></strong><button 
   + '<div class="fr-tabs" id="frTabs"></div><div class="fr-search" id="frQw"><input id="frQ" type="search" maxlength="40" autocomplete="off"></div>'
   + '<div class="fr-body" id="frBody"></div><div class="fr-foot" id="frFoot"></div>';
 document.body.append(frPanel);
-$('frTitle').textContent = LL('Amigos', 'Friends'); $('frQ').placeholder = LL('Buscar amigo', 'Search friends');
+function paintStaticTexts() {
+  $('svEmoji').title = t('emojiBtn');
+  $('frTitle').textContent = LL('Amigos', 'Friends'); $('frQ').placeholder = LL('Buscar amigo', 'Search friends');
+  $('pfDmLbl').textContent = LL('Receber mensagens só de amigos (desligado: qualquer pessoa pode me escrever)', 'Only receive messages from friends (off: anyone can message me)');
+  $('pfNoFrLbl').textContent = LL('Não receber pedidos de amizade de ninguém (desligado: qualquer pessoa pode me adicionar)', 'Do not receive friend requests from anyone (off: anyone can add me)');
+}
+paintStaticTexts();
 $('frX').onclick = () => frSet(false);
 $('frQ').oninput = e => { frFilter = e.target.value; frBodyPaint(); };
 function frMuteBtn() { const b = $('frMute'), m = frMuteAll(); b.textContent = m ? '🔕' : '🔔'; b.title = m ? LL('Notificações de amizade silenciadas. Toque para reativar', 'Friend notifications muted. Tap to unmute') : LL('Silenciar todas as notificações de amizade', 'Mute all friend notifications'); }
@@ -6446,8 +6455,6 @@ frPanel.addEventListener('touchend', e => { const t = e.changedTouches[0]; if (i
 var dmCur = null, dmCh = null, dmPoll = 0, dmInboxL = [], dmUn = 0;
 const DM_MSG = { closed: ['Essa pessoa só recebe mensagens de amigos.', 'This person only receives messages from friends.'], rate: ['Calma! Mensagens demais em pouco tempo.', 'Slow down! Too many messages.'], self: ['Você não pode mandar mensagem para si mesmo.', 'You cannot message yourself.'], not_found: ['Pessoa não encontrada.', 'Person not found.'] };
 const dmMsg = c => c === 'sql' ? LL('Falta rodar a migração SQL v29 no Supabase para usar mensagens.', 'The v29 SQL migration still needs to be run in Supabase to use messages.') : DM_MSG[c] ? LL(DM_MSG[c][0], DM_MSG[c][1]) : String(c);
-$('pfDmLbl').textContent = LL('Receber mensagens só de amigos (desligado: qualquer pessoa pode me escrever)', 'Only receive messages from friends (off: anyone can message me)');
-$('pfNoFrLbl').textContent = LL('Não receber pedidos de amizade de ninguém (desligado: qualquer pessoa pode me adicionar)', 'Do not receive friend requests from anyone (off: anyone can add me)');
 const need30 = () => LL('Falta rodar a migração SQL v30 no Supabase para usar essa opção.', 'The v30 SQL migration still needs to be run in Supabase to use this option.');
 new MutationObserver(async () => {
   const d = $('dlgProfile'); if (!d.open || !uid) return;
@@ -6544,6 +6551,7 @@ async function dmOpen(p) {
     ta.value = ''; fit(); closePicker(); await pull(); ta.focus();
   };
   ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && innerWidth > 860) { e.preventDefault(); f.requestSubmit(); } };
+  d._relang = () => { ta.placeholder = LL('Escreva uma mensagem', 'Write a message'); emo.title = LL('Emojis', 'Emojis'); empty.textContent = LL('Esta é a sua conversa com ' + o.display_name + '. Diga oi! 👋', 'This is your conversation with ' + o.display_name + '. Say hi! 👋'); };
   document.body.append(d); document.body.classList.add('dmopen'); dmCur = { id, pull };
   await pull(); if (dmPanel !== d) return;
   clearInterval(dmPoll); dmPoll = setInterval(pull, 6000); ta.focus();
@@ -6724,6 +6732,16 @@ function frAddPaint(b) {
   b.append(f);
 }
 
+/* troca de idioma: refaz tudo o que foi desenhado com o idioma antigo */
+document.addEventListener('ns-lang', () => {
+  try {
+    paintStaticTexts(); frMuteBtn(); renderRail();
+    if (cur) { renderChans(); renderMembers(); paintDesc(); paintPinBtn(); if (chan) { paintTitle(chan); applyWriteState(); repaintMessages(); } }
+    document.querySelectorAll('.pdot[data-st]').forEach(d => { d.title = presInfo(d.dataset.st)[0]; });
+    frRender(true);
+    if (dmPanel && dmPanel._relang) dmPanel._relang();
+  } catch (e) { console.warn(e); }
+});
 renderRail();
 /* ----- extras do cartão de perfil: tags, cargos e moderação ----- */
 function cardExtras(p, box) {
