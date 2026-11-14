@@ -2888,6 +2888,15 @@ applyLang();
     :root { --rail: 50px; }
     #srvRail .sbtn { width: 38px; height: 38px; min-height: 38px; }
   }
+
+  /* ---------- lista de membros no celular (botão 👥 no topo do chat) ---------- */
+  .sv-membtn { display: none; flex: 0 0 auto; width: auto; min-height: 36px; padding: 0 11px; font-size: .85rem; }
+  #srvView.dock .sv-membtn { display: inline-block; }
+  #srvView.dock .sv-mem.open { display: block; position: absolute; z-index: 4; top: 0; right: 0; bottom: 0; width: 80%; overflow-y: auto; background: var(--card-solid); box-shadow: -10px 0 30px rgba(0, 0, 0, .45); }
+  @media (max-width: 860px) {
+    .sv-membtn { display: inline-block; min-height: 40px; }
+    .sv-mem.open { display: block; position: absolute; z-index: 4; top: 0; right: 0; bottom: 0; width: min(84%, 300px); overflow-y: auto; padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: max(10px, env(safe-area-inset-bottom)); background: var(--card-solid); border-left: 1px solid var(--line); box-shadow: -10px 0 30px rgba(0, 0, 0, .45); }
+  }
   .edited { margin-left: 6px; color: var(--mut); font-size: .7rem; }
   .medit { width: 100%; min-height: 56px; padding: 8px 10px; border: 1px solid var(--acc); border-radius: 10px; outline: none; resize: vertical; background: rgba(5,9,22,.65); color: var(--fg); font: inherit; }
   .cemoji { width: 1.45em; height: 1.45em; vertical-align: -.32em; object-fit: contain; }
@@ -3077,7 +3086,7 @@ const cleanEmoji = e => ({ id: String(e.id), name: String(e.name || '').replace(
 const rail = el('aside', 'hidden'); rail.id = 'srvRail';
 const view = el('section', 'hidden'); view.id = 'srvView';
 view.innerHTML = '<div class="sv-side" id="svSide"><div class="sv-banner hidden" id="svBanner"></div><button type="button" class="sv-head" id="svName"></button><div class="sv-desc hidden" id="svDesc"></div><div class="sv-list" id="svChans"></div></div>' +
-  '<div class="sv-main"><div class="sv-top"><button type="button" class="sec sv-burger" id="svBurger">☰</button><strong id="svTitle"></strong><button type="button" class="sec pinbtn hidden" id="svPins">📌</button><button type="button" class="sec x" id="svClose">✕</button></div>' +
+  '<div class="sv-main"><div class="sv-top"><button type="button" class="sec sv-burger" id="svBurger">☰</button><strong id="svTitle"></strong><button type="button" class="sec sv-membtn" id="svMembers">👥</button><button type="button" class="sec pinbtn hidden" id="svPins">📌</button><button type="button" class="sec x" id="svClose">✕</button></div>' +
   '<div id="svMsgs"></div><form id="svForm" class="hidden"><button type="button" class="sec" id="svEmoji">😊</button><textarea id="svInput" rows="1" maxlength="1000" autocomplete="off"></textarea><button type="submit">➤</button></form></div>' +
   '<div class="sv-mem" id="svMem"></div>';
 document.body.append(rail, view);
@@ -3191,8 +3200,8 @@ const presInfo = k => k === 'online' ? [LL('Online', 'Online'), LL('Disponível'
   : k === 'away' ? [LL('Ausente', 'Away'), LL('Aparece como ausente para os outros', 'Shows as away to others')]
   : k === 'dnd' ? [LL('Não perturbar', 'Do not disturb'), LL('Sem avisos de menção; as mensagens continuam chegando', 'No mention alerts; messages still arrive')]
   : [LL('Offline', 'Offline'), ''];
-let presMine = 'online', presIdle = false, presLast = Date.now(), presCh = null, presMap = new Map(), presSig = '', presTimer = 0;
-try { const v = localStorage.getItem('ns-status'); if (PRES_KEYS.includes(v)) presMine = v; } catch (e) {}
+let presMine = 'online', presSetAt = 0, presIdle = false, presLast = Date.now(), presCh = null, presMap = new Map(), presSig = '', presTimer = 0;
+try { const v = localStorage.getItem('ns-status'); if (PRES_KEYS.includes(v)) presMine = v; presSetAt = +localStorage.getItem('ns-status-t') || 0; } catch (e) {}
 const presEffective = () => (presMine === 'online' && presIdle) ? 'away' : presMine;
 const stOf = u => (u && u === uid) ? presEffective() : (presMap.get(u) || null);
 const presBtns = new Set();
@@ -3208,21 +3217,32 @@ function paintStatusBtn(b) {
   if (d) d.dataset.st = k; if (lb) lb.textContent = presInfo(k)[0];
   b.title = LL('Seu status: ', 'Your status: ') + presInfo(k)[0];
 }
-function presTrack() { if (!presCh) return; try { presCh.track({ status: presEffective(), ts: Date.now() }); } catch (e) {} }
+function presTrack() { if (!presCh) return; try { presCh.track({ status: presEffective(), ts: Date.now(), mine: presMine, setAt: presSetAt }); } catch (e) {} }
+/* o status escolhido vale para a conta toda: vai na sala de presença (outros aparelhos abertos mudam na hora)
+   e nos metadados da conta (aparelhos abertos depois já começam com ele) */
+function presAdopt(v, t) {
+  t = +t || 0;
+  if (!PRES_KEYS.includes(v) || t <= presSetAt) return;
+  presMine = v; presSetAt = t; presIdle = false;
+  try { localStorage.setItem('ns-status', v); localStorage.setItem('ns-status-t', String(t)); } catch (e) {}
+  presTrack(); paintPres();
+}
 function presSet(k) {
   if (!PRES_KEYS.includes(k)) return;
-  presMine = k; presIdle = false; presLast = Date.now();
-  try { localStorage.setItem('ns-status', k); } catch (e) {}
+  presMine = k; presSetAt = Date.now(); presIdle = false; presLast = Date.now();
+  try { localStorage.setItem('ns-status', k); localStorage.setItem('ns-status-t', String(presSetAt)); } catch (e) {}
   presTrack(); paintPres();
+  try { sb().auth.updateUser({ data: { ns_status: k, ns_status_t: presSetAt } }).catch(() => {}); } catch (e) {}
 }
 function presSync() {
   if (!presCh) return;
   const st = presCh.presenceState(), m = new Map();
   Object.keys(st).forEach(key => {
-    let best = null;
-    (st[key] || []).forEach(x => { if (PRES_KEYS.includes(x.status) && (!best || (x.ts || 0) >= (best.ts || 0))) best = x; });
-    if (best) m.set(key, best.status);
+    const metas = (st[key] || []).filter(x => PRES_KEYS.includes(x.status)); if (!metas.length) return;
+    // vários aparelhos da mesma conta: não perturbar > online (algum aparelho em uso) > ausente
+    m.set(key, metas.some(x => x.status === 'dnd') ? 'dnd' : metas.some(x => x.status === 'online') ? 'online' : 'away');
   });
+  (st[uid] || []).forEach(x => { if (x.setAt > presSetAt) presAdopt(x.mine, x.setAt); });   // outro aparelho meu mudou o status
   presMap = m;
   const sig = [...m].map(([k, v]) => k + v).sort().join('|');
   paintPres();
@@ -3242,6 +3262,7 @@ function presStart() {
     presCh = sb().channel('ns-presence', { config: { presence: { key: me } } });
     presCh.on('presence', { event: 'sync' }, presSync).subscribe(st => { if (st === 'SUBSCRIBED') presTrack(); });
   } catch (e) { presCh = null; }
+  try { sb().auth.getUser().then(({ data }) => { const md = (data && data.user && data.user.user_metadata) || {}; if (uid === me) presAdopt(md.ns_status, md.ns_status_t); }).catch(() => {}); } catch (e) {}
   presTimer = setInterval(presTick, 30000);
 }
 function presStop() {
@@ -3454,6 +3475,8 @@ function dlgPins() {
   }, true);
 }
 $('svPins').onclick = dlgPins;
+$('svMembers').onclick = e => { e.stopPropagation(); const m = $('svMem'), on = !m.classList.contains('open'); m.classList.toggle('open', on); if (on) $('svSide').classList.remove('open'); };
+document.addEventListener('pointerdown', e => { const m = $('svMem'); if (m && m.classList.contains('open') && !m.contains(e.target) && !$('svMembers').contains(e.target)) m.classList.remove('open'); }, true);
 function onAuth(id) {
   if (id === uid) { if (uid) renderRail(); return; }
   uid = id; siteOwner = false; closeView(); servers = []; renderRail(); syncRail();
@@ -3473,13 +3496,13 @@ function closeView() { view.classList.add('hidden'); unsub(); closePicker(); cur
 // dentro da sala de voz só esconde o painel (mantém o servidor ativo); fora dela fecha de vez
 function hideView() { view.classList.add('hidden'); closePicker(); if ($('room').classList.contains('hidden')) closeView(); else layout(); }
 $('svClose').onclick = hideView;
-$('svBurger').onclick = () => $('svSide').classList.toggle('open');
+$('svBurger').onclick = () => { $('svMem').classList.remove('open'); $('svSide').classList.toggle('open'); };
 $('svName').onclick = () => cur && dlgSettings();
 
 async function openServer(id) {
   const s = servers.find(x => x.id === id); if (!s) return;
   cur = s; chan = null; roles = []; mroles = new Map(); emojis = []; everyonePolicy = 'admins'; unreadMent.clear(); unsub(); closePicker(); renderRail();
-  setSrvName(); $('svTitle').textContent = ''; $('svMsgs').textContent = ''; $('svForm').classList.add('hidden'); $('svMem').textContent = ''; pins = []; pinSet = new Set(); syncChanFlags();
+  setSrvName(); $('svTitle').textContent = ''; $('svMsgs').textContent = ''; $('svForm').classList.add('hidden'); $('svMem').textContent = ''; pins = []; pinSet = new Set(); syncChanFlags(); $('svMem').classList.remove('open');
   paintDesc();
   view.classList.remove('hidden'); layout();
   await Promise.all([loadChans(), loadMembers(), loadRoles(), loadEmojis(), loadEveryone()]);
@@ -3612,7 +3635,7 @@ function memRow(m) {
   const col = el('div', 'mcol'), nm = el('b', 'mname', m.display_name);
   paintName(nm, m.user_id, m.username);
   col.append(nm);
-  r.append(col); r.onclick = () => A().showCard(m);
+  r.append(col); r.onclick = () => { $('svMem').classList.remove('open'); A().showCard(m); };
   r.dataset.u = m.user_id; r.append(presDot(m.user_id, 'pos-mem')); if (!stOf(m.user_id)) r.classList.add('off');
   return r;
 }
@@ -3631,6 +3654,7 @@ function renderMembers() {
   section(t('grpAdmin'), take(m => m.role === 'admin'));
   roles.filter(r => r.hoist).forEach(r => section(r.name, take(m => hasRole(m.user_id, r.id)), r.color, nsOfRole(r)));
   section(t('grpMembers'), take(() => true));
+  { const mb = $('svMembers'); if (mb) { const n = mem.filter(m => stOf(m.user_id)).length; mb.textContent = '👥 ' + n; mb.title = n + ' online'; } }
   try { render(); } catch (e) {}                 // lista de participantes da call usa as mesmas cores
 }
 
@@ -4070,7 +4094,7 @@ $('svEmoji').onclick = e => openPicker(e.currentTarget, p => insertText(p.c ? ':
 
 /* ----- chat ----- */
 async function pickChan(c) {
-  $('svSide').classList.remove('open');
+  $('svSide').classList.remove('open'); $('svMem').classList.remove('open');
   if (c.kind === 'voice') {
     const inRoom = !$('room').classList.contains('hidden');
     if (inRoom && voiceCh === c.id) return;
