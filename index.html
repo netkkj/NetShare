@@ -2079,6 +2079,91 @@ function editor(host, init, getName, onChange) {
 return { clean, apply, setMine, editor, style, tr, paintAll };
 })();
 </script>
+<style>
+  .pfx-host { position: relative; }
+  .pfx-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 4; }
+  .pfx-layer span { position: absolute; left: var(--x); top: var(--y); font-size: var(--s); animation: 0s linear infinite; animation-duration: var(--d); animation-delay: var(--l); }
+  .pfx-fall span { animation-name: pfxfall; } .pfx-rise span { animation-name: pfxrise; } .pfx-twinkle span { animation-name: pfxtw; animation-timing-function: ease-in-out; animation-direction: alternate; }
+  @keyframes pfxfall { from { top: -12%; transform: rotate(0); opacity: 0; } 10% { opacity: 1; } to { top: 105%; transform: translateX(26px) rotate(360deg); opacity: .9; } }
+  @keyframes pfxrise { from { top: 108%; transform: translateX(0); opacity: 0; } 15% { opacity: 1; } to { top: -12%; transform: translateX(-22px); opacity: .8; } }
+  @keyframes pfxtw { from { opacity: .1; transform: scale(.6) rotate(0); } to { opacity: 1; transform: scale(1.15) rotate(25deg); } }
+  .pfx-top { position: absolute; top: -4px; left: 0; right: 0; display: flex; justify-content: space-around; align-items: flex-start; z-index: 5; pointer-events: none; font-size: 1.7rem; line-height: 1; }
+  .pfx-top span { animation: pfxbob 3s ease-in-out infinite; filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
+  .pfx-top .big { font-size: 2.7rem; }
+  @keyframes pfxbob { 50% { transform: translateY(4px) rotate(4deg); } }
+  .pfx-r-glow { box-shadow: 0 0 0 3px #8b9bff, 0 0 16px 4px rgba(108,124,255,.7) !important; }
+  .pfx-r-gold { box-shadow: 0 0 0 3px #f5c451, 0 0 16px 4px rgba(245,196,81,.6) !important; }
+  .pfx-r-pink { box-shadow: 0 0 0 3px #ff8fc7, 0 0 16px 4px rgba(255,143,199,.6) !important; }
+  .pfx-r-neon { box-shadow: 0 0 0 3px #22e6ff, 0 0 18px 5px rgba(34,230,255,.65) !important; }
+  .pfx-r-rainbow { animation: pfxrb 3s linear infinite; }
+  @keyframes pfxrb { 0% { box-shadow: 0 0 0 3px #ff5c7a, 0 0 14px 3px #ff5c7a; } 25% { box-shadow: 0 0 0 3px #ffd166, 0 0 14px 3px #ffd166; } 50% { box-shadow: 0 0 0 3px #5cff9d, 0 0 14px 3px #5cff9d; } 75% { box-shadow: 0 0 0 3px #5cc8ff, 0 0 14px 3px #5cc8ff; } 100% { box-shadow: 0 0 0 3px #ff5c7a, 0 0 14px 3px #ff5c7a; } }
+  #cardBody { position: relative; }
+  .pfx-ed { display: grid; gap: 12px; }
+  .pfx-h { margin-bottom: 6px; color: #c8d0e5; font-size: .84rem; font-weight: 700; }
+  .pfx-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pfx-chip { min-height: 0; padding: 5px 10px; font-size: .8rem; }
+  .pfx-chip.on { border-color: var(--acc); background: rgba(108,124,255,.25); }
+  .pfx-prev { position: relative; height: 130px; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(135deg, #1b2350, #3a1f4f); }
+  .pfx-fakeav { position: absolute; left: 18px; bottom: 14px; width: 56px; height: 56px; border-radius: 50%; background: #2a3263 url() center/cover; border: 3px solid #121a38; }
+  @media (prefers-reduced-motion: reduce) { .pfx-layer span, .pfx-top span, .pfx-r-rainbow { animation: none !important; } }
+</style>
+<script>
+/* Efeitos de perfil: partículas + decoração do topo + moldura do avatar. Salvo em profiles.profile_fx como "efeito|topo|moldura". */
+window.PFX = (() => {
+  const FX = { none: { n: 'Nenhum', i: '🚫' },
+    petals: { n: 'Pétalas', i: '🌸', p: ['🌸', '🌸', '💮'], m: 'fall' }, snow: { n: 'Neve', i: '❄️', p: ['❄️', '❅'], m: 'fall' },
+    leaves: { n: 'Folhas', i: '🍃', p: ['🍃', '🍂'], m: 'fall' }, hearts: { n: 'Corações', i: '💖', p: ['💖', '💗', '💕'], m: 'rise' },
+    bubbles: { n: 'Bolhas', i: '🫧', p: ['🫧'], m: 'rise' }, stars: { n: 'Estrelas', i: '⭐', p: ['✨', '⭐', '🌟'], m: 'twinkle' },
+    sparkle: { n: 'Brilhos', i: '💫', p: ['💫', '✨'], m: 'twinkle' }, confetti: { n: 'Confete', i: '🎉', p: ['🎊', '🎉', '✨'], m: 'fall' } };
+  const TOP = { none: { n: 'Nenhuma', i: '🚫' },
+    garden: { n: 'Jardim de coelhos', i: '🐰', e: ['🍓', '🐰', '🌸', '🍃', '🐰', '🍓', '🌸'], big: ['🐰'] },
+    sakura: { n: 'Sakura', i: '🌸', e: ['🌸', '🎀', '🌸', '🌸', '🎀', '🌸'] }, stars: { n: 'Céu', i: '🌙', e: ['⭐', '🌙', '✨', '⭐', '✨', '🌙'] },
+    hearts: { n: 'Amor', i: '💝', e: ['💖', '🎀', '💖', '💗', '🎀', '💖'] }, winter: { n: 'Inverno', i: '⛄', e: ['❄️', '⛄', '❄️', '🎄', '❄️', '⛄'], big: ['⛄', '🎄'] },
+    spooky: { n: 'Halloween', i: '🎃', e: ['🦇', '🎃', '🕸️', '🦇', '🎃', '🕸️'], big: ['🎃'] }, cats: { n: 'Gatinhos', i: '🐱', e: ['🐾', '🐱', '🐾', '🐱', '🐾'], big: ['🐱'] },
+    sea: { n: 'Fundo do mar', i: '🐚', e: ['🐚', '🐠', '🌊', '🐙', '🌊', '🐚'], big: ['🐙'] } };
+  const RING = { none: { n: 'Nenhuma', i: '🚫' }, glow: { n: 'Brilho', i: '🔵' }, gold: { n: 'Ouro', i: '🟡' }, pink: { n: 'Rosa', i: '🩷' }, neon: { n: 'Neon', i: '🩵' }, rainbow: { n: 'Arco-íris', i: '🌈' } };
+  const E = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const parse = s => { const [a, b, c] = String(s || '').split('|'); return { fx: FX[a] ? a : 'none', top: TOP[b] ? b : 'none', ring: RING[c] ? c : 'none' }; };
+  const ser = o => (o.fx === 'none' && o.top === 'none' && o.ring === 'none') ? '' : [o.fx, o.top, o.ring].join('|');
+  const clean = s => ser(parse(s));
+  function apply(host, spec, av) {
+    if (!host) return;
+    host.classList.add('pfx-host');
+    host.querySelectorAll(':scope > .pfx-layer, :scope > .pfx-top').forEach(n => n.remove());
+    if (av) av.className = av.className.replace(/\bpfx-r-\S+/g, '').trim();
+    const s = parse(spec), r = Math.random;
+    if (av && s.ring !== 'none') av.classList.add('pfx-r-' + s.ring);
+    if (s.fx !== 'none') {
+      const f = FX[s.fx], L = E('div', 'pfx-layer pfx-' + f.m);
+      for (let i = 0; i < 16; i++) { const sp = E('span', '', f.p[i % f.p.length]); sp.style.cssText = '--x:' + (r() * 94) + '%;--y:' + (r() * 90) + '%;--d:' + (f.m === 'twinkle' ? 1.6 + r() * 2 : 6 + r() * 7) + 's;--l:-' + (r() * 10) + 's;--s:' + (.9 + r() * .9) + 'rem'; L.append(sp); }
+      host.append(L);
+    }
+    if (s.top !== 'none') {
+      const T = TOP[s.top], t = E('div', 'pfx-top');
+      T.e.forEach((c, i) => { const sp = E('span', (T.big || []).includes(c) ? 'big' : '', c); sp.style.animationDelay = (i * .35) + 's'; t.append(sp); });
+      host.append(t);
+    }
+  }
+  function editor(host, cur, onChange) {
+    host.textContent = ''; host.className = 'pfx-ed';
+    const st = parse(cur), prev = E('div', 'pfx-prev'), fav = E('div', 'pfx-fakeav');
+    prev.append(fav);
+    const paint = () => apply(prev, ser(st), fav);
+    host.append(E('div', 'pfx-h', '✨ Efeitos e decorações do perfil'), prev);
+    [['Efeito de fundo', 'fx', FX], ['Decoração do topo', 'top', TOP], ['Moldura do avatar', 'ring', RING]].forEach(([title, key, cat]) => {
+      const g = E('div'), row = E('div', 'pfx-row'); g.append(E('div', 'pfx-h', title), row);
+      Object.entries(cat).forEach(([id, o]) => {
+        const b = E('button', 'sec pfx-chip' + (st[key] === id ? ' on' : ''), o.i + ' ' + o.n); b.type = 'button';
+        b.onclick = () => { st[key] = id; row.querySelectorAll('.pfx-chip').forEach(c => c.classList.toggle('on', c === b)); paint(); onChange(ser(st)); };
+        row.append(b);
+      });
+      host.append(g);
+    });
+    paint();
+  }
+  return { clean, apply, editor };
+})();
+</script>
 <script>
 /* =====================================================================
    CONTAS (Supabase)  —  CONFIGURE AQUI
@@ -2227,7 +2312,8 @@ window.Acc = (() => {
       bio: (typeof r.bio === 'string' ? r.bio : '').replace(BIO_CTRL, '').slice(0, 200),
       avatar_path: PATH_RE.test(r.avatar_path || '') ? r.avatar_path : null,
       banner_path: PATH_RE.test(r.banner_path || '') ? r.banner_path : null,
-      ns: window.NS ? NS.clean({ font: r.name_font, color: r.name_color, color2: r.name_color2, fx: r.name_fx }) : null
+      ns: window.NS ? NS.clean({ font: r.name_font, color: r.name_color, color2: r.name_color2, fx: r.name_fx }) : null,
+      pfx: window.PFX ? PFX.clean(r.profile_fx) : ''
     };
   }
 
@@ -2295,8 +2381,11 @@ window.Acc = (() => {
     if (!session) { me = null; return; }
     try {
       let { data, error } = await sb.from('profiles')
-        .select('username,display_name,bio,avatar_path,banner_path,name_font,name_color,name_color2,name_fx')
+        .select('username,display_name,bio,avatar_path,banner_path,name_font,name_color,name_color2,name_fx,profile_fx')
         .eq('id', session.user.id).maybeSingle();
+      if (error) ({ data, error } = await sb.from('profiles')                       // coluna profile_fx ainda não existe
+        .select('username,display_name,bio,avatar_path,banner_path,name_font,name_color,name_color2,name_fx')
+        .eq('id', session.user.id).maybeSingle());
       if (error) ({ data, error } = await sb.from('profiles')                       // v10 ainda não rodou
         .select('username,display_name,bio,avatar_path,banner_path')
         .eq('id', session.user.id).maybeSingle());
@@ -2570,6 +2659,10 @@ window.Acc = (() => {
       if (!host) { host = document.createElement('div'); host.id = 'pfNS'; $('pfName').closest('label').after(host); $('pfName').addEventListener('input', () => { if (nsEd) nsEd.refresh(); }); }
       nsEd = NS.editor(host, me.ns, () => $('pfName').value, v => { if (pend) pend.ns = v; });
     }
+    if (window.PFX) {
+      let fh = $('pfFX'); if (!fh) { fh = document.createElement('div'); fh.id = 'pfFX'; $('pfConns').before(fh); }
+      PFX.editor(fh, me.pfx, v => { if (pend) pend.pfx = v; });
+    }
     connState = { loaded: false, missing: false, failed: '', orig: [], cur: [] };
     paintConns(); loadMyConns();
     if (!$('dlgProfile').open) $('dlgProfile').showModal();
@@ -2631,7 +2724,7 @@ window.Acc = (() => {
     msgTo('pfMsg', 'pfSaving', '');
     const uid = session.user.id;
     const uploaded = [], toDelete = [];
-    let nsMissing = false, connMissing = false;
+    let nsMissing = false, connMissing = false, pfxMissing = false;
     try {
       // conexões primeiro: se falhar, ainda não subiu nenhuma imagem
       if (connState.loaded && JSON.stringify(connState.cur) !== JSON.stringify(connState.orig)) {
@@ -2664,11 +2757,13 @@ window.Acc = (() => {
         nsMissing = true;
       }
       if (error) throw error;
+      if (pend.pfx != null) { const r2 = await sb.from('profiles').update({ profile_fx: pend.pfx || null }).eq('id', uid); if (r2.error) pfxMissing = true; }
       toDelete.forEach(([b, p]) => bg(sb.storage.from(b).remove([p])));
       await loadMe();
       paint();
       $('dlgProfile').close();
       if (nsMissing) alert(NS.tr('needV10'));
+      if (pfxMissing) alert('Falta rodar o SQL dos efeitos de perfil no Supabase (coluna profile_fx). O resto do perfil foi salvo.');
       if (connMissing) alert(T('cnNeed'));
     } catch (err) {
       uploaded.forEach(([b, p]) => bg(sb.storage.from(b).remove([p])));
@@ -2729,6 +2824,12 @@ window.Acc = (() => {
     }
     if (window.Srv) Srv.cardExtras(p, info);
     body.append(ban, info);
+    if (window.PFX) {
+      const av = info.querySelector('.av'), fxHost = body;
+      if (p.pfx != null) PFX.apply(fxHost, p.pfx, av);
+      else if (sb && p.username) sb.from('profiles').select('profile_fx').eq('username', p.username).maybeSingle()
+        .then(({ data }) => { if (data && body.contains(info)) PFX.apply(fxHost, data.profile_fx, av); }).catch(() => {});
+    }
     if (!$('dlgCard').open) $('dlgCard').showModal();
   }
 
