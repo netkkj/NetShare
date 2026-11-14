@@ -2081,13 +2081,14 @@ return { clean, apply, setMine, editor, style, tr, paintAll };
 </script>
 <style>
   .pfx-host { position: relative; }
-  .pfx-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 4; }
+  .pfx-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  #cardBody .pc-body { position: relative; z-index: 1; }
   .pfx-layer img { position: absolute; left: var(--x); top: var(--y); width: var(--s); height: auto; opacity: .92; filter: drop-shadow(0 0 5px rgba(255,255,255,.4)); animation: 0s linear infinite; animation-duration: var(--d); animation-delay: var(--l); }
   .pfx-fall img { animation-name: pfxfall; } .pfx-rise img { animation-name: pfxrise; } .pfx-twinkle img { animation-name: pfxtw; animation-timing-function: ease-in-out; animation-direction: alternate; }
   @keyframes pfxfall { from { top: -12%; transform: rotate(0); opacity: 0; } 10% { opacity: 1; } to { top: 105%; transform: translateX(26px) rotate(360deg); opacity: .9; } }
   @keyframes pfxrise { from { top: 108%; transform: translateX(0); opacity: 0; } 15% { opacity: 1; } to { top: -12%; transform: translateX(-22px); opacity: .8; } }
   @keyframes pfxtw { from { opacity: .1; transform: scale(.6) rotate(0); } to { opacity: 1; transform: scale(1.15) rotate(25deg); } }
-  .pfx-top { position: absolute; top: -4px; left: 0; right: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 0 6px; z-index: 5; pointer-events: none; background: no-repeat top / auto 20px; background-repeat: repeat-x; }
+  .pfx-top { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 46px 0 6px; z-index: 5; pointer-events: none; background: no-repeat top / auto 20px; background-repeat: repeat-x; }
   .card-x { z-index: 10; }
   .pfx-top img { flex: 0 1 auto; min-width: 0; height: auto; animation: pfxbob 3s ease-in-out infinite; filter: drop-shadow(0 3px 4px rgba(0,0,0,.45)); }
   .pfx-chip img { width: 18px; height: 18px; margin-right: 6px; vertical-align: -4px; } .pfx-dot { display: inline-block; width: 14px; height: 14px; margin-right: 6px; border-radius: 50%; vertical-align: -2px; }
@@ -2132,6 +2133,7 @@ window.PFX = (() => {
     pine: U('<path d="M16 2l9 12h-5l7 9H5l7-9H7Z" fill="#4caf6a"/><rect x="14" y="23" width="4" height="6" fill="#8a5a3b"/>'),
     fp: flower('#ff9fc4'), fw: flower('#ffffff'), fy: flower('#ffd166'), bp: bow('#ff8fc7'), bb: bow('#8fb4ff')
   };
+  const R = U('<path d="M0 5Q15 15 30 5T60 5" stroke="#ffffff" stroke-opacity=".55" stroke-width="1.6" fill="none"/>', '0 0 60 18');
   const V = U('<path d="M0 9Q15 -1 30 9T60 9" stroke="#5fbf7a" stroke-width="3" fill="none"/><path d="M15 3l4 -2-1 4Zm30 12l4 2-1-4Z" fill="#7bd88f"/>', '0 0 60 18');
   const FX = { none: { n: 'Nenhum' },
     petals: { n: 'Pétalas', p: [S.petal], m: 'fall' }, snow: { n: 'Neve', p: [S.snow], m: 'fall' }, leaves: { n: 'Folhas', p: [S.leaf], m: 'fall' },
@@ -2166,8 +2168,8 @@ window.PFX = (() => {
     }
     if (s.top !== 'none') {
       const T = TOP[s.top], t = E('div', 'pfx-top');
-      if (T.v) t.style.backgroundImage = 'url("' + V + '")';
-      (T.e.length < 8 ? T.e.concat(T.e).slice(0, 8) : T.e).forEach(([src, w], i) => { const im = IM(src, Math.round(w * 1.15)); im.style.animationDelay = (i * .35) + 's'; t.append(im); });
+      t.style.backgroundImage = 'url("' + (T.v ? V : R) + '")';
+      (T.e.length < 8 ? T.e.concat(T.e).slice(0, 8) : T.e).forEach(([src, w], i) => { const im = IM(src, Math.round(w * 1.15)); im.style.animationDelay = (i * .35) + 's'; im.style.marginTop = (i % 2 ? 12 : 2) + 'px'; t.append(im); });
       host.append(t);
     }
   }
@@ -2436,6 +2438,9 @@ window.Acc = (() => {
       if (window.NS) { NS.setMine(me.username, me.ns); NS.apply(nmS, me.username); }
       t.append(nmS, el('span', 'mut', me.username ? '@' + me.username : ''));
       who.append(avatar(me, 40), t);
+      who.style.cursor = 'pointer'; who.tabIndex = 0; who.setAttribute('role', 'button');
+      who.onclick = () => showCard(me);
+      who.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showCard(me); } };
       bar.append(who, btn('accEdit', 'sec', openProfile), btn('accSignOut', 'sec', signOut));
       if (window.Srv && Srv.statusButton) bar.insertBefore(Srv.statusButton(), who.nextSibling);
       if (!inName.readOnly) guestName = inName.value;
