@@ -3911,6 +3911,9 @@ applyLang();
   .dm-form .dm-emo { font-size: 1.15rem; padding: 0 12px; }
   @media (min-width: 861px) {
     body.dmopen #srvView { right: var(--dmw); }
+  }
+  /* o cartão central só sai do meio se a tela for estreita demais para caber entre os painéis */
+  @media (min-width: 861px) and (max-width: 1480px) {
     body.dmopen:not(.inroomview) { padding-right: var(--dmw); }
   }
   @media (max-width: 860px) {
