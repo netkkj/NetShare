@@ -241,6 +241,8 @@
     #controls label { width: calc(50% - 5px); justify-content: space-between; }
     #controls label select { min-width: 0; max-width: 105px; }
     #controls label:has(#vol) { width: 100%; }
+    #controls label:has(#micDev) { width: 100%; }
+    #controls label:has(#micDev) select { flex: 1; max-width: none; }
     #btnLeave { width: 100%; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -327,6 +329,14 @@
   .pe-conns .cn-add select { flex: 0 0 140px; width: auto; min-width: 0; }
   .pe-conns .cn-add input { flex: 1 1 0; width: auto; min-width: 0; }
   .pe-conns .cn-add button { flex: 0 0 auto; }
+  .pe-conns { grid-template-columns: minmax(0, 1fr); }
+  .pe-conns > * { min-width: 0; max-width: 100%; }
+  .pe-conns p { overflow-wrap: anywhere; }
+  .pe-conns .cn-add { flex-wrap: wrap; }
+  .pe-conns .cn-add select { flex: 1 1 130px; }
+  .pe-conns .cn-add input { flex: 2 1 150px; }
+  .toastx { position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 99999; max-width: min(92vw, 520px); padding: 12px 16px; border-radius: 14px; background: rgba(10, 14, 30, .97); border: 1px solid var(--line); color: var(--fg); font-size: .9rem; line-height: 1.4; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); text-align: center; }
+  .toastx[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -509,6 +519,7 @@ const I18N = {
   btnLeave:'Sair da sala', lblVol:'Volume:', volTile:'Volume desta transmissão',
   btnMicOn:'🎙️ Ligar microfone', btnMicOff:'🎙️ Desligar microfone', btnDeafOn:'🎧 Parar de ouvir tudo', btnDeafOff:'🎧 Voltar a ouvir', lblMic:'Microfone:', micDefault:'Padrão',
   micDenied:'O navegador não deixou usar o microfone. Libere a permissão nas configurações do site e tente de novo.', micFail:'Não foi possível ligar o microfone: {e}', cantMic:'O microfone só funciona em páginas seguras (https).',
+  micNone:'Nenhum microfone encontrado neste aparelho.', micBusy:'Não foi possível usar o microfone: outro app está usando ele.',
   micNoPerm:'Você não tem permissão para falar neste canal', mutedByMod:'Você foi mutado: ninguém ouve o seu microfone.', deafByMod:'Um moderador desligou o seu áudio: você não consegue ouvir ninguém.', mutedDeafByMod:'Um moderador mutou você e desligou o seu áudio.', freedByMod:'Um moderador liberou o seu áudio.',
   mute:'Mutar', unmute:'Desmutar', deafen:'Ensurdecer', undeafen:'Liberar áudio', tagMic:'microfone ligado', tagMuted:'mutado por moderador', tagDeaf:'não está ouvindo', tagDeafMod:'ensurdecido por moderador',
   dc:'Desconectar', dcTime:'Desconectar por tempo…', confirmDc:'Desconectar {name} da call? A pessoa poderá entrar de novo na hora.', askDcTime:'Por quantos minutos {name} fica impedido de voltar à call? (1 a 1440)',
@@ -561,6 +572,7 @@ const I18N = {
   btnLeave:'Leave room', lblVol:'Volume:', volTile:'Volume of this stream',
   btnMicOn:'🎙️ Turn on microphone', btnMicOff:'🎙️ Turn off microphone', btnDeafOn:'🎧 Stop hearing everyone', btnDeafOff:'🎧 Hear again', lblMic:'Microphone:', micDefault:'Default',
   micDenied:'The browser did not allow the microphone. Allow it in the site settings and try again.', micFail:'Could not turn on the microphone: {e}', cantMic:'The microphone only works on secure pages (https).',
+  micNone:'No microphone was found on this device.', micBusy:'Could not use the microphone: another app is using it.',
   micNoPerm:'You do not have permission to talk in this channel', mutedByMod:'You were muted: nobody can hear your microphone.', deafByMod:'A moderator turned off your audio: you cannot hear anyone.', mutedDeafByMod:'A moderator muted you and turned off your audio.', freedByMod:'A moderator restored your audio.',
   mute:'Mute', unmute:'Unmute', deafen:'Deafen', undeafen:'Undeafen', tagMic:'microphone on', tagMuted:'muted by a moderator', tagDeaf:'not listening', tagDeafMod:'deafened by a moderator',
   dc:'Disconnect', dcTime:'Disconnect for a while…', confirmDc:'Disconnect {name} from the call? They will be able to join again right away.', askDcTime:'For how many minutes is {name} blocked from coming back to the call? (1 to 1440)',
@@ -613,6 +625,7 @@ const I18N = {
   btnLeave:'Sair da sala', lblVol:'Volume:', volTile:'Volume desta transmissão',
   btnMicOn:'🎙️ Ligar microfone', btnMicOff:'🎙️ Desligar microfone', btnDeafOn:'🎧 Deixar de ouvir tudo', btnDeafOff:'🎧 Voltar a ouvir', lblMic:'Microfone:', micDefault:'Predefinido',
   micDenied:'O navegador não permitiu usar o microfone. Autorize nas definições do site e tente outra vez.', micFail:'Não foi possível ligar o microfone: {e}', cantMic:'O microfone só funciona em páginas seguras (https).',
+  micNone:'Não foi encontrado nenhum microfone neste dispositivo.', micBusy:'Não foi possível usar o microfone: outra aplicação está a usá-lo.',
   micNoPerm:'Não tem permissão para falar neste canal', mutedByMod:'Foi silenciado: ninguém ouve o seu microfone.', deafByMod:'Um moderador desligou o seu áudio: não consegue ouvir ninguém.', mutedDeafByMod:'Um moderador silenciou-o e desligou o seu áudio.', freedByMod:'Um moderador libertou o seu áudio.',
   mute:'Silenciar', unmute:'Deixar falar', deafen:'Desligar áudio', undeafen:'Ligar áudio', tagMic:'microfone ligado', tagMuted:'silenciado por moderador', tagDeaf:'não está a ouvir', tagDeafMod:'sem áudio por moderador',
   dc:'Desligar da chamada', dcTime:'Desligar por tempo…', confirmDc:'Desligar {name} da chamada? A pessoa poderá voltar a entrar de imediato.', askDcTime:'Durante quantos minutos {name} fica impedido de voltar à chamada? (1 a 1440)',
@@ -1450,7 +1463,13 @@ function disconnectPeer(id, minutes) {
   applyDc(keys, until, ts);
 }
 
-function notify(k) { msgK(k); setTimeout(() => { if (msgKey() === k) msg(''); }, 7000); }
+let toastEl = null, toastT = 0;
+function toast(text) {   // aviso flutuante: no celular a linha de status do topo fica fora da tela
+  if (!toastEl) { toastEl = document.createElement('div'); toastEl.className = 'toastx'; toastEl.setAttribute('role', 'status'); document.body.append(toastEl); }
+  toastEl.textContent = text; toastEl.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => { toastEl.hidden = true; }, 6500);
+}
+function notify(k, v) { msgK(k, v); toast(T(k, v)); setTimeout(() => { if (msgKey() === k) msg(''); }, 7000); }
 function applyMods() {
   modVer++;
   const me = modOf(myKeys());
@@ -1561,8 +1580,12 @@ async function fillMicList() {
 }
 
 async function micStart() {
-  if (micStream || !roomCanSpeak || !peer) return;
-  if (!canUseCamera) { msgK('cantMic'); return; }
+  try { await micStartInner(); }
+  catch (e) { console.warn('microfone:', e); notify('micFail', { e: (e && e.message) || String(e) }); }
+}
+async function micStartInner() {
+  if (micStream || !roomCanSpeak) return;   // pode ligar mesmo antes da conexão terminar: a voz sai assim que as pessoas aparecem
+  if (!canUseCamera) { notify('cantMic'); return; }
   if (modOf(myKeys()).m) { notify('mutedByMod'); return; }
   const tok = ++micTok;
   const base = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
@@ -1571,17 +1594,21 @@ async function micStart() {
   try { s = await navigator.mediaDevices.getUserMedia({ audio: dev ? Object.assign({ deviceId: { exact: dev } }, base) : base }); }
   catch (e) {
     err = e;
-    if (dev && e && ['OverconstrainedError', 'NotFoundError'].includes(e.name)) {   // microfone escolhido não existe mais: usa o padrão
-      try { s = await navigator.mediaDevices.getUserMedia({ audio: base }); err = null; $('micDev').value = ''; } catch (e2) { err = e2; }
+    const denied = e && ['NotAllowedError', 'SecurityError', 'PermissionDeniedError'].includes(e.name);
+    if (!denied) {   // restrição não aceita (ex.: celular) ou microfone escolhido sumiu: tenta o mais simples
+      try { s = await navigator.mediaDevices.getUserMedia({ audio: true }); err = null; if (dev) $('micDev').value = ''; } catch (e2) { err = e2; }
     }
   }
   if (!s) {
     if (tok !== micTok) return;
-    if (err && ['NotAllowedError', 'SecurityError', 'PermissionDeniedError'].includes(err.name)) notify('micDenied');
-    else { msgK('micFail', { e: (err && err.message) || String(err) }); setTimeout(() => { if (msgKey() === 'micFail') msg(''); }, 7000); }
+    const n = err && err.name;
+    if (['NotAllowedError', 'SecurityError', 'PermissionDeniedError'].includes(n)) notify('micDenied');
+    else if (n === 'NotFoundError' || n === 'DevicesNotFoundError') notify('micNone');
+    else if (n === 'NotReadableError' || n === 'TrackStartError') notify('micBusy');
+    else notify('micFail', { e: (err && err.message) || String(err) });
     return;
   }
-  if (tok !== micTok || leaving || !peer || modOf(myKeys()).m) { s.getTracks().forEach(t => t.stop()); return; }
+  if (tok !== micTok || leaving || modOf(myKeys()).m) { s.getTracks().forEach(t => t.stop()); return; }
   micStream = s;
   s.getAudioTracks().forEach(t => { t.onended = () => { if (micStream === s) micStop(); }; });
   lastVoiceTry.clear();
@@ -3747,8 +3774,9 @@ applyLang();
   .swatch { --c: #6c7cff; width: 26px; min-height: 26px; height: 26px; padding: 0; border: 2px solid transparent; border-radius: 50%; background: var(--c); box-shadow: none; }
   .swatch.on { border-color: #fff; }
   .swatch:hover:not(:disabled) { transform: scale(1.1); box-shadow: none; }
-  .lrow { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(4,8,20,.38); }
-  .lrow .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .lrow { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(4,8,20,.38); }
+  .lrow .grow { flex: 1 1 150px; min-width: 0; overflow-wrap: anywhere; }
+  .lrow .gbadge { max-width: 100%; }
   .lrow button { min-height: 32px; padding: 4px 9px; border-radius: 8px; font-size: .76rem; }
   .lrow .cemoji { width: 32px; height: 32px; }
   .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
