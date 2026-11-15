@@ -491,6 +491,30 @@
         <button type="button" class="sec" data-close="dlgProfile" data-i18n="pfCancel"></button>
         <button type="submit" id="pfSave" data-i18n="pfSave"></button>
       </div>
+      <div class="pf-danger">
+        <h3 data-i18n="dzZone"></h3>
+        <div class="dz-btns">
+          <button type="button" id="pfDelete" class="dz-red" data-i18n="dzDelete"></button>
+          <button type="button" id="pfDisable" class="dz-blue" data-i18n="dzDisable"></button>
+        </div>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="dlgDanger" class="dlg confirm" aria-labelledby="dzTitle">
+  <div class="dlg-in">
+    <div class="cf-ico" id="dzIco" aria-hidden="true"></div>
+    <h2 id="dzTitle"></h2>
+    <p class="cf-txt" id="dzTxt"></p>
+    <form id="frmDanger" class="dlg-form" novalidate style="width:100%;text-align:left">
+      <label id="dzCodeLbl" class="hidden"><span data-i18n="dzCode"></span><input id="dzCode" inputmode="numeric" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" maxlength="10"></label>
+      <div id="dzCap" class="captcha hidden"></div>
+      <p id="dzMsg" class="amsg" role="status"></p>
+      <div class="dlg-actions">
+        <button type="button" class="sec" data-close="dlgDanger" data-i18n="pfCancel"></button>
+        <button type="submit" id="dzGo"></button>
+      </div>
     </form>
   </div>
 </dialog>
@@ -2725,7 +2749,15 @@ const ACC_I18N = {
   pfTooBig:'A imagem passa de {mb} MB.', pfBadType:'Use uma imagem PNG, JPG, WebP ou GIF.',
   pfUserTaken:'Esse nome de usuário já está em uso.', pfNameReq:'Digite um nome de exibição.',
   pfUploadFail:'Falha ao enviar a imagem: {e}',
-  cardVerified:'Conta verificada', cardNoBio:'Sem descrição.'
+  cardVerified:'Conta verificada', cardNoBio:'Sem descrição.',
+  dzZone:'Zona de perigo', dzDelete:'Excluir conta', dzDisable:'Desabilitar conta',
+  dzDelTitle:'Excluir conta?', dzDelTxt:'Isso apaga sua conta para sempre e não dá para desfazer. Para confirmar, enviaremos um código para {email}.',
+  dzOffTitle:'Desabilitar conta?', dzOffTxt:'Sua conta fica desativada e você é desconectado. Para reativar, é só entrar de novo. Para confirmar, enviaremos um código para {email}.',
+  dzSend:'Enviar código', dzCode:'Código recebido no e-mail', dzSent:'Enviamos o código para {email}. Digite-o abaixo.',
+  dzConfirmDel:'Confirmar e excluir', dzConfirmOff:'Confirmar e desabilitar', dzSending:'Enviando...', dzWorking:'Confirmando...',
+  dzBadCode:'Código inválido ou expirado.', dzNoCode:'Digite o código que chegou no seu e-mail.', dzNoEmail:'Sua conta não tem e-mail cadastrado, então não dá para confirmar.',
+  dzNeed:'Falta rodar a migração SQL v34 no Supabase para usar essa opção.',
+  dzDoneDel:'Conta excluída.', dzDoneOff:'Conta desabilitada. Entre de novo quando quiser reativar.', dzBack:'Conta reativada. Bem-vindo de volta!'
 },
 'en': {
   eyebrowA:'Direct connection', eyebrowB:'No sign-up', eyebrowB2:'Account optional',
@@ -2752,7 +2784,15 @@ const ACC_I18N = {
   pfTooBig:'The image is over {mb} MB.', pfBadType:'Use a PNG, JPG, WebP or GIF image.',
   pfUserTaken:'That username is already taken.', pfNameReq:'Enter a display name.',
   pfUploadFail:'Image upload failed: {e}',
-  cardVerified:'Verified account', cardNoBio:'No bio.'
+  cardVerified:'Verified account', cardNoBio:'No bio.',
+  dzZone:'Danger zone', dzDelete:'Delete account', dzDisable:'Disable account',
+  dzDelTitle:'Delete account?', dzDelTxt:'This permanently deletes your account and cannot be undone. To confirm, we will send a code to {email}.',
+  dzOffTitle:'Disable account?', dzOffTxt:'Your account is deactivated and you are signed out. To reactivate it, just sign in again. To confirm, we will send a code to {email}.',
+  dzSend:'Send code', dzCode:'Code received by email', dzSent:'We sent the code to {email}. Enter it below.',
+  dzConfirmDel:'Confirm and delete', dzConfirmOff:'Confirm and disable', dzSending:'Sending...', dzWorking:'Confirming...',
+  dzBadCode:'Invalid or expired code.', dzNoCode:'Enter the code from your email.', dzNoEmail:'Your account has no email, so it cannot be confirmed.',
+  dzNeed:'The v34 SQL migration still needs to be run in Supabase to use this option.',
+  dzDoneDel:'Account deleted.', dzDoneOff:'Account disabled. Sign in again whenever you want to reactivate it.', dzBack:'Account reactivated. Welcome back!'
 },
 'pt-PT': {
   accPass:'Palavra-passe', accPassNew:'Nova palavra-passe', accForgot:'Esqueci-me da palavra-passe',
@@ -3301,6 +3341,111 @@ window.Acc = (() => {
     }
   }
 
+  /* ---------- excluir / desabilitar conta (confirmação só por código enviado ao e-mail) ---------- */
+  let dz = null, dzBusy = false, dzCapId = null, dzCapToken = '';
+  const dzToast = t => { if (typeof toast === 'function') toast(t); else alert(t); };
+  function dzTexts() {
+    if (!dz) return;
+    const email = (session && session.user && session.user.email) || '';
+    const del = dz.kind === 'delete';
+    $('dzIco').textContent = del ? '🗑️' : '⏸️';
+    $('dzTitle').textContent = T(del ? 'dzDelTitle' : 'dzOffTitle');
+    $('dzTxt').textContent = T(del ? 'dzDelTxt' : 'dzOffTxt', { email });
+    const go = $('dzGo');
+    go.className = del ? 'dz-red' : 'dz-blue';
+    go.textContent = T(dz.step === 1 ? 'dzSend' : (del ? 'dzConfirmDel' : 'dzConfirmOff'));
+  }
+  async function dzShowCaptcha() {
+    const box = $('dzCap');
+    box.classList.toggle('hidden', !capOn);
+    if (!capOn) return;
+    if (!(await loadCaptcha())) return msgTo('dzMsg', 'accCaptchaFail', 'err');
+    if (dzCapId === null) {
+      dzCapId = window.hcaptcha.render(box, {
+        sitekey: SB_HCAPTCHA, theme: 'dark',
+        callback: t => { dzCapToken = t; },
+        'expired-callback': () => { dzCapToken = ''; },
+        'error-callback': () => { dzCapToken = ''; }
+      });
+    }
+  }
+  function dzResetCaptcha() {
+    dzCapToken = '';
+    if (dzCapId !== null && window.hcaptcha) { try { window.hcaptcha.reset(dzCapId); } catch (e) {} }
+  }
+  function openDanger(kind) {
+    if (!sb || !session || !me) return;
+    dz = { kind, step: 1 };
+    $('dzCode').value = '';
+    $('dzCodeLbl').classList.add('hidden');
+    $('dzGo').disabled = false;
+    msgTo('dzMsg', null);
+    dzTexts();
+    if (!(session.user && session.user.email)) { msgTo('dzMsg', 'dzNoEmail', 'err'); $('dzGo').disabled = true; }
+    else dzShowCaptcha();
+    if (!$('dlgDanger').open) $('dlgDanger').showModal();
+  }
+  async function onDangerSubmit(e) {
+    e.preventDefault();
+    if (!dz || !sb || !session) return;
+    const email = session.user && session.user.email;
+    if (!email) return msgTo('dzMsg', 'dzNoEmail', 'err');
+    const go = $('dzGo');
+    if (dz.step === 1) {
+      if (capOn && !dzCapToken) return msgTo('dzMsg', 'accCaptcha', 'err');
+      go.disabled = true; msgTo('dzMsg', 'dzSending', '');
+      try {
+        const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false, ...(capOn ? { captchaToken: dzCapToken } : {}) } });
+        if (error) { const [k, v] = authError(error); msgTo('dzMsg', k, 'err', v); }
+        else {
+          dz.step = 2;
+        }
+      } catch (err) {
+        msgTo('dzMsg', 'accErr', 'err', { e: (err && err.message) || String(err) });
+      }
+      dzResetCaptcha();
+      if (dz.step === 2) {
+        $('dzCap').classList.add('hidden');
+        $('dzCodeLbl').classList.remove('hidden');
+        msgTo('dzMsg', 'dzSent', 'ok', { email });
+        $('dzCode').focus();
+        dzTexts();
+      }
+      go.disabled = false;
+      return;
+    }
+    const code = $('dzCode').value.replace(/\s+/g, '');
+    if (!/^[0-9]{6,10}$/.test(code)) return msgTo('dzMsg', 'dzNoCode', 'err');
+    go.disabled = true; msgTo('dzMsg', 'dzWorking', '');
+    dzBusy = true;   // enquanto confirma, o login pelo código não pode reativar a conta sozinho
+    try {
+      const v = await sb.auth.verifyOtp({ email, token: code, type: 'email' });
+      if (v.error) { msgTo('dzMsg', 'dzBadCode', 'err'); go.disabled = false; return; }
+      const del = dz.kind === 'delete';
+      const { error } = await sb.rpc(del ? 'ns_delete_account' : 'ns_disable_account');
+      if (error) {
+        if (noFn(error)) msgTo('dzMsg', 'dzNeed', 'err'); else msgTo('dzMsg', 'accErr', 'err', { e: error.message || String(error) });
+        go.disabled = false; return;
+      }
+      release();
+      try { await sb.auth.signOut({ scope: del ? 'local' : 'global' }); } catch (e2) {}
+      $('dlgDanger').close(); $('dlgProfile').close();
+      dzToast(T(del ? 'dzDoneDel' : 'dzDoneOff'));
+    } catch (err) {
+      msgTo('dzMsg', 'accErr', 'err', { e: (err && err.message) || String(err) });
+      go.disabled = false;
+    } finally {
+      dzBusy = false;
+    }
+  }
+  // conta desabilitada volta sozinha quando a pessoa entra de novo
+  async function reactivate() {
+    try {
+      const { data, error } = await sb.rpc('ns_enable_account');
+      if (!error && data === true) { dzToast(T('dzBack')); await loadMe(); paint(); }
+    } catch (e) {}
+  }
+
   /* ---------- cartão de perfil (clicar em alguém na sala) ---------- */
   async function fillExtras(p, info, since, cw) {
     if (!sb || (!p.user_id && !p.username)) return;
@@ -3490,6 +3635,9 @@ window.Acc = (() => {
     $('frmAuth').addEventListener('submit', onAuthSubmit);
     $('authForgot').onclick = onForgot;
     $('frmProfile').addEventListener('submit', onProfileSave);
+    $('pfDelete').onclick = () => openDanger('delete');
+    $('pfDisable').onclick = () => openDanger('disable');
+    $('frmDanger').addEventListener('submit', onDangerSubmit);
     $('pfBannerPick').onclick = () => $('fileBanner').click();
     $('pfAvatarPick').onclick = () => $('fileAvatar').click();
     $('pfBannerDel').onclick = () => removeImage('banner');
@@ -3516,6 +3664,7 @@ window.Acc = (() => {
       // não chamar o Supabase direto aqui dentro (evita travar o cliente)
       setTimeout(async () => {
         if (ev === 'PASSWORD_RECOVERY') openAuth('reset');
+        if (ev === 'SIGNED_IN' && s && !dzBusy) await reactivate();
         await loadMe();
         paint();
         resolveReady();
@@ -3841,6 +3990,16 @@ applyLang();
   #dlgProfile .dlg-form { gap: 18px; }
   #dlgProfile .pe-banner { aspect-ratio: 3.4 / 1; }
   @media (max-width: 520px) { #dlgProfile .dlg-in { padding: 18px; } }
+  /* zona de perigo: excluir (vermelho) e desabilitar (azul) */
+  .pf-danger { display: grid; gap: 12px; margin-top: 6px; padding-top: 18px; border-top: 1px solid rgba(255,59,78,.35); }
+  .pf-danger h3 { margin: 0; color: #ff8a98; font: 800 .8rem/1 'Manrope', sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+  .dz-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 520px) { .dz-btns { grid-template-columns: 1fr; } }
+  button.dz-red { background: linear-gradient(180deg, #ff3b4e, #d3122a); border-color: #ff7a88; color: #fff; box-shadow: 0 10px 25px rgba(255,59,78,.32), inset 0 1px rgba(255,255,255,.22); }
+  button.dz-red:hover:not(:disabled) { box-shadow: 0 14px 32px rgba(255,59,78,.45), inset 0 1px rgba(255,255,255,.25); }
+  button.dz-blue { background: linear-gradient(180deg, #1a73ff, #0540e0); border-color: #6ea8ff; color: #fff; box-shadow: 0 10px 25px rgba(26,115,255,.38), inset 0 1px rgba(255,255,255,.22); }
+  button.dz-blue:hover:not(:disabled) { box-shadow: 0 14px 32px rgba(26,115,255,.52), inset 0 1px rgba(255,255,255,.25); }
+  #dlgDanger .dlg-form { width: 100%; }
   .dlg label.chk { display: flex; align-items: center; gap: 9px; font-weight: 600; cursor: pointer; }
   label.chk input { width: 18px; min-height: 18px; padding: 0; accent-color: var(--acc); flex: 0 0 auto; }
   .colorin { width: 52px; min-height: 42px; padding: 3px; cursor: pointer; flex: 0 0 auto; }
