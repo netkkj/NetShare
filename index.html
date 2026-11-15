@@ -4154,7 +4154,7 @@ function syncRail() {
   rail.classList.toggle('hidden', !uid);
   document.body.classList.toggle('hasrail', !!uid);
   if (inJoin && voiceCh) { voiceCh = null; if (cur) renderChans(); }   // saiu da chamada: limpa e repinta a lista (senão o destaque do canal de voz fica preso)
-  if (inJoin && callActive) { const cid = callActive; callActive = null; try { sb().rpc('dm_call_respond', { p_id: cid, p_action: 'end' }).then(() => {}, () => {}); } catch (e) {} }
+  if (inJoin && callActive) { const cid = callActive; callActive = null; try { sb().rpc('dm_call_respond', { p_id: cid, p_action: 'end' }).then(() => {}, () => {}); } catch (e) {} try { callDropped(cid); } catch (e) {} }
   if (inJoin && voiceJoin) { voiceJoin = false; $('inRoom').value = ''; $('inPass').value = ''; }
   if (inJoin && cur && view.classList.contains('hidden')) closeView();
   layout();
@@ -4530,7 +4530,7 @@ document.addEventListener('pointerdown', e => { const m = $('svMem'); if (m && m
 function onAuth(id) {
   if (id === uid) { if (uid) renderRail(); return; }
   uid = id; siteOwner = false; frStop(); dmStop(); closeView(); servers = []; renderRail(); syncRail();
-  if (!id) { presStop(); return; }
+  if (!id) { presStop(); try { callForget(); } catch (e) {} return; }
   presStart(); checkOwner(); frStart(); dmStart();
   loadServers().then(() => {
     const c = sessionStorage.getItem('sala-convite');
@@ -6839,8 +6839,13 @@ function callCard(w, sub) {
   tx.append(nm, sb2); card.append(A().avatar(w, 56), tx);
   return { card, sub: sb2 };
 }
-async function callJoin(r, label) {
+async function callJoin(r, label, w) {
   if (!r || !UUID_RE.test(r.id || '') || !r.room_key) return;
+  if (w && UUID_RE.test(String(w.id || '')) && uid) {   // guarda a call: se cair/sair sem querer, dá para voltar
+    callLast = { uid, id: r.id, key: String(r.room_key), ts: Date.now(), w: { id: w.id, username: w.username || '', display_name: w.display_name || '?', avatar_path: w.avatar_path || null } };
+    callSave(); callBeatStart();
+  }
+  callOfferHide();
   if (!$('room').classList.contains('hidden')) { leaveRoom(); await new Promise(res => setTimeout(res, 400)); }
   window.__roomLimit = 2; window.__roomSpeak = true;
   voiceCh = null; vsrv = null; vmem = []; clearInterval(vmemT);
@@ -6856,6 +6861,8 @@ async function callStart(o) {
   if (!uid) return;
   if (callOut) return toast(LL('Você já está ligando para alguém.', 'You are already calling someone.'));
   if (callActive || !$('room').classList.contains('hidden')) return toast(LL('Saia da call atual antes de ligar.', 'Leave your current call before calling.'));
+  const back = callResumable(o.id);   // acabou de sair/cair dessa call: entra de novo na hora, sem tocar
+  if (back) return callResume(back);
   const { data, error } = await sb().rpc('dm_call_start', { p_to: o.id });
   if (error) return toast(callMsg(missingFn(error) ? 'sql' : error.message));
   if (!UUID_RE.test(String(data || ''))) return toast(callMsg(data));
@@ -6899,7 +6906,7 @@ async function callIncoming(r) {
     const { data, error } = await callResp(r.id, 'accept');
     if (error || data !== 'accepted') { toast(error ? callMsg(missingFn(error) ? 'sql' : error.message) : LL('Essa ligação não está mais disponível.', 'That call is no longer available.')); dropIn(r.id); return; }
     const { data: row } = await sb().from('dm_calls').select('id,room_key').eq('id', r.id).maybeSingle();
-    dropIn(r.id); callJoin(row, w.display_name);
+    dropIn(r.id); callJoin(row, w.display_name, w);
   }, 'callok');
   const no = mk('✕ ' + LL('Recusar', 'Decline'), async () => { try { await callResp(r.id, 'decline'); } catch (e) {} dropIn(r.id); }, 'bad');
   acts.append(ok, no); card.append(acts);
@@ -6912,7 +6919,7 @@ function callRow(r) {
   if (!r || !UUID_RE.test(r.id || '')) return;
   if (r.callee_id === uid) { if (r.status === 'ringing') callIncoming(r); else dropIn(r.id); }
   if (r.caller_id === uid && callOut && callOut.id === r.id) {
-    if (r.status === 'accepted') { const w = callOut.w; callOutEnd(); callJoin(r, w.display_name); }
+    if (r.status === 'accepted') { const w = callOut.w; callOutEnd(); callJoin(r, w.display_name, w); }
     else if (r.status !== 'ringing') callOutEnd(r.status);
   }
 }
@@ -6931,12 +6938,82 @@ function callBoot() {
       .subscribe();
   } catch (e) { callCh = null; }
   callPollIn(); callInT = setInterval(() => { if (!document.hidden) callPollIn(); }, 10000);
+  callRestore();   // fechou a aba / recarregou no meio da call: oferece voltar
 }
 function callHalt() {
   clearInterval(callInT); callInT = 0;
   if (callCh) { try { sb().removeChannel(callCh); } catch (e) {} callCh = null; }
   if (callOut) callOutEnd(null);
   [...callIn.keys()].forEach(dropIn); ringSync();
+  callOfferHide(); clearInterval(callBeatT); callBeatT = 0; callLast = null; callRetry = null;
+}
+
+/* ===== reconectar na call privada: caiu / saiu sem querer ===== */
+var callLast = null, callBeatT = 0, callOfferEl = null, callOfferT = 0, callRetry = null;
+var CALL_KEEP = 'ns-calllast', CALL_RESUME_MS = 5 * 60 * 1000;   // por quanto tempo dá para voltar
+function callSave() { try { if (callLast) localStorage.setItem(CALL_KEEP, JSON.stringify(callLast)); else localStorage.removeItem(CALL_KEEP); } catch (e) {} }
+function callLoad() {
+  try {
+    const d = JSON.parse(localStorage.getItem(CALL_KEEP) || 'null'), w = d && d.w;
+    const ok = d && uid && d.uid === uid && UUID_RE.test(String(d.id)) && typeof d.key === 'string' && d.key.length > 0 && d.key.length <= 200 &&
+      w && UUID_RE.test(String(w.id)) && +d.ts > 0 && Date.now() - d.ts < CALL_RESUME_MS;
+    if (!ok) { localStorage.removeItem(CALL_KEEP); return null; }
+    return { uid, id: d.id, key: d.key, ts: +d.ts, w: { id: w.id, username: cleanStr(w.username, 24), display_name: cleanStr(w.display_name, 24) || '?', avatar_path: typeof w.avatar_path === 'string' && w.avatar_path.length < 400 ? w.avatar_path : null } };
+  } catch (e) { return null; }
+}
+function callForget() { callOfferHide(); clearInterval(callBeatT); callBeatT = 0; callLast = null; callRetry = null; callSave(); }
+function callBeatStart() {   // enquanto estou na call, renova o prazo (assim recarregar a página no meio da call também oferece voltar)
+  clearInterval(callBeatT);
+  callBeatT = setInterval(() => { if (callActive && callLast && !$('room').classList.contains('hidden')) { callLast.ts = Date.now(); callSave(); } }, 30000);
+}
+const callResumable = id => (callLast && uid && callLast.uid === uid && callLast.w.id === id && Date.now() - callLast.ts < CALL_RESUME_MS) ? callLast : null;
+function callOfferHide() {
+  clearInterval(callOfferT); callOfferT = 0;
+  if (callOfferEl) { callOfferEl.remove(); callOfferEl = null; callShow(); }
+}
+function callOffer(L) {
+  callOfferHide();
+  if (!L || !uid || Date.now() - L.ts >= CALL_RESUME_MS) return;
+  const label = () => '↩ ' + LL('Você saiu da call. Reconectar? ', 'You left the call. Reconnect? ') + mmss(L.ts + CALL_RESUME_MS - Date.now());
+  const { card, sub } = callCard(L.w, label());
+  card.classList.add('resume');
+  const acts = el('div', 'cacts');
+  acts.append(
+    mk('↩ ' + LL('Reconectar', 'Reconnect'), () => callResume(L), 'callok'),
+    mk('✕ ' + LL('Agora não', 'Not now'), () => { if (callLast === L) callForget(); else callOfferHide(); }, 'bad')
+  );
+  card.append(acts); callOfferEl = card;
+  callOfferT = setInterval(() => {
+    if (!callOfferEl || Date.now() - L.ts >= CALL_RESUME_MS || !$('room').classList.contains('hidden')) { callOfferHide(); return; }
+    sub.textContent = label();
+  }, 1000);
+  callBox.append(card); callShow(true);
+}
+function callResume(L, n) {
+  if (!L || !uid || callActive || callOut) return;
+  if (!$('room').classList.contains('hidden')) return toast(LL('Saia da call atual antes de reconectar.', 'Leave your current call before reconnecting.'));
+  if (Date.now() - L.ts >= CALL_RESUME_MS) { callForget(); return; }
+  callOfferHide();
+  callRetry = { id: L.id, n: n || 0, t: Date.now() };
+  callJoin({ id: L.id, room_key: L.key }, L.w.display_name, L.w);
+}
+function callDropped(cid) {   // chamado quando volto para a tela inicial estando numa call privada
+  clearInterval(callBeatT); callBeatT = 0;
+  const L = callLast; if (!L || L.id !== cid) return;
+  L.ts = Date.now(); callSave();
+  // acabei de tentar voltar e a minha vaga antiga ainda não foi liberada (sala "cheia"): tenta de novo sozinho
+  if (callRetry && callRetry.id === L.id && callRetry.n < 5 && Date.now() - callRetry.t < 20000 && curErr && curErr.k === 'eFull') {
+    const n = callRetry.n + 1;
+    setTimeout(() => { if (callLast === L && !callActive) callResume(L, n); }, 3000);
+    return;
+  }
+  callRetry = null;
+  callOffer(L);
+}
+function callRestore() {
+  if (callActive || callLast) return;
+  const L = callLoad(); if (!L) return;
+  callLast = L; callOffer(L);
 }
 
 function frSet(on) {
@@ -7190,6 +7267,7 @@ return { onAuth, cardExtras, badgeEl, colorOfUser, colorSig, statusButton, voice
   .callcard .cacts { grid-column: 1 / -1; display: flex; gap: 8px; }
   .callcard .cacts button { flex: 1 1 0; min-height: 44px; }
   .callcard button.callok { background: linear-gradient(135deg, #2fbf8d, #43d9a3); border-color: rgba(67, 217, 163, .5); color: #04251b; }
+  .callcard.resume .av { animation: none; }
   @keyframes callpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(67, 217, 163, .55); } 50% { box-shadow: 0 0 0 10px rgba(67, 217, 163, 0); } }
   @media (prefers-reduced-motion: reduce) { .callcard .av { animation: none; } }
 </style>
