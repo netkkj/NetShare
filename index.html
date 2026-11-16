@@ -4144,6 +4144,8 @@ applyLang();
   .vmsg button { flex: 0 0 auto; min-width: 0; min-height: 0; width: 36px; height: 36px; padding: 0; border-radius: 50%; }
   .vmsg .vspd { width: auto; padding: 0 9px; border-radius: 999px; font-size: .72rem; }
   @media (max-width: 860px) { .vbar { gap: 6px; } .vbar button { min-width: 44px; min-height: 44px; } }
+  .mgif { transform: translateZ(0); backface-visibility: hidden; contain: paint; }
+  @media (max-width: 860px) { .mgif { max-height: 240px; } }
   .mgif { display: block; width: auto; max-width: min(320px, 100%); max-height: 300px; min-height: 60px; margin: 4px 0; border-radius: 10px; background: var(--surface); cursor: pointer; }
 
   #srvRail .sadmin { margin-top: auto; font-size: 1.2rem; }
@@ -5389,8 +5391,8 @@ function gifFavToggle(g) {
 }
 function gifItem(g) {
   if (!g || g.type === 'ad' || g.kind === 'ad') return null;
-  const f = g.file || {}, get = (...sz) => { for (const k of sz) { const x = f[k] && f[k].gif; if (x && x.url) return x; } return null; };
-  const full = get('md', 'hd', 'sm'), pv = get('sm', 'xs', 'md') || full;
+  const f = g.file || {}, get = (...sz) => { for (const k of sz) for (const ft of ['webp', 'gif']) { const x = f[k] && f[k][ft]; if (x && x.url) return x; } return null; };   // WebP animado é bem mais leve que GIF
+  const full = get('sm', 'md', 'hd'), pv = get('xs', 'sm', 'md') || full;
   if (!full || !gifUrlOk(full.url) || !gifUrlOk(pv.url)) return null;
   return { u: full.url, p: pv.url, w: +pv.width || 0, h: +pv.height || 0, t: String(g.title || '') };
 }
@@ -5425,6 +5427,10 @@ function gifSend(ta, form, u) {   // escolher um GIF = enviar a mensagem (com o 
   const d = ta.value.replace(/\s+$/, ''), v = (d ? d + '\n' : '') + u;
   if (v.length > (ta.maxLength > 0 ? ta.maxLength : 1000)) return toast(LL('Mensagem grande demais para anexar o GIF.', 'Message too long to attach the GIF.'));
   ta.value = v; ta.dispatchEvent(new Event('input')); form.requestSubmit();
+}
+function msgPreview(c) {   // texto curto para listas: áudio e GIF não viram link feio
+  return String(c || '').replace(/\[voz:[0-9a-f-]{36}\/[A-Za-z0-9._-]{1,80}\|(\d{1,3})\]/g, (x, n) => '🎤 ' + vozFmt(+n))
+    .replace(/https:\/\/\S+/g, u => gifUrlOk(u) ? 'GIF' : u).replace(/\s+/g, ' ').trim();
 }
 function gifPane(choose) {
   const node = el('div', 'gpane'), bar = el('div', 'gsearch'), ico = el('span', '', '🔍'), inp = el('input'), body = el('div', 'gbody');
@@ -7431,7 +7437,7 @@ function dmStop() { callHalt(); clearInterval(dmPoll); if (dmCh) { try { sb().re
 function dmInboxPaint(b) {
   (grpL || []).forEach(g => {
     const r = el('div', 'fr-row'), tx = el('div', 'fr-tx'), nm = el('b', '', '👥 ' + grpTitle(g));
-    tx.append(nm, el('small', 'mut', (g.incall ? '🔊 ' + g.incall + LL(' na call · ', ' in call · ') : '') + String(g.last_content || (g.count + LL(' membros', ' members'))).replace(/\s+/g, ' ').slice(0, 60)));
+    tx.append(nm, el('small', 'mut', (g.incall ? '🔊 ' + g.incall + LL(' na call · ', ' in call · ') : '') + msgPreview(g.last_content || (g.count + LL(' membros', ' members'))).slice(0, 60)));
     r.append(grpIcon(g, 40), tx);
     if (g.unread && !g.muted) r.append(el('span', 'ub', String(g.unread)));
     r.onclick = () => grpOpen(g.id); b.append(r);
@@ -7439,7 +7445,7 @@ function dmInboxPaint(b) {
   if (!dmInboxL.length && !(grpL || []).length) return frEmpty(b, LL('Nenhuma conversa ainda. Abra o perfil de alguém e toque em Mensagem.', 'No conversations yet. Open someone’s profile and tap Message.'));
   dmInboxL.forEach(x => {
     const r = el('div', 'fr-row'), tx = el('div', 'fr-tx'), nm = el('b', '', x.display_name); if (x.username && window.NS) NS.apply(nm, x.username);
-    tx.append(nm, el('small', 'mut', String(x.last_content).replace(/\s+/g, ' ').slice(0, 60))); r.append(A().avatar(x, 40), tx);
+    tx.append(nm, el('small', 'mut', msgPreview(x.last_content).slice(0, 60))); r.append(A().avatar(x, 40), tx);
     if (x.unread) r.append(el('span', 'ub', String(x.unread)));
     r.onclick = () => dmOpen({ other_id: x.other_id, username: x.username, display_name: x.display_name, avatar_path: x.avatar_path }); b.append(r);
   });
