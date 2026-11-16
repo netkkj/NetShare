@@ -322,9 +322,10 @@
   #cardBody.pc-themed { --pa: #8b9bff; border-radius: inherit; background: radial-gradient(130% 55% at 50% 0%, color-mix(in srgb, var(--pa) 30%, #0a0c1a), #070812 72%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pa) 45%, transparent), inset 0 0 40px color-mix(in srgb, var(--pa) 14%, transparent); }
   .pc-full .pc-banner { aspect-ratio: 2.6 / 1; -webkit-mask-image: linear-gradient(#000 58%, transparent); mask-image: linear-gradient(#000 58%, transparent); }
   .pc-full .pc-body { margin-top: -19%; } .pc-full .pc-body .av { margin-top: 0; }
-  .pc-themed .pc-body .av { border-color: var(--pa); box-shadow: 0 0 0 2px #0009, 0 0 16px var(--pa); }
-  .pc-themed .pc-body .av.pc-ring-pulse { animation: pcRing 2.2s ease-in-out infinite; }
-  @keyframes pcRing { 50% { box-shadow: 0 0 0 2px #0009, 0 0 30px 4px var(--pa); } }
+  /* anel do avatar: "Sem brilho" não mexe em nada; "neon" e "pulsando" acendem na cor neon do cartão */
+  .pc-themed .pc-body .av.pc-ring-glow, .pc-themed .pc-body .av.pc-ring-pulse, .pc-mock .av.pc-ring-glow, .pc-mock .av.pc-ring-pulse { border-color: var(--pa); box-shadow: 0 0 0 2px #0009, 0 0 14px 2px var(--pa), 0 0 34px color-mix(in srgb, var(--pa) 70%, transparent); }
+  .pc-themed .pc-body .av.pc-ring-pulse, .pc-mock .av.pc-ring-pulse { animation: pcRing 2.2s ease-in-out infinite; }
+  @keyframes pcRing { 50% { box-shadow: 0 0 0 2px #0009, 0 0 26px 6px var(--pa), 0 0 56px color-mix(in srgb, var(--pa) 80%, transparent); } }
   .pc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .pc-chipx { display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border: 1px solid color-mix(in srgb, var(--pa, #8b9bff) 60%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--pa, #8b9bff) 14%, rgba(0,0,0,.45)); font-size: .78rem; font-weight: 700; }
   .pc-panel { position: relative; margin-top: 10px; padding: 12px 14px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--pa, #8b9bff) 38%, transparent); border-radius: 14px; background: rgba(8, 10, 22, .62); }
@@ -3345,7 +3346,8 @@ window.Acc = (() => {
       prev.textContent = ''; const th = cleanCard(raw);
       prev.style.setProperty('--pa', raw.accent || '#8b9bff');
       prev.className = 'pc-mock' + (th && th.full ? ' full' : '');
-      const hd = el('div', 'pc-mockhd'); hd.append(avatar(me || { display_name: '?' }, 44), el('b', '', (($('pfName') && $('pfName').value) || (me && me.display_name) || '')));
+      const hd = el('div', 'pc-mockhd'); const pav = avatar(me || { display_name: '?' }, 44); if (raw.ring) pav.classList.add('pc-ring-' + raw.ring);
+      hd.append(pav, el('b', '', (($('pfName') && $('pfName').value) || (me && me.display_name) || '')));
       prev.append(hd);
       if (!th) prev.append(el('span', 'mut', L3('Escolha um modelo ou preencha os campos abaixo para ver a prévia aqui.', 'Pick a theme or fill in the fields below to see the preview here.', 'Elige un modelo o rellena los campos.')));
       if (th) { const P = themeParts(th); [P.badges, P.langs, P.stats, P.ach, P.act].forEach(n => { if (n) prev.append(n); }); }
