@@ -310,10 +310,16 @@
   .pc-banner img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.04); transition: opacity .6s ease, transform .9s cubic-bezier(.2,.8,.2,1); }
   .pc-banner img.in { opacity: 1; transform: none; }
   .pc-body { display: grid; gap: 4px; padding: 0 20px 22px; }
+  /* cartão mais aberto, sem barra de rolagem visível */
+  #dlgCard { width: min(96vw, 660px); max-height: 97dvh; scrollbar-width: none; -ms-overflow-style: none; }
+  #dlgCard::-webkit-scrollbar { display: none; width: 0; height: 0; }
+  .pc-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; align-items: stretch; }
+  .pc-duo .pc-panel { min-width: 0; }
+  @media (max-width: 560px) { .pc-duo { grid-template-columns: 1fr; } }
   /* tema do cartão */
   #cardBody.pc-themed { --pa: #8b9bff; border-radius: inherit; background: radial-gradient(130% 55% at 50% 0%, color-mix(in srgb, var(--pa) 30%, #0a0c1a), #070812 72%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pa) 45%, transparent), inset 0 0 40px color-mix(in srgb, var(--pa) 14%, transparent); }
-  .pc-full .pc-banner { aspect-ratio: 2 / 1; -webkit-mask-image: linear-gradient(#000 58%, transparent); mask-image: linear-gradient(#000 58%, transparent); }
-  .pc-full .pc-body { margin-top: -26%; } .pc-full .pc-body .av { margin-top: 0; }
+  .pc-full .pc-banner { aspect-ratio: 2.6 / 1; -webkit-mask-image: linear-gradient(#000 58%, transparent); mask-image: linear-gradient(#000 58%, transparent); }
+  .pc-full .pc-body { margin-top: -19%; } .pc-full .pc-body .av { margin-top: 0; }
   .pc-themed .pc-body .av { border-color: var(--pa); box-shadow: 0 0 0 2px #0009, 0 0 16px var(--pa); }
   .pc-themed .pc-body .av.pc-ring-pulse { animation: pcRing 2.2s ease-in-out infinite; }
   @keyframes pcRing { 50% { box-shadow: 0 0 0 2px #0009, 0 0 30px 4px var(--pa); } }
@@ -2394,7 +2400,8 @@ function doRender() {
       if (t.fps) text += ' · ' + t.fps + ' fps';
       if (t.stream && t.stream.getAudioTracks().length === 0) text += ' · ' + T('noAudio');
     }
-    if (t.label.textContent !== text) t.label.textContent = text;
+    if (t._lt !== text) { t._lt = text; t.label.textContent = text; }
+    if (window.NS && NS.applyTag) { const pf = me ? (window.Acc && Acc.myProfile && Acc.myProfile()) : (people.get(id) || {}).prof; NS.applyTag(t.label, pf && pf.username); }   // pronome na frente do nome
   });
 
   const n = [...tiles.keys()].filter(id => !hidden.has(id)).length;
@@ -2623,7 +2630,18 @@ function paint(node) {
   style(node, e && e.s, node.dataset.nsf || '');
   decorate(node, e && e.g);
 }
-function paintAll() { document.querySelectorAll('[data-nsu]').forEach(paint); }
+function paintAll() {
+  document.querySelectorAll('[data-nsu]').forEach(paint);
+  document.querySelectorAll('[data-nst]').forEach(n => { const e = cache.get(n.dataset.nst); decorate(n, e && e.g); });
+}
+/* só o pronome (sem mudar fonte/cor do texto): usado em textos como a legenda do vídeo na sala */
+function applyTag(node, username) {
+  if (!node) return;
+  const u = String(username || '').toLowerCase();
+  if (!ULOW.test(u)) { delete node.dataset.nst; decorate(node, null); return; }
+  node.dataset.nst = u; want(u);
+  const e = cache.get(u); decorate(node, e && e.g);
+}
 function apply(node, username, fallback) {
   if (!node) return;
   const u = String(username || '').toLowerCase();
@@ -2855,7 +2873,7 @@ function tagEditor(host, init, getName, getNs, onChange, opts) {
   return { refresh, get: () => ({ tag: cur, file: img ? img.file : null, type: img ? img.type : null, url: img ? img.url : null }) };
 }
 
-return { clean, cleanTag, buildTag, apply, setMine, setFor, editor, tagEditor, style, tr, paintAll };
+return { clean, cleanTag, buildTag, apply, applyTag, setMine, setFor, editor, tagEditor, style, tr, paintAll };
 })();
 </script>
 <style>
@@ -3237,7 +3255,9 @@ window.Acc = (() => {
     pan.append(el('h4', '', '👤 ' + L3('Sobre mim', 'About me', 'Sobre mí')), bio);
     if (th.deco) pan.append(el('span', 'pc-deco', th.deco));
     [P.langs, P.badges].forEach(n => { if (n) pan.before(n); });
-    const after = [P.stats, P.ach, P.act].filter(Boolean); if (after.length) cw.after(...after);
+    const tail = [P.stats];
+    if (P.ach && P.act) { const duo = el('div', 'pc-duo'); duo.append(P.ach, P.act); tail.push(duo); } else tail.push(P.ach, P.act);
+    const after = tail.filter(Boolean); if (after.length) cw.after(...after);
   }
 
   async function loadCardTheme(p) {
@@ -3276,7 +3296,8 @@ window.Acc = (() => {
     const mkBtn = (txt, fn, cls) => { const b = el('button', cls == null ? 'sec' : cls, txt); b.type = 'button'; b.onclick = fn; return b; };
     const inputs = [];   // para repreencher ao aplicar um modelo
 
-    const pre = el('div', 'chips'); CARD_PRESETS.forEach(([n, p]) => pre.append(mkBtn(n, () => { raw = { ...fromTh(cleanCard({ ...p })), loc: raw.loc, lvl: raw.lvl }; fill(); emit(); }, 'sec fch')));
+    const PN = { 'Vermelho': ['Vermelho', 'Red', 'Rojo'], 'Roxo lunar': ['Roxo lunar', 'Lunar purple', 'Morado lunar'], 'Rosa': ['Rosa', 'Pink', 'Rosa'], 'Azul': ['Azul', 'Blue', 'Azul'], 'Branco': ['Branco', 'White', 'Blanco'], 'Borboleta': ['Borboleta', 'Butterfly', 'Mariposa'] };
+    const pre = el('div', 'chips'); CARD_PRESETS.forEach(([n, p]) => pre.append(mkBtn(PN[n] ? L3(...PN[n]) : n, () => { raw = { ...fromTh(cleanCard({ ...p })), loc: raw.loc, lvl: raw.lvl }; fill(); emit(); }, 'sec fch')));
     group(L3('Modelos prontos', 'Ready-made themes', 'Modelos'), pre);
 
     const sw = el('div', 'swatches'); CARD_PAL.forEach(c => { const b = mkBtn('', () => { raw.accent = c; emit(); }, 'swatch'); b.style.setProperty('--c', c); b.dataset.c = c; sw.append(b); });
@@ -3315,7 +3336,9 @@ window.Acc = (() => {
       prev.textContent = ''; const th = cleanCard(raw);
       prev.style.setProperty('--pa', raw.accent || '#8b9bff');
       prev.className = 'pc-mock' + (th && th.full ? ' full' : '');
-      prev.append(el('span', 'mut', L3('Prévia (o banner e o avatar aparecem no cartão real)', 'Preview (banner and avatar show on the real card)', 'Vista previa')));
+      const hd = el('div', 'pc-mockhd'); hd.append(avatar(me || { display_name: '?' }, 44), el('b', '', (($('pfName') && $('pfName').value) || (me && me.display_name) || '')));
+      prev.append(hd);
+      if (!th) prev.append(el('span', 'mut', L3('Escolha um modelo ou preencha os campos abaixo para ver a prévia aqui.', 'Pick a theme or fill in the fields below to see the preview here.', 'Elige un modelo o rellena los campos.')));
       if (th) { const P = themeParts(th); [P.badges, P.langs, P.stats, P.ach, P.act].forEach(n => { if (n) prev.append(n); }); }
       Object.keys(ringB).forEach(v => ringB[v].classList.toggle('on', raw.ring === v));
       sw.querySelectorAll('.swatch').forEach(b => b.classList.toggle('on', b.dataset.c === raw.accent));
@@ -4329,7 +4352,36 @@ applyLang();
   @keyframes nsTgRb { from { background-position: 0 0, 0 0; } to { background-position: 0 0, 300% 0; } }
   @media (prefers-reduced-motion: reduce) { .ns-tag { animation: none !important; } }
   .nsed .chips.emo button { min-width: 34px; padding: 3px 6px; }
-  .nsed input:not([type=color]):not([type=file]) { width: 100%; }
+  .nsed input:not([type=color]):not([type=file]):not([type=checkbox]) { width: 100%; box-sizing: border-box; }
+  .nsed label.chk { display: flex; align-items: center; gap: 10px; width: 100%; }
+  .nsed label.chk input { width: 20px; min-height: 20px; flex: 0 0 auto; }
+  .nsed label.chk span { flex: 1 1 auto; min-width: 0; text-align: left; overflow-wrap: anywhere; }
+  .nsed, .nsed .ns-grp, .nsed .chips, .nsed .ns-ctl { min-width: 0; max-width: 100%; }
+  .nsed .ns-ctl { flex-wrap: wrap; }
+  .pc-mockhd { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; } .pc-mockhd b { overflow-wrap: anywhere; }
+  .pc-mockhd .av { --s: 44px; border: 2px solid var(--pa); box-shadow: 0 0 12px var(--pa); }
+  .pc-act { flex-wrap: wrap; } .pc-actmid { flex: 1 1 120px; }
+  .pc-chipx, .pc-actmid b, .pc-actmid small, .pc-stat b { overflow-wrap: anywhere; }
+  @media (max-width: 520px) {
+    .nsed { padding: 10px; gap: 10px; }
+    .nsed input:not([type=checkbox]):not([type=color]) { font-size: 16px; }   /* evita o zoom automático do celular ao tocar */
+    .nsed .ns-ctl input:not([type=color]) { flex: 1 1 100%; max-width: none !important; }
+    .nsed .ns-ctl input.emi, .nsed .ns-ctl input[maxlength="8"] { flex: 0 0 64px; max-width: 64px !important; }
+    .nsed .chips button { min-height: 38px; padding: 6px 12px; }
+    .nsed .chips.emo button { min-width: 40px; }
+    .nsed .swatch { width: 34px; min-height: 34px; height: 34px; }
+    .nsed input[type=color] { width: 48px; height: 40px; }
+    .ns-prev { font-size: 1.15rem; }
+    .pc-body { padding: 0 14px 18px; }
+    .pc-full .pc-body { margin-top: -17%; }
+    .pc-panel { padding: 10px 12px; }
+    .pc-about .pc-bio { padding-right: 44px; } .pc-deco { font-size: 2.4rem; }
+    .pc-stats { display: grid; grid-template-columns: 1fr 1fr; }
+    .pc-ach { width: 40px; height: 40px; font-size: 1.2rem; } .pc-achs { gap: 6px; }
+    .pc-actq { margin-left: 0; width: 100%; text-align: left; border-radius: 12px; }
+    .ns-tag { max-width: 11em; }
+  }
+  @media (hover: none) { .nsed .chips button { min-height: 38px; } .nsed .swatch { width: 32px; min-height: 32px; height: 32px; } }
   .ns-pad { padding-block: .14em .24em; margin-block: -.14em -.24em; }
   .ns-shimmer { animation: nsShimmer 4s linear infinite; }
   @keyframes nsShimmer { from { background-position: 0% 0; } to { background-position: 200% 0; } }
@@ -5249,7 +5301,7 @@ function noteMention(r, open) {
       const b = mk('', () => mentPick(it), 'mrow2' + (i === ment.idx ? ' on' : ''));
       b.onpointerdown = e => e.preventDefault();           // não tira o foco do campo
       if (it.k === 'everyone') b.append(el('span', 'mev', '@'), el('b', '', 'everyone'), el('span', 'mut', LL('avisa todos deste canal', 'notifies everyone in this channel')));
-      else b.append(A().avatar(it.m, 26), el('b', '', it.m.display_name), el('span', 'mut', '@' + it.m.username));
+      else { const nmB = el('b', '', it.m.display_name); if (it.m.username && window.NS) NS.apply(nmB, it.m.username); b.append(A().avatar(it.m, 26), nmB, el('span', 'mut', '@' + it.m.username)); }
       mentBox.append(b);
     });
     mentBox.classList.remove('hidden');
