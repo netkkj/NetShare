@@ -318,6 +318,15 @@
   .pc-conns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .cn-chip { --c: #6c7cff; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 10px; border: 1px solid var(--c); border-radius: 999px; background: rgba(255,255,255,.04); background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--fg); font-size: .78rem; line-height: 1.3; text-decoration: none; }
   .cn-chip b { color: var(--c); font-weight: 800; white-space: nowrap; }
+  .pc-mut { display: grid; gap: 0; margin-top: 4px; }
+  .pc-mut .pc-mh { margin: 12px 0 0; font-size: .8rem; font-weight: 700; }
+  .pc-mut .pc-conns { margin-top: 6px; }
+  .mu-chip { font: inherit; font-size: .78rem; font-weight: 600; min-height: 0; padding: 3px 10px 3px 4px; cursor: default; box-shadow: none; }
+  button.mu-chip { cursor: pointer; }
+  button.mu-chip:hover:not(:disabled) { transform: none; box-shadow: none; background: color-mix(in srgb, var(--c) 26%, transparent); }
+  .mu-chip .av { flex: 0 0 auto; }
+  .mu-ico { flex: 0 0 auto; display: grid; place-items: center; width: 20px; height: 20px; overflow: hidden; border-radius: 7px; background: var(--surface-hover); font-size: .68rem; font-weight: 800; }
+  .mu-ico img { width: 100%; height: 100%; object-fit: cover; }
   .cn-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   a.cn-chip:hover { background: color-mix(in srgb, var(--c) 26%, transparent); }
   .cn-lab { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: inherit; text-decoration: none; }
@@ -2757,7 +2766,8 @@ const ACC_I18N = {
   dzConfirmDel:'Confirmar e excluir', dzConfirmOff:'Confirmar e desabilitar', dzSending:'Enviando...', dzWorking:'Confirmando...',
   dzBadCode:'Código inválido ou expirado.', dzNoCode:'Digite o código que chegou no seu e-mail.', dzNoEmail:'Sua conta não tem e-mail cadastrado, então não dá para confirmar.',
   dzNeed:'Falta rodar a migração SQL v34 no Supabase para usar essa opção.',
-  dzDoneDel:'Conta excluída.', dzDoneOff:'Conta desabilitada. Entre de novo quando quiser reativar.', dzBack:'Conta reativada. Bem-vindo de volta!'
+  dzDoneDel:'Conta excluída.', dzDoneOff:'Conta desabilitada. Entre de novo quando quiser reativar.', dzBack:'Conta reativada. Bem-vindo de volta!',
+  muFriends:'Amigos em comum · {n}', muServers:'Servidores em comum · {n}'
 },
 'en': {
   eyebrowA:'Direct connection', eyebrowB:'No sign-up', eyebrowB2:'Account optional',
@@ -2792,7 +2802,8 @@ const ACC_I18N = {
   dzConfirmDel:'Confirm and delete', dzConfirmOff:'Confirm and disable', dzSending:'Sending...', dzWorking:'Confirming...',
   dzBadCode:'Invalid or expired code.', dzNoCode:'Enter the code from your email.', dzNoEmail:'Your account has no email, so it cannot be confirmed.',
   dzNeed:'The v34 SQL migration still needs to be run in Supabase to use this option.',
-  dzDoneDel:'Account deleted.', dzDoneOff:'Account disabled. Sign in again whenever you want to reactivate it.', dzBack:'Account reactivated. Welcome back!'
+  dzDoneDel:'Account deleted.', dzDoneOff:'Account disabled. Sign in again whenever you want to reactivate it.', dzBack:'Account reactivated. Welcome back!',
+  muFriends:'Mutual friends · {n}', muServers:'Mutual servers · {n}'
 },
 'pt-PT': {
   accPass:'Palavra-passe', accPassNew:'Nova palavra-passe', accForgot:'Esqueci-me da palavra-passe',
@@ -3362,7 +3373,7 @@ window.Acc = (() => {
     if (!(await loadCaptcha())) return msgTo('dzMsg', 'accCaptchaFail', 'err');
     if (dzCapId === null) {
       dzCapId = window.hcaptcha.render(box, {
-        sitekey: SB_HCAPTCHA, theme: 'dark',
+        sitekey: SB_HCAPTCHA, theme: 'dark', size: window.innerWidth < 420 ? 'compact' : 'normal',
         callback: t => { dzCapToken = t; },
         'expired-callback': () => { dzCapToken = ''; },
         'error-callback': () => { dzCapToken = ''; }
@@ -3464,6 +3475,47 @@ window.Acc = (() => {
     } catch (e) {}
   }
 
+  /* amigos e servidores em comum (só no cartão de outra pessoa) */
+  async function fillMutuals(p, info, host) {
+    if (!sb || !session || (!p.user_id && !p.username)) return;
+    try {
+      const { data, error } = await sb.rpc('ns_mutuals', { p_user: p.user_id || null, p_username: p.user_id ? null : String(p.username).toLowerCase() });
+      if (error) { if (!noFn(error)) console.warn('[NetShare] ns_mutuals falhou:', error.message); return; }
+      if (!info.isConnected) return;
+      const r = Array.isArray(data) ? data[0] : data;
+      if (!r || typeof r !== 'object') return;
+      const ok = a => (Array.isArray(a) ? a : []).filter(x => x && typeof x.id === 'string').slice(0, 60);
+      const fs = ok(r.friends), sv = ok(r.servers);
+      const MAXC = 12;
+      const section = (icon, key, list, mkChip) => {
+        if (!list.length) return;
+        host.append(el('p', 'mut pc-mh', icon + ' ' + T(key, { n: list.length })));
+        const row = el('div', 'pc-conns');
+        list.slice(0, MAXC).forEach(x => row.append(mkChip(x)));
+        if (list.length > MAXC) row.append(el('span', 'cn-chip mu-chip', '+' + (list.length - MAXC)));
+        host.append(row);
+      };
+      section('🤝', 'muFriends', fs, f => {
+        const c = el('button', 'cn-chip mu-chip'); c.type = 'button';
+        c.title = f.username ? '@' + f.username : '';
+        const nm = cleanStr(f.display_name, 24) || f.username || '?';
+        c.append(avatar({ display_name: nm, username: f.username, avatar_path: f.avatar_path }, 20), el('span', '', nm));
+        c.onclick = () => showCard({ user_id: f.id, username: f.username || undefined, display_name: nm, avatar_path: f.avatar_path || null });
+        return c;
+      });
+      section('🏠', 'muServers', sv, v => {
+        const c = el('span', 'cn-chip mu-chip');
+        const nm = cleanStr(v.name, 40) || '?';
+        const ic = el('span', 'mu-ico'), u = imgUrl('server-icons', v.icon_path);
+        if (u) { const i = new Image(); i.alt = ''; i.decoding = 'async'; i.referrerPolicy = 'no-referrer'; i.onerror = () => { i.remove(); ic.textContent = firstChar(nm); }; i.src = u; ic.append(i); }
+        else ic.textContent = firstChar(nm);
+        c.append(ic, el('span', '', nm));
+        return c;
+      });
+      if (host.childNodes.length) host.classList.remove('hidden');
+    } catch (e) {}
+  }
+
   // busca o perfil completo de outra pessoa: primeiro pela função do banco (v33), depois direto na tabela
   async function fetchProfileRow(p) {
     const uidArg = p.user_id || p.other_id || null, un = p.username ? String(p.username).toLowerCase() : null;
@@ -3524,6 +3576,7 @@ window.Acc = (() => {
     fillExtras(p, info, since, cw);   // data de criação da conta e conexões (chegam logo depois)
     /* é o meu próprio cartão: edito o perfil aqui mesmo, sem voltar à página principal */
     const mine = !!(session && me && ((p.user_id && p.user_id === session.user.id) || (p.username && p.username === me.username)));
+    if (!mine && session && me) { const mu = el('div', 'pc-mut hidden'); info.append(mu); fillMutuals(p, info, mu); }   // amigos e servidores em comum
     if (mine) {
       const eb = btn('accEdit', '', () => { $('dlgCard').close(); openProfile(); });
       eb.style.marginTop = '8px'; info.append(eb);
@@ -4000,6 +4053,15 @@ applyLang();
   button.dz-blue { background: linear-gradient(180deg, #1a73ff, #0540e0); border-color: #6ea8ff; color: #fff; box-shadow: 0 10px 25px rgba(26,115,255,.38), inset 0 1px rgba(255,255,255,.22); }
   button.dz-blue:hover:not(:disabled) { box-shadow: 0 14px 32px rgba(26,115,255,.52), inset 0 1px rgba(255,255,255,.25); }
   #dlgDanger .dlg-form { width: 100%; }
+  #dlgDanger input { font-size: 16px; text-align: center; letter-spacing: .18em; }   /* 16px evita o zoom automático do iPhone */
+  #dlgDanger .captcha { overflow-x: auto; }
+  @media (max-width: 520px) {
+    #dlgDanger .dlg-in { padding: 20px 16px 16px; }
+    #dlgDanger .dlg-actions { flex-direction: column-reverse; }
+    #dlgDanger .dlg-actions button { flex: 1 1 auto; width: 100%; min-height: 46px; }
+    .dz-btns button { min-height: 48px; }
+    .mu-chip { max-width: 100%; }
+  }
   .dlg label.chk { display: flex; align-items: center; gap: 9px; font-weight: 600; cursor: pointer; }
   label.chk input { width: 18px; min-height: 18px; padding: 0; accent-color: var(--acc); flex: 0 0 auto; }
   .colorin { width: 52px; min-height: 42px; padding: 3px; cursor: pointer; flex: 0 0 auto; }
