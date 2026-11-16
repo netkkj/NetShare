@@ -4053,6 +4053,50 @@ applyLang();
   button.dz-blue { background: linear-gradient(180deg, #1a73ff, #0540e0); border-color: #6ea8ff; color: #fff; box-shadow: 0 10px 25px rgba(26,115,255,.38), inset 0 1px rgba(255,255,255,.22); }
   button.dz-blue:hover:not(:disabled) { box-shadow: 0 14px 32px rgba(26,115,255,.52), inset 0 1px rgba(255,255,255,.25); }
   #dlgDanger .dlg-form { width: 100%; }
+  /* ---------- grupos ---------- */
+  #srvRail .sdiv { flex: 0 0 auto; width: 28px; height: 2px; margin: 2px auto; border-radius: 2px; background: var(--line); }
+  #srvRail .sgrpb .gicon { border-radius: 0; }
+  #srvRail .sgrpb.gmuted .gicon { opacity: .5; }
+  .gicon { display: grid; place-items: center; text-align: center; font-weight: 800; letter-spacing: -.02em; }
+  .grp-pick { display: grid; gap: 2px; max-height: min(42dvh, 320px); overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: rgba(5, 9, 22, .45); }
+  .dlg label.grp-pk { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 9px; cursor: pointer; font-size: .9rem; }
+  .dlg label.grp-pk:hover { background: var(--surface-hover); }
+  .dlg label.grp-pk input { flex: 0 0 auto; width: 18px; height: 18px; min-height: 0; padding: 0; accent-color: var(--acc); }
+  .dlg label.grp-pk b { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .grp-cnt { margin: 0; font-size: .8rem; }
+  .grp-call { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--ok) 14%, transparent); font-size: .88rem; font-weight: 700; }
+  .grp-call button { min-height: 36px; padding: 0 14px; }
+  .grp-mem { position: absolute; left: 0; right: 0; bottom: 0; top: calc(56px + env(safe-area-inset-top)); z-index: 3; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; overflow-y: auto; background: var(--card-solid); }
+  .grp-mem-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+  .grp-mem-tb { display: flex; align-items: center; gap: 6px; }
+  .grp-mem-tb button { min-height: 36px; padding: 0 12px; }
+  .grp-mem-tb .x { width: 36px; padding: 0; }
+  .grp-mrow { display: flex; align-items: center; gap: 10px; padding: 6px 2px; }
+  .grp-mtx { flex: 1; min-width: 0; display: grid; line-height: 1.3; cursor: pointer; }
+  .grp-mtx b, .grp-mtx small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .grp-mrow .x { flex: 0 0 auto; width: 38px; min-height: 38px; padding: 0; }
+  .grp-leave { margin-top: 10px; min-height: 46px; }
+  .grp-mem { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  /* celular */
+  @media (hover: none) {
+    .dlg input.grp-q { font-size: 16px; }
+    .dlg label.grp-pk { min-height: 46px; padding: 8px; }
+    .dlg label.grp-pk input { width: 22px; height: 22px; }
+    .grp-mrow .x, .grp-mem-tb .x { width: 44px; min-height: 44px; }
+    .grp-mem-tb button, .grp-call button { min-height: 44px; }
+  }
+  @media (max-width: 860px) {
+    #dmView .dm-head { gap: 4px; padding: 0 6px 0 10px; }
+    #dmView .dm-head .dm-av { margin-right: 6px; }
+    #dmView .dm-head .x { width: 40px; min-height: 40px; }
+    .grp-mem { padding: 10px 10px max(12px, env(safe-area-inset-bottom)); }
+    .grp-call { padding: 8px 10px; }
+    .grp-pick { max-height: 38dvh; }
+  }
+  @media (max-width: 380px) {
+    #dmView .dm-head .x { width: 36px; }
+    .grp-mem-tb button:not(.x) { padding: 0 8px; font-size: .82rem; }
+  }
   #dlgDanger input { font-size: 16px; text-align: center; letter-spacing: .18em; }   /* 16px evita o zoom automático do iPhone */
   #dlgDanger .captcha { overflow-x: auto; }
   @media (max-width: 520px) {
@@ -4360,6 +4404,13 @@ function renderRail() {
   const home = mk('🏠', () => frToggle(), 'sbtn shome' + ((!cur || frIsOpen) ? ' on' : '')), hw = el('div', 'shomewrap'); home.title = LL('Amigos', 'Friends'); hw.append(home);
   { const n = frCount('in') + dmUn; if (n) hw.append(el('span', 'fbadge', n > 99 ? '99+' : String(n))); } rail.append(hw);
   servers.forEach(s => { const b = mk('', () => openServer(s.id), 'sbtn' + (cur && cur.id === s.id ? ' on' : '')); b.title = s.name; b.append(icon(s)); rail.append(b); });
+  if ((grpL || []).length) rail.append(el('div', 'sdiv'));
+  (grpL || []).forEach(g => {
+    const gw = el('div', 'shomewrap'), gb = mk('', () => grpOpen(g.id), 'sbtn sgrpb' + (g.muted ? ' gmuted' : ''));
+    gb.title = grpTitle(g) + (g.muted ? ' 🔕' : ''); gb.append(grpIcon(g)); gw.append(gb);
+    if (g.unread && !g.muted) gw.append(el('span', 'fbadge', g.unread > 99 ? '99+' : String(g.unread)));
+    rail.append(gw);
+  });
   const add = mk('+', () => dlgAdd(), 'sbtn sadd'); add.title = t('addServer'); rail.append(add);
   if (uid && A().myProfile()) rail.append(meBtn());
   if (siteOwner) { const ad = mk('🛡️', () => dlgAdmin(), 'sbtn sadmin'); ad.title = 'Painel do dono do site'; rail.append(ad); }
@@ -4376,6 +4427,7 @@ function syncRail() {
   document.body.classList.toggle('hasrail', !!uid);
   if (inJoin && voiceCh) { voiceCh = null; if (cur) renderChans(); }   // saiu da chamada: limpa e repinta a lista (senão o destaque do canal de voz fica preso)
   if (inJoin && callActive) { const cid = callActive; callActive = null; try { sb().rpc('dm_call_respond', { p_id: cid, p_action: 'end' }).then(() => {}, () => {}); } catch (e) {} try { callDropped(cid); } catch (e) {} }
+  if (inJoin && grpCall) { clearInterval(grpCall.beat); grpCall = null; }   // saí da call do grupo
   if (inJoin && voiceJoin) { voiceJoin = false; $('inRoom').value = ''; $('inPass').value = ''; }
   if (inJoin && cur && view.classList.contains('hidden')) closeView();
   layout();
@@ -4750,9 +4802,9 @@ $('svMembers').onclick = e => { e.stopPropagation(); const m = $('svMem'), on = 
 document.addEventListener('pointerdown', e => { const m = $('svMem'); if (m && m.classList.contains('open') && !m.contains(e.target) && !$('svMembers').contains(e.target)) m.classList.remove('open'); }, true);
 function onAuth(id) {
   if (id === uid) { if (uid) renderRail(); return; }
-  uid = id; siteOwner = false; frStop(); dmStop(); closeView(); servers = []; renderRail(); syncRail();
+  uid = id; siteOwner = false; frStop(); dmStop(); grpStop(); closeView(); servers = []; renderRail(); syncRail();
   if (!id) { presStop(); try { callForget(); } catch (e) {} return; }
-  presStart(); checkOwner(); frStart(); dmStart();
+  presStart(); checkOwner(); frStart(); dmStart(); grpStart();
   loadServers().then(() => {
     const c = sessionStorage.getItem('sala-convite');
     if (c) { sessionStorage.removeItem('sala-convite'); dlgAdd(c); }
@@ -5791,6 +5843,8 @@ function dlgAdd(code) {
       if (!data) return err(t('badInvite'));
       close(); await loadServers(); openServer(data);
     }, 'sec'));
+    w.append(el('strong', '', LL('Grupo', 'Group')));
+    w.append(mk('👥 ' + LL('Criar grupo', 'Create group'), () => { close(); grpDlgCreate(); }, 'sec'));
   });
 }
 /* ----- editar canal: nome, ícone, estilo do nome e limite de pessoas (voz) ----- */
@@ -6995,7 +7049,14 @@ function dmStart() {
 }
 function dmStop() { callHalt(); clearInterval(dmPoll); if (dmCh) { try { sb().removeChannel(dmCh); } catch (e) {} dmCh = null; } if (dmCh2) { try { sb().removeChannel(dmCh2); } catch (e) {} dmCh2 = null; } dmInboxL = []; dmUn = 0; dmClose(); }
 function dmInboxPaint(b) {
-  if (!dmInboxL.length) return frEmpty(b, LL('Nenhuma conversa ainda. Abra o perfil de alguém e toque em Mensagem.', 'No conversations yet. Open someone’s profile and tap Message.'));
+  (grpL || []).forEach(g => {
+    const r = el('div', 'fr-row'), tx = el('div', 'fr-tx'), nm = el('b', '', '👥 ' + grpTitle(g));
+    tx.append(nm, el('small', 'mut', String(g.last_content || (g.count + LL(' membros', ' members'))).replace(/\s+/g, ' ').slice(0, 60)));
+    r.append(grpIcon(g, 40), tx);
+    if (g.unread && !g.muted) r.append(el('span', 'ub', String(g.unread)));
+    r.onclick = () => grpOpen(g.id); b.append(r);
+  });
+  if (!dmInboxL.length && !(grpL || []).length) return frEmpty(b, LL('Nenhuma conversa ainda. Abra o perfil de alguém e toque em Mensagem.', 'No conversations yet. Open someone’s profile and tap Message.'));
   dmInboxL.forEach(x => {
     const r = el('div', 'fr-row'), tx = el('div', 'fr-tx'), nm = el('b', '', x.display_name); if (x.username && window.NS) NS.apply(nm, x.username);
     tx.append(nm, el('small', 'mut', String(x.last_content).replace(/\s+/g, ' ').slice(0, 60))); r.append(A().avatar(x, 40), tx);
@@ -7235,6 +7296,452 @@ function callRestore() {
   if (callActive || callLast) return;
   const L = callLoad(); if (!L) return;
   callLast = L; callOffer(L);
+}
+
+/* ===== grupos: um chat único + call com chamada para todos (migração v36) ===== */
+var grpL = [], grpCh = null, grpTimer = 0, grpSql = false, grpCall = null, grpSig = '', grpDeclined = new Set();
+const GRP_MAX = 12;
+const GRP_MSG = {
+  grp_no_members: ['Escolha pelo menos 1 amigo.', 'Pick at least 1 friend.'],
+  grp_too_many: ['Um grupo tem no máximo 12 pessoas.', 'A group has at most 12 people.'],
+  grp_full: ['Um grupo tem no máximo 12 pessoas.', 'A group has at most 12 people.'],
+  grp_not_friends: ['Só dá para convidar pessoas que são suas amigas.', 'You can only invite your friends.'],
+  grp_limit: ['Você já está no máximo de 20 grupos.', 'You are already in the maximum of 20 groups.'],
+  grp_forbidden: ['Você não tem permissão para isso.', 'You do not have permission for that.'],
+  grp_empty: ['Digite uma mensagem.', 'Type a message.'],
+  grp_auth: ['Entre na sua conta.', 'Sign in.'],
+  rate: ['Calma! Mensagens demais em pouco tempo.', 'Slow down! Too many messages.'],
+  not_member: ['Você não está mais neste grupo.', 'You are no longer in this group.'],
+  empty: ['Digite uma mensagem.', 'Type a message.'],
+  auth: ['Entre na sua conta.', 'Sign in.']
+};
+const grpMsg = e => {
+  const c = (e && typeof e === 'object') ? (missingFn(e) ? 'sql' : String(e.message || e)) : String(e);
+  if (c === 'sql') return LL('Falta rodar a migração SQL v36 no Supabase para usar grupos.', 'The v36 SQL migration still needs to be run in Supabase to use groups.');
+  const k = GRP_MSG[c] ? c : Object.keys(GRP_MSG).find(x => x.startsWith('grp_') && c.includes(x));
+  return k ? LL(GRP_MSG[k][0], GRP_MSG[k][1]) : c;
+};
+const grpTitle = g => g.name || g.names || LL('Grupo', 'Group');
+const grpHue = id => (parseInt(String(id).replace(/-/g, '').slice(0, 6), 16) || 0) % 360;
+function grpIcon(g, size) {
+  const d = el('span', 'sicon gicon', ini(grpTitle(g)) || '👥');
+  d.style.background = 'hsl(' + grpHue(g.id) + ' 46% 34%)'; d.style.color = '#fff';
+  if (size) { d.style.width = d.style.height = size + 'px'; d.style.flex = '0 0 auto'; d.style.borderRadius = Math.round(size * .32) + 'px'; d.style.fontSize = Math.round(size * .36) + 'px'; }
+  return d;
+}
+const cleanGrp = r => ({
+  id: String(r.id), name: cleanStr(r.name, 32), names: cleanStr(r.names, 80), owner_id: r.owner_id || null, muted: !!r.muted,
+  unread: Math.max(0, +r.unread || 0), last_content: String(r.last_content || ''), last_at: r.last_at || null, count: +r.member_count || 0
+});
+async function grpLoad() {
+  const me = uid; if (!me) return;
+  const { data, error } = await sb().rpc('grp_list');
+  if (uid !== me) return;
+  if (error) { grpSql = missingFn(error); if (!grpSql) console.warn('[NetShare] grp_list falhou:', error.message); return; }
+  grpSql = false;
+  const rows = (data || []).filter(r => r && UUID_RE.test(String(r.id || ''))).map(cleanGrp);
+  const sig = JSON.stringify(rows); if (sig === grpSig) return;
+  grpSig = sig; grpL = rows;
+  renderRail(); frRender();
+  if (dmPanel && dmPanel._grpRefresh) dmPanel._grpRefresh();
+}
+async function grpIncoming(m) {
+  if (!m || m.sender_id === uid || !UUID_RE.test(String(m.group_id || ''))) return;
+  if (dmCur && dmCur.group && dmCur.id === m.group_id) { dmCur.pull(); return; }
+  await grpLoad();
+  const g = grpL.find(x => x.id === m.group_id); if (!g) return;
+  if (g.muted || frMuteAll() || presEffective() === 'dnd') return;
+  const w = m.sender_id ? await callWho(m.sender_id) : { display_name: '?' };
+  toast('👥 ' + grpTitle(g) + ' · ' + w.display_name + ': ' + String(m.content || '').replace(/\s+/g, ' ').slice(0, 80), () => grpOpen(g.id));
+  titleAlert();
+}
+function grpStart() {
+  const me = uid; if (!me) return; grpStop(); grpLoad(); grpPollCalls();
+  try {
+    const kick = () => { clearTimeout(grpStart._t); grpStart._t = setTimeout(() => { grpLoad(); if (dmCur && dmCur.group) dmCur.pull(); }, 250); };
+    grpCh = sb().channel('ns-grp:' + me)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_group_messages' }, p => grpIncoming(p.new))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_group_messages' }, kick)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_group_messages' }, kick)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_group_members' }, kick)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_groups' }, kick)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_group_calls' }, () => grpPollCalls())
+      .subscribe();
+  } catch (e) { grpCh = null; }
+  grpTimer = setInterval(() => { if (!document.hidden) { grpLoad(); grpPollCalls(); } }, 10000);   // garantia caso o tempo real falhe
+}
+function grpStop() {
+  clearInterval(grpTimer); grpTimer = 0; clearTimeout(grpStart._t);
+  if (grpCh) { try { sb().removeChannel(grpCh); } catch (e) {} grpCh = null; }
+  grpL = []; grpSig = ''; grpSql = false; grpDeclined.clear();
+  if (grpCall) { clearInterval(grpCall.beat); grpCall = null; }
+}
+
+/* ----- call do grupo: quem liga entra na hora e todos os outros recebem a chamada para atender ----- */
+function grpBusy() { return !!(grpCall && !$('room').classList.contains('hidden')); }
+async function grpJoin(g, c) {
+  if (!g || !c || !UUID_RE.test(String(c.id || '')) || typeof c.room_key !== 'string' || !c.room_key) return;
+  if (grpCall) { clearInterval(grpCall.beat); grpCall = null; }
+  callOfferHide();
+  if (!$('room').classList.contains('hidden')) { leaveRoom(); await new Promise(res => setTimeout(res, 400)); }
+  window.__roomLimit = GRP_MAX; window.__roomSpeak = true;
+  voiceCh = null; vsrv = null; vmem = []; clearInterval(vmemT);
+  voiceJoin = true;
+  const gc = grpCall = { id: c.id, gid: g.id, beat: 0 };
+  gc.beat = setInterval(() => {   // enquanto eu estiver na call, ela continua "ativa" para quem quiser entrar depois
+    if (grpCall === gc && !$('room').classList.contains('hidden')) sb().rpc('grp_call_beat', { p_call: gc.id }).then(() => {}, () => {});
+  }, 30000);
+  $('inRoom').value = 'g' + c.id.replace(/-/g, '').slice(0, 20);
+  $('inPass').value = c.room_key;
+  window.__roomLabel = '👥 ' + grpTitle(g); window.__roomNs = 'v';
+  $('btnJoin').click();
+}
+async function grpCallStart(g) {
+  if (!uid || !g) return;
+  if (callActive || callOut || !$('room').classList.contains('hidden')) return toast(LL('Saia da call atual antes de ligar.', 'Leave your current call before calling.'));
+  const { data, error } = await sb().rpc('grp_call_start', { p_group: g.id });
+  if (error) return toast(grpMsg(error));
+  grpJoin(g, data);
+}
+async function grpPollCalls() {
+  if (grpSql || !uid) return;
+  const me = uid;
+  const { data, error } = await sb().rpc('grp_calls_ringing');
+  if (uid !== me) return;
+  if (error) { if (missingFn(error)) grpSql = true; return; }
+  (data || []).forEach(grpRing);
+}
+async function grpRing(r) {
+  if (!r || !UUID_RE.test(String(r.id || '')) || !UUID_RE.test(String(r.group_id || '')) || typeof r.room_key !== 'string') return;
+  const key = 'g:' + r.id;
+  if (callIn.has(key) || grpDeclined.has(r.id) || (grpCall && grpCall.id === r.id)) return;
+  if (grpBusy() || callActive || !$('room').classList.contains('hidden')) return;
+  const g = grpL.find(x => x.id === r.group_id);
+  if (g && g.muted) return;
+  const left = +r.ms_left || 0; if (left <= 0) return;
+  const dl = Date.now() + left;
+  callIn.set(key, null);   // reserva o lugar enquanto busca quem está ligando
+  const w = await callWho(r.started_by);
+  if (!callIn.has(key)) return;
+  const gg = g || { id: r.group_id, name: LL('Grupo', 'Group'), names: '' };
+  const { card, sub } = callCard({ display_name: grpTitle(gg), username: '', avatar_path: null }, '');
+  card.replaceChild(grpIcon(gg, 56), card.firstChild);
+  const txt = () => '👥 ' + w.display_name + LL(' está ligando… ', ' is calling… ') + mmss(dl - Date.now());
+  sub.textContent = txt();
+  const acts = el('div', 'cacts');
+  const ok = mk('✓ ' + LL('Atender', 'Answer'), async e => {
+    const b = e.currentTarget;
+    if (grpBusy() || callActive || !$('room').classList.contains('hidden')) return toast(LL('Saia da call atual antes de atender.', 'Leave your current call before answering.'));
+    b.disabled = true;
+    const { data, error } = await sb().rpc('grp_call_active', { p_group: r.group_id });
+    if (error || !data) { toast(LL('Essa ligação não está mais disponível.', 'That call is no longer available.')); dropIn(key); return; }
+    dropIn(key); grpJoin(gg, data);
+  }, 'callok');
+  const no = mk('✕ ' + LL('Recusar', 'Decline'), () => { grpDeclined.add(r.id); dropIn(key); }, 'bad');
+  acts.append(ok, no); card.append(acts);
+  const x = { card, silent: presEffective() === 'dnd' || frMuteAll(), tick: 0 };
+  x.tick = setInterval(() => { if (dl - Date.now() <= 0) dropIn(key); else sub.textContent = txt(); }, 1000);
+  callIn.set(key, x); callBox.append(card); callShow(true); ringSync(); titleAlert();
+}
+
+/* ----- escolher amigos (criar grupo e adicionar pessoas) ----- */
+function grpPicker(w, exclude, max, onChange) {
+  const all = fr.filter(x => x.kind === 'friend' && x.other_id && !exclude.has(x.other_id))
+    .sort((a, b) => String(a.display_name).localeCompare(String(b.display_name)));
+  const sel = new Set();
+  const q = fld(w, LL('Buscar amigo', 'Search friend'), { maxLength: 30 }); q.classList.add('grp-q');
+  const box = el('div', 'grp-pick'), cnt = el('p', 'mut grp-cnt');
+  const paintCnt = () => { cnt.textContent = LL('Selecionados: ', 'Selected: ') + sel.size + '/' + max; };
+  const paint = () => {
+    box.textContent = '';
+    const s = q.value.trim().toLowerCase().replace(/^@/, '');
+    const l = all.filter(x => !s || String(x.display_name).toLowerCase().includes(s) || String(x.username || '').toLowerCase().includes(s));
+    if (!l.length) box.append(el('p', 'mut', all.length ? LL('Ninguém encontrado.', 'Nobody found.') : LL('Você não tem mais amigos para convidar.', 'You have no more friends to invite.')));
+    l.forEach(x => {
+      const row = el('label', 'grp-pk'), cb = el('input'); cb.type = 'checkbox'; cb.checked = sel.has(x.other_id);
+      cb.onchange = () => {
+        if (cb.checked) { if (sel.size >= max) { cb.checked = false; return toast(LL('Um grupo tem no máximo 12 pessoas.', 'A group has at most 12 people.')); } sel.add(x.other_id); }
+        else sel.delete(x.other_id);
+        paintCnt(); if (onChange) onChange(sel);
+      };
+      const nm = el('b', '', x.display_name); if (x.username && window.NS) NS.apply(nm, x.username);
+      row.append(cb, A().avatar(x, 32), nm, el('small', 'mut', x.username ? '@' + x.username : '')); box.append(row);
+    });
+  };
+  q.oninput = paint; w.append(box, cnt); paint(); paintCnt();
+  return sel;
+}
+function grpDlgCreate() {
+  modal(LL('Criar grupo', 'Create group'), (w, close) => {
+    if (!fr.some(x => x.kind === 'friend')) { w.append(el('p', 'mut', LL('Você ainda não tem amigos para convidar. Adicione amigos e volte aqui.', 'You have no friends to invite yet. Add some friends and come back.'))); return; }
+    const nm = fld(w, LL('Nome do grupo (opcional)', 'Group name (optional)'), { maxLength: 32 }); nm.classList.add('grp-q');
+    w.append(el('p', 'mut', LL('Escolha as pessoas (só amigos). Você será o dono do grupo.', 'Pick the people (friends only). You will be the group owner.')));
+    const go = mk(LL('Criar grupo', 'Create group'), async () => {
+      const name = cleanStr(nm.value, 32); if (name && name.length < 2) return err(t('nameShort'));
+      go.disabled = true;
+      const { data, error } = await sb().rpc('grp_create', { p_name: name, p_members: [...sel] });
+      if (error) { go.disabled = false; return toast(grpMsg(error)); }
+      close(); await grpLoad(); if (UUID_RE.test(String(data || ''))) grpOpen(data);
+    }, '');
+    go.disabled = true;
+    const sel = grpPicker(w, new Set(), GRP_MAX - 1, s => { go.disabled = !s.size; });
+    w.append(go);
+  });
+}
+
+/* ----- o grupo em si: lado direito, igual à conversa privada ----- */
+async function grpOpen(id) {
+  const g0 = grpL.find(x => x.id === id); if (!g0) return;
+  if (dmCur && dmCur.group && dmCur.id === id && dmPanel) { const t0 = dmPanel.querySelector('textarea'); if (t0) t0.focus(); return; }
+  dmClose();
+  let g = g0, gm = new Map(), activeCall = null, last = 0, needRead = true;
+  const mp = A().myProfile() || {}, meo = { id: uid, display_name: mp.display_name || '?', username: mp.username || '', avatar_path: mp.avatar_path || null };
+  const whoOf = u => gm.get(u) || (u === uid ? meo : { id: u || '', display_name: '?', username: '', avatar_path: null });
+  const d = el('aside'); d.id = 'dmView'; dmPanel = d;
+  const head = el('div', 'dm-head'), avw = el('div', 'dm-av'), who = el('div', 'dm-who'), nm = el('b'), sm = el('small', 'mut');
+  const banner = el('div', 'grp-call hidden'), sheet = el('div', 'grp-mem hidden');
+  const list = el('div', 'dm-list'), f = el('form', 'dm-form'), ta = el('textarea'), go = el('button', '', '➤');
+  const emo = mk('😊', e => openPicker(e.currentTarget, q => ins(q.u), true), 'sec dm-emo');
+  const callB = mk('📞', () => grpCallStart(g), 'sec x'), muteB = mk('', () => toggleMute(), 'sec x'), memB = mk('👥', () => toggleSheet(), 'sec x');
+  who.onclick = () => toggleSheet(); avw.onclick = () => toggleSheet();
+  who.append(nm, sm); head.append(avw, who, callB, muteB, memB, mk('✕', dmClose, 'sec x'));
+  const paintHead = () => {
+    avw.textContent = ''; avw.append(grpIcon(g, 40));
+    nm.textContent = grpTitle(g);
+    sm.textContent = g.count + LL(' membros', ' members') + (g.owner_id === uid ? ' · ' + LL('você é o dono', 'you are the owner') : '');
+    muteB.textContent = g.muted ? '🔕' : '🔔';
+    muteB.title = g.muted ? LL('Grupo silenciado: tocar para voltar a receber chamadas e avisos', 'Group muted: tap to receive calls and alerts again') : LL('Silenciar grupo (sem chamadas nem avisos)', 'Mute group (no calls or alerts)');
+    callB.title = LL('Ligar para o grupo', 'Call the group'); memB.title = LL('Membros', 'Members');
+    ta.placeholder = LL('Escreva uma mensagem', 'Write a message'); emo.title = LL('Emojis', 'Emojis');
+  };
+  ta.rows = 1; ta.maxLength = 1000; ta.autocomplete = 'off'; go.type = 'submit';
+  f.append(emo, ta, go); d.append(head, banner, list, f, sheet);
+  const ins = tx => {
+    const a = ta.selectionStart == null ? ta.value.length : ta.selectionStart, e2 = ta.selectionEnd == null ? a : ta.selectionEnd, v = ta.value.slice(0, a) + tx + ta.value.slice(e2);
+    if (v.length > ta.maxLength) return; ta.value = v; ta.focus(); try { ta.setSelectionRange(a + tx.length, a + tx.length); } catch (e) {} fit();
+  };
+  const fit = () => { ta.style.height = 'auto'; const h = ta.scrollHeight; ta.style.height = Math.min(h, 160) + 'px'; ta.style.overflowY = h > 160 ? 'auto' : 'hidden'; };
+  ta.oninput = fit;
+  const empty = el('p', 'mut dm-empty');
+  const emptyTxt = () => { empty.textContent = LL('Este é o início do grupo. Diga oi! 👋', 'This is the start of the group. Say hi! 👋'); };
+  emptyTxt();
+  const rows = new Map();   // id -> { r, d, mt, mn, av }
+
+  /* mensagens */
+  const regroup = () => {
+    let pv = null;
+    list.querySelectorAll('.msg').forEach(m => {
+      const ts = +m.dataset.ts || 0, dt = pv ? ts - (+pv.dataset.ts || 0) : -1;
+      m.classList.toggle('cont', !!pv && pv.dataset.uid === m.dataset.uid && dt >= 0 && dt < GROUP_MS);
+      pv = m;
+    });
+  };
+  const paintText = (mt, r) => {
+    mt.textContent = ''; const tx = el('div', 'mtx'), c = String(r.content || ''); mdInto(tx, c); mt.append(tx);
+    if (r.edited_at) mt.append(el('span', 'edited', t('edited')));
+    mt.classList.toggle('jumbo', isJumbo(c));
+  };
+  const dropRow = key => { const x = rows.get(key); if (!x) return; x.d.remove(); rows.delete(key); };
+  const startEdit = key => {
+    const x = rows.get(key); if (!x || x.mt.querySelector('textarea')) return;
+    const ed = el('textarea', 'medit'); ed.maxLength = 1000; ed.value = x.r.content || '';
+    ed.rows = Math.min(8, (ed.value.match(/\n/g) || []).length + 2);
+    x.mt.textContent = ''; x.mt.classList.remove('jumbo'); x.mt.append(ed, el('div', 'mut', t('editHint')));
+    const cancel = () => paintText(x.mt, x.r);
+    const save = async () => {
+      const c = ed.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000);
+      if (!c) return;   // para esvaziar, use o botão de apagar
+      if (c === x.r.content) return cancel();
+      ed.disabled = true;
+      const { data, error } = await sb().rpc('grp_edit_message', { p_id: x.r.id, p_content: c });
+      if (error) { ed.disabled = false; toast(grpMsg(error)); ed.focus(); return; }
+      x.r.content = c; x.r.edited_at = data || new Date().toISOString(); paintText(x.mt, x.r);
+    };
+    ed.onkeydown = e => {
+      if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+      else if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); save(); }
+    };
+    ed.focus(); ed.setSelectionRange(ed.value.length, ed.value.length);
+  };
+  const openWho = u => { const x = whoOf(u); if (x.id) A().showCard({ user_id: x.id, username: x.username || undefined, display_name: x.display_name, avatar_path: x.avatar_path || null }); };
+  const addRow = r => {
+    const key = String(r.id), mine = r.sender_id === uid, w = whoOf(r.sender_id), ts = Date.parse(r.created_at) || Date.now();
+    const m = el('div', 'msg'); m.dataset.uid = r.sender_id || ''; m.dataset.ts = String(ts);
+    const av = A().avatar(w, 36), mb = el('div', 'mb'), mh = el('div', 'mh'), mn = el('strong', 'click mname', w.display_name);
+    if (w.username && window.NS) NS.apply(mn, w.username);
+    mn.onclick = () => openWho(r.sender_id); av.onclick = () => openWho(r.sender_id); av.classList.add('click');
+    mh.append(mn, el('span', 'mut', new Date(r.created_at).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
+    const mt = el('div', 'mt'); paintText(mt, r);
+    mb.append(mh, mt); m.append(av, mb);
+    if (r.sender_id) m.append(presDot(r.sender_id, 'pos-msg'));
+    const act = el('div', 'mact');
+    if (mine) { const eb = mk('✎', e => { e.stopPropagation(); startEdit(key); }, 'sec'); eb.title = t('edit'); act.append(eb); }
+    if (mine || g.owner_id === uid) {
+      const xb = mk('✕', async () => {
+        const x = rows.get(key); if (!x) return;
+        const pv = String(x.r.content || '').replace(/\s+/g, ' ').trim();
+        if (!(await confirmBox(LL('Apagar mensagem?', 'Delete message?'), LL('Isso não pode ser desfeito.', 'This cannot be undone.'), { quote: pv.length > 140 ? pv.slice(0, 140) + '…' : pv }))) return;
+        const { error } = await sb().rpc('grp_delete_message', { p_id: x.r.id });
+        if (error) return toast(grpMsg(error));
+        dropRow(key); regroup(); if (!rows.size && !empty.parentNode) list.append(empty); grpLoad();
+      }, 'sec'); xb.title = t('del'); act.append(xb);
+    }
+    if (act.childNodes.length) m.append(act);
+    // no celular (sem hover): tocar na mensagem mostra as ações
+    m.addEventListener('click', e => { if (window.matchMedia('(hover: none)').matches && !e.target.closest('button, textarea, .click')) m.classList.toggle('sel'); });
+    list.append(m); rows.set(key, { r, d: m, mt, mn, av });
+  };
+  const rewho = () => rows.forEach(x => {
+    const w = whoOf(x.r.sender_id);
+    x.mn.textContent = w.display_name; if (w.username && window.NS) NS.apply(x.mn, w.username);
+    const na = A().avatar(w, 36); na.onclick = x.av.onclick; na.classList.add('click'); x.av.replaceWith(na); x.av = na;
+  });
+  const paint = (got, full) => {
+    const near = list.scrollHeight - list.scrollTop - list.clientHeight < 90 || !last; let mineNew = false;
+    const ids = new Set(got.map(r => String(r.id))), minId = got.length ? got[0].id : 0;
+    rows.forEach((x, k) => { if (ids.has(k)) return; if (full && x.r.id < minId) return; dropRow(k); });   // apagadas
+    got.forEach(r => {
+      const k = String(r.id), x = rows.get(k);
+      if (x) {
+        if ((x.r.content !== r.content || (x.r.edited_at || null) !== (r.edited_at || null)) && !x.mt.querySelector('textarea')) { x.r.content = r.content; x.r.edited_at = r.edited_at || null; paintText(x.mt, x.r); }
+        return;
+      }
+      if (empty.parentNode) empty.remove();
+      addRow(r); if (r.id > last) last = r.id;
+      if (r.sender_id === uid) mineNew = true; else needRead = true;
+    });
+    regroup();
+    if (!rows.size && !empty.parentNode) list.append(empty);
+    if (near || mineNew) list.scrollTop = list.scrollHeight;
+  };
+  const pull = async () => {
+    const { data, error } = await sb().from('chat_group_messages').select('id,sender_id,content,created_at,edited_at').eq('group_id', id).order('id', { ascending: false }).limit(100);
+    if (dmPanel !== d) return;
+    if (error) { if (!last) list.append(el('p', 'mut', grpMsg(error))); return; }
+    if ((data || []).some(r => r.sender_id && r.sender_id !== uid && !gm.has(r.sender_id))) loadMembers();   // alguém novo escreveu
+    paint((data || []).reverse(), (data || []).length >= 100);
+    if (needRead) { needRead = false; sb().rpc('grp_mark_read', { p_group: id }).then(() => grpLoad()); }
+  };
+  f.onsubmit = async e => {
+    e.preventDefault(); const c = ta.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000); if (!c) return; go.disabled = true;
+    const { data, error } = await sb().rpc('grp_send', { p_group: id, p_content: c }); go.disabled = false;
+    if (error || data !== 'ok') return toast(grpMsg(error || data));
+    ta.value = ''; fit(); closePicker(); await pull(); ta.focus();
+  };
+  ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && innerWidth > 860) { e.preventDefault(); f.requestSubmit(); } };
+
+  /* membros: ver, adicionar, passar a posse, expulsar, sair */
+  const loadMembers = async () => {
+    const { data, error } = await sb().rpc('grp_members', { p_group: id });
+    if (error || dmPanel !== d) return;
+    gm = new Map((data || []).map(x => [x.user_id, { id: x.user_id, username: x.username || '', display_name: cleanStr(x.display_name, 24) || x.username || '?', avatar_path: x.avatar_path || null, owner: !!x.is_owner }]));
+    rewho(); if (!sheet.classList.contains('hidden')) paintSheet();
+  };
+  const refreshAll = async () => { grpSig = ''; await grpLoad(); await loadMembers(); };
+  const doKick = async x => {
+    if (!(await confirmBox(LL('Expulsar ' + x.display_name + '?', 'Kick ' + x.display_name + '?'), LL('A pessoa sai do grupo e perde o acesso às mensagens e à call.', 'The person leaves the group and loses access to messages and the call.'), { icon: '🚪', ok: LL('Expulsar', 'Kick') }))) return;
+    const { error } = await sb().rpc('grp_kick', { p_group: id, p_user: x.id });
+    if (error) return toast(grpMsg(error)); await refreshAll();
+  };
+  const doTransfer = async x => {
+    if (!(await confirmBox(LL('Passar a posse para ' + x.display_name + '?', 'Transfer ownership to ' + x.display_name + '?'), LL('Essa pessoa vira a dona do grupo e você passa a ser membro.', 'This person becomes the group owner and you become a member.'), { icon: '👑', ok: LL('Passar posse', 'Transfer') }))) return;
+    const { error } = await sb().rpc('grp_transfer', { p_group: id, p_user: x.id });
+    if (error) return toast(grpMsg(error)); await refreshAll();
+  };
+  const doLeave = async () => {
+    const own = g.owner_id === uid;
+    if (!(await confirmBox(LL('Sair do grupo?', 'Leave the group?'), own ? LL('Você é o dono: a posse passa para o membro mais antigo.', 'You are the owner: ownership goes to the oldest member.') : LL('Você deixa de receber as mensagens e as chamadas deste grupo.', 'You will stop receiving this group’s messages and calls.'), { icon: '🚪', ok: LL('Sair', 'Leave') }))) return;
+    const { error } = await sb().rpc('grp_leave', { p_group: id });
+    if (error) return toast(grpMsg(error));
+    dmClose(); grpSig = ''; await grpLoad(); toast(LL('Você saiu do grupo.', 'You left the group.'));
+  };
+  const doAdd = () => modal(LL('Adicionar ao grupo', 'Add to group'), (w, close) => {
+    const room = GRP_MAX - gm.size;
+    if (room <= 0) { w.append(el('p', 'mut', LL('O grupo já está com 12 pessoas.', 'The group already has 12 people.'))); return; }
+    const add = mk(LL('Adicionar', 'Add'), async () => {
+      add.disabled = true;
+      const { error } = await sb().rpc('grp_add', { p_group: id, p_users: [...sel] });
+      if (error) { add.disabled = false; return toast(grpMsg(error)); }
+      close(); await refreshAll();
+    }, '');
+    add.disabled = true;
+    const sel = grpPicker(w, new Set(gm.keys()), room, s => { add.disabled = !s.size; });
+    w.append(add);
+  });
+  const doRename = () => modal(LL('Renomear grupo', 'Rename group'), (w, close) => {
+    const n = fld(w, LL('Nome do grupo', 'Group name'), { maxLength: 32 }); n.classList.add('grp-q'); n.value = g.name || '';
+    w.append(mk(LL('Salvar', 'Save'), async e => {
+      const name = cleanStr(n.value, 32); if (name && name.length < 2) return err(t('nameShort'));
+      e.target.disabled = true;
+      const { error } = await sb().rpc('grp_rename', { p_group: id, p_name: name });
+      e.target.disabled = false; if (error) return toast(grpMsg(error));
+      close(); grpSig = ''; await grpLoad();
+    }));
+  });
+  function paintSheet() {
+    sheet.textContent = '';
+    const mine = g.owner_id === uid;
+    const top = el('div', 'grp-mem-top'); top.append(el('b', '', LL('Membros', 'Members') + ' · ' + gm.size));
+    const tb = el('div', 'grp-mem-tb');
+    if (mine) { const a = mk('➕ ' + LL('Adicionar', 'Add'), doAdd, 'sec'), r = mk('✏️', doRename, 'sec'); r.title = LL('Renomear grupo', 'Rename group'); tb.append(a, r); }
+    tb.append(mk('✕', () => toggleSheet(false), 'sec x')); top.append(tb); sheet.append(top);
+    [...gm.values()].sort((a, b) => (b.owner - a.owner) || String(a.display_name).localeCompare(String(b.display_name))).forEach(x => {
+      const row = el('div', 'grp-mrow'), tx = el('div', 'grp-mtx'), n2 = el('b', '', x.display_name + (x.owner ? ' 👑' : '') + (x.id === uid ? LL(' (você)', ' (you)') : ''));
+      if (x.username && window.NS) NS.apply(n2, x.username);
+      tx.append(n2, el('small', 'mut', x.username ? '@' + x.username : ''));
+      const av = A().avatar(x, 36); av.classList.add('click'); av.onclick = () => openWho(x.id); tx.onclick = () => openWho(x.id);
+      row.append(av, tx);
+      if (mine && x.id !== uid) {
+        const tr = mk('👑', () => doTransfer(x), 'sec x'), kk = mk('🚪', () => doKick(x), 'bad x');
+        tr.title = LL('Passar a posse', 'Transfer ownership'); kk.title = LL('Expulsar do grupo', 'Kick from group'); row.append(tr, kk);
+      }
+      sheet.append(row);
+    });
+    const lv = mk('🚪 ' + LL('Sair do grupo', 'Leave group'), doLeave, 'bad grp-leave'); sheet.append(lv);
+  }
+  function toggleSheet(on) {
+    const show = on === undefined ? sheet.classList.contains('hidden') : !!on;
+    sheet.classList.toggle('hidden', !show);
+    if (show) { paintSheet(); loadMembers(); }
+  }
+  const toggleMute = async () => {
+    const m = !g.muted;
+    const { error } = await sb().rpc('grp_set_muted', { p_group: id, p_muted: m });
+    if (error) return toast(grpMsg(error));
+    g.muted = m; paintHead(); grpSig = ''; grpLoad();
+    toast(m ? LL('🔕 Grupo silenciado: sem chamadas nem avisos.', '🔕 Group muted: no calls or alerts.') : LL('🔔 Pronto: você volta a receber chamadas e avisos deste grupo.', '🔔 Done: you receive this group’s calls and alerts again.'));
+  };
+
+  /* call em andamento: quem não atendeu (ou chegou depois) entra por aqui */
+  const checkCall = async () => {
+    if (grpBusy()) { banner.classList.add('hidden'); return; }
+    const { data, error } = await sb().rpc('grp_call_active', { p_group: id });
+    if (dmPanel !== d || error) return;
+    activeCall = data && UUID_RE.test(String(data.id || '')) ? data : null;
+    banner.textContent = '';
+    if (!activeCall) { banner.classList.add('hidden'); return; }
+    banner.append(el('span', '', '📞 ' + LL('Call em andamento', 'Call in progress')),
+      mk(LL('Entrar', 'Join'), () => {
+        if (callActive || callOut || !$('room').classList.contains('hidden')) return toast(LL('Saia da call atual antes de entrar.', 'Leave your current call before joining.'));
+        grpJoin(g, activeCall);
+      }, 'callok'));
+    banner.classList.remove('hidden');
+  };
+
+  d._grpRefresh = () => {
+    const ng = grpL.find(x => x.id === id);
+    if (!ng) { dmClose(); toast(LL('Você não está mais neste grupo.', 'You are no longer in this group.')); return; }
+    const ownerChanged = ng.owner_id !== g.owner_id;
+    g = ng; paintHead();
+    if (ownerChanged) { rows.forEach(x => x.d.remove()); rows.clear(); last = 0; pull(); }   // refaz os botões de apagar (o dono pode apagar qualquer mensagem)
+    if (gm.size !== g.count) loadMembers(); else if (!sheet.classList.contains('hidden')) paintSheet();
+  };
+  d._relang = () => { paintHead(); emptyTxt(); if (!sheet.classList.contains('hidden')) paintSheet(); };
+  paintHead();
+  document.body.append(d); document.body.classList.add('dmopen'); dmCur = { id, pull, group: true };
+  loadMembers(); checkCall();
+  await pull(); if (dmPanel !== d) return;
+  clearInterval(dmPoll); dmPoll = setInterval(() => { pull(); checkCall(); }, 6000); ta.focus();
 }
 
 function frSet(on) {
