@@ -5554,7 +5554,7 @@ async function vozFx(buf, fx) {   // aplica o efeito fora do tempo real (rápido
   } else if (fx === 'mega') {
     const ws = oc.createWaveShaper(); ws.curve = curve(9); chain(bq('highpass', 400), bq('bandpass', 1300, .7), ws);
   } else chain();
-  src.start(); return oc.startRendering();
+  out.connect(oc.destination); src.start(); return oc.startRendering();
 }
 function vozWav(buf) {   // AudioBuffer mono → arquivo WAV (16 bits), normalizado
   const d = buf.getChannelData(0), n = d.length, ab = new ArrayBuffer(44 + n * 2), v = new DataView(ab), sr = buf.sampleRate;
