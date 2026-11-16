@@ -342,6 +342,11 @@
   .nsed .ns-ctl input:not([type=color]) { flex: 1 1 90px; min-width: 0; }
   @media (prefers-reduced-motion: reduce) { .pc-themed .pc-body .av.pc-ring-pulse { animation: none; } }
   .pc-body .av { --s: 84px; margin-top: -42px; border: 4px solid var(--card-solid); }
+  .pc-sub { display: flex; align-items: center; flex-wrap: wrap; min-width: 0; }
+  .pc-pr { display: none; align-items: center; }
+  .pc-pr:has(.ns-tag) { display: inline-flex; }
+  .pc-pr:has(.ns-tag)::before { content: '•'; margin: 0 .5em; }
+  .pc-pr .ns-tag { margin-right: 0; font-size: 1em; }
   .pc-body h3 { margin: 8px 0 0; font: 800 1.3rem/1.15 'Manrope', sans-serif; letter-spacing: -.03em; overflow-wrap: anywhere; }
   .pc-bio { margin: 8px 0 0; color: #d7def0; font-size: .92rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
   .card-x { position: absolute; top: 10px; right: 10px; z-index: 2; background: rgba(7, 11, 24, .7); }
@@ -2628,7 +2633,7 @@ async function flush() {
 function paint(node) {
   const e = cache.get(node.dataset.nsu || '');
   style(node, e && e.s, node.dataset.nsf || '');
-  decorate(node, e && e.g);
+  decorate(node, node.dataset.nsn ? null : (e && e.g));
 }
 function paintAll() {
   document.querySelectorAll('[data-nsu]').forEach(paint);
@@ -2642,10 +2647,11 @@ function applyTag(node, username) {
   node.dataset.nst = u; want(u);
   const e = cache.get(u); decorate(node, e && e.g);
 }
-function apply(node, username, fallback) {
+function apply(node, username, fallback, noTag) {
   if (!node) return;
   const u = String(username || '').toLowerCase();
   node.dataset.nsu = u;
+  if (noTag) node.dataset.nsn = '1'; else delete node.dataset.nsn;   // noTag: o pronome aparece em outro lugar (ex.: ao lado do @usuário no cartão)
   if (fallback) node.dataset.nsf = fallback; else delete node.dataset.nsf;
   if (ULOW.test(u)) want(u);
   paint(node);
@@ -4072,9 +4078,13 @@ window.Acc = (() => {
     }
     const info = el('div', 'pc-body');
     const h3 = el('h3', '', p.display_name);
-    if (window.NS) { if (p.ns && p.username) NS.setFor(p.username, p.ns); NS.apply(h3, p.username); }
+    if (window.NS) { if (p.ns && p.username) NS.setFor(p.username, p.ns); NS.apply(h3, p.username, '', true); }
     info.append(avatar(p, 84), h3);
-    if (p.username) info.append(el('span', 'mut', '@' + p.username));
+    if (p.username) {   // linha de baixo estilo Discord: @usuário • pronome
+      const sub = el('span', 'mut pc-sub'); sub.append(el('span', '', '@' + p.username));
+      if (window.NS && NS.applyTag) { const pr = el('span', 'pc-pr'); NS.applyTag(pr, p.username); sub.append(pr); }
+      info.append(sub);
+    }
     const v = el('span', 'vf', '✓ ' + T('cardVerified'));
     const bioEl = el('p', 'pc-bio', p.bio || T('cardNoBio'));
     info.append(v, bioEl);
