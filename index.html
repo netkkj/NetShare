@@ -4351,6 +4351,8 @@ applyLang();
   /* pronome / tag na frente do nome */
   .ns-tag { display: inline-flex; align-items: center; gap: .3em; flex: none; vertical-align: .06em; margin-right: .5em; max-width: 16em; font: 700 .72em/1.25 'DM Sans', sans-serif; letter-spacing: 0; text-transform: none; font-style: normal; text-shadow: none; white-space: nowrap; color: #e8ecff; -webkit-text-fill-color: currentColor; border-radius: 999px; background-repeat: no-repeat; }
   .ns-tag.aft { margin-right: 0; margin-left: .5em; }
+  /* nome com pronome no fim: quebra a linha em vez de cortar com "…" (no celular o pronome sumia em nomes longos) */
+  :has(> .ns-tag.aft):not(.pc-pr) { overflow: visible !important; text-overflow: clip !important; white-space: normal !important; overflow-wrap: anywhere; }
   .ns-tag.ns-tg-box { padding: .08em .6em; }
   .ns-tag.ns-tg-round { border-radius: .55em; } .ns-tag.ns-tg-square { border-radius: .12em; }
   .ns-tag.ns-tgs-sm { font-size: .58em; } .ns-tag.ns-tgs-lg { font-size: .92em; }
