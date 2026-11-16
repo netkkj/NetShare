@@ -4144,6 +4144,14 @@ applyLang();
   .vmsg button { flex: 0 0 auto; min-width: 0; min-height: 0; width: 36px; height: 36px; padding: 0; border-radius: 50%; }
   .vmsg .vspd { width: auto; padding: 0 9px; border-radius: 999px; font-size: .72rem; }
   @media (max-width: 860px) { .vbar { gap: 6px; } .vbar button { min-width: 44px; min-height: 44px; } }
+
+  .vbar { flex-wrap: wrap; }
+  .vbar > button.on { outline: 2px solid var(--acc); }
+  .vfx { order: -1; flex: 1 1 100%; display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 6px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .vfx button { flex: 0 0 auto; min-width: 0; min-height: 36px; padding: 0 12px; border-radius: 999px; font-size: .82rem; white-space: nowrap; }
+  .vfx button.on { outline: 2px solid var(--acc); }
+  .vfx button.wait { opacity: .55; }
+  @media (max-width: 860px) { .vfx button { min-height: 40px; } }
   .mgif { transform: translateZ(0); backface-visibility: hidden; contain: paint; }
   @media (max-width: 860px) { .mgif { max-height: 240px; } }
   .mgif { display: block; width: auto; max-width: min(320px, 100%); max-height: 300px; min-height: 60px; margin: 4px 0; border-radius: 10px; background: var(--surface); cursor: pointer; }
@@ -5518,6 +5526,45 @@ function vozNode(path, secs) {   // player dentro da mensagem
   rg.oninput = () => { const a = get(); try { a.currentTime = rg.value / 1000 * dur(); } catch (e) {} };
   w.append(pl, rg, tm, sp); return w;
 }
+const VFX = [['normal', '🙂', 'Normal', 'Normal'], ['esquilo', '🐿️', 'Esquilo', 'Chipmunk'], ['grave', '👹', 'Grave', 'Deep'], ['robo', '🤖', 'Robô', 'Robot'], ['alien', '👽', 'Alienígena', 'Alien'],
+  ['eco', '🔁', 'Eco', 'Echo'], ['caverna', '🏔️', 'Caverna', 'Cave'], ['radio', '📻', 'Rádio', 'Radio'], ['mega', '📢', 'Megafone', 'Megaphone']];
+async function vozDecode(blob) {
+  const AC = window.AudioContext || window.webkitAudioContext, ac = new AC();
+  try { return await ac.decodeAudioData(await blob.arrayBuffer()); } finally { try { ac.close(); } catch (e) {} }
+}
+async function vozFx(buf, fx) {   // aplica o efeito fora do tempo real (rápido) e devolve um AudioBuffer mono
+  const SR = 16000, rate = fx === 'esquilo' ? 1.6 : fx === 'grave' ? .7 : fx === 'alien' ? 1.15 : 1, tail = fx === 'eco' || fx === 'caverna' ? 2.5 : .1;
+  const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext, oc = new OC(1, Math.ceil((buf.duration / rate + tail) * SR), SR);
+  const src = oc.createBufferSource(); src.buffer = buf; src.playbackRate.value = rate;
+  const out = oc.createGain(), curve = k => { const c = new Float32Array(256); for (let i = 0; i < 256; i++) c[i] = Math.tanh((i / 128 - 1) * k); return c; };
+  const bq = (type, f, q) => { const n = oc.createBiquadFilter(); n.type = type; n.frequency.value = f; if (q) n.Q.value = q; return n; };
+  const chain = (...ns) => { let p = src; ns.forEach(n => { p.connect(n); p = n; }); p.connect(out); };
+  if (fx === 'robo' || fx === 'alien') {   // modulação em anel
+    const g = oc.createGain(), o = oc.createOscillator(), mk2 = oc.createGain(); g.gain.value = 0; mk2.gain.value = 1.8;
+    o.type = 'sine'; o.frequency.value = fx === 'robo' ? 55 : 320; o.connect(g.gain); o.start(); chain(g, mk2);
+  } else if (fx === 'eco') {
+    const d = oc.createDelay(1), fb = oc.createGain(), wet = oc.createGain(); d.delayTime.value = .28; fb.gain.value = .45; wet.gain.value = .7;
+    d.connect(fb); fb.connect(d); d.connect(wet); wet.connect(out); src.connect(d); src.connect(out);
+  } else if (fx === 'caverna') {
+    const n = SR * 2, ir = oc.createBuffer(1, n, SR), c = ir.getChannelData(0); for (let i = 0; i < n; i++) c[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.5);
+    const cv = oc.createConvolver(), wet = oc.createGain(), dry = oc.createGain(); cv.buffer = ir; wet.gain.value = .9; dry.gain.value = .7;
+    src.connect(dry); dry.connect(out); src.connect(cv); cv.connect(wet); wet.connect(out);
+  } else if (fx === 'radio') {
+    const ws = oc.createWaveShaper(), g = oc.createGain(); ws.curve = curve(3); g.gain.value = 1.3; chain(bq('highpass', 600), bq('lowpass', 3200), ws, g);
+  } else if (fx === 'mega') {
+    const ws = oc.createWaveShaper(); ws.curve = curve(9); chain(bq('highpass', 400), bq('bandpass', 1300, .7), ws);
+  } else chain();
+  src.start(); return oc.startRendering();
+}
+function vozWav(buf) {   // AudioBuffer mono → arquivo WAV (16 bits), normalizado
+  const d = buf.getChannelData(0), n = d.length, ab = new ArrayBuffer(44 + n * 2), v = new DataView(ab), sr = buf.sampleRate;
+  const w = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+  let pk = 0; for (let i = 0; i < n; i++) pk = Math.max(pk, Math.abs(d[i])); const k = pk > 0 ? .9 / pk : 1;
+  for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, d[i] * k)) * 32767, true);
+  return new Blob([ab], { type: 'audio/wav' });
+}
 function vozSend(ta, form, tk) {
   const d = ta.value.replace(/\s+$/, ''), v = (d ? d + '\n' : '') + tk;
   if (v.length > (ta.maxLength > 0 ? ta.maxLength : 1000)) return toast(LL('Mensagem grande demais para anexar o áudio.', 'Message too long to attach the audio.'));
@@ -5581,6 +5628,7 @@ function vozAttach(form, ta) {   // põe o botão 🎤 no campo de mensagem: gra
     s.base = s.ext === 'm4a' ? 'audio/mp4' : s.ext === 'ogg' ? 'audio/ogg' : 'audio/webm';
     s.blob = new Blob(s.chunks, { type: s.base });
     if (s.secs < 1 || s.blob.size < 600) { end(); return toast(LL('Áudio muito curto.', 'Audio too short.')); }
+    s.orig = s.blob; s.osecs = s.secs; s.oext = s.ext; s.obase = s.base;   // original, para voltar ao "Normal"
     paintReview(s);
   }
   function paintReview(s) {   // ouvir antes de enviar
@@ -5593,7 +5641,25 @@ function vozAttach(form, ta) {   // põe o botão 🎤 no campo de mensagem: gra
     au.onended = () => { au.currentTime = 0; rg.value = 0; tm.textContent = vozFmt(s.secs); pl.textContent = '▶'; };
     au.ontimeupdate = () => { rg.value = Math.min(1000, au.currentTime / dur() * 1000); tm.textContent = vozFmt(au.currentTime); };
     rg.oninput = () => { try { au.currentTime = rg.value / 1000 * dur(); } catch (e) {} };
-    bar.append(del, pl, rg, tm, ok);
+    const fxb = mk('✨', () => { fx.hidden = !fx.hidden; fxb.classList.toggle('on', !fx.hidden); }, 'sec'), fx = el('div', 'vfx'); fx.hidden = true; fxb.title = LL('Efeitos de voz', 'Voice effects');
+    let cur = 'normal', jobs = 0;
+    const mark = k => fx.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.k === k));
+    VFX.forEach(([k, ic, pt, en]) => {
+      const b = mk(ic + ' ' + LL(pt, en), async () => {
+        if (k === cur || s.sending) return; const prev = cur, my = ++jobs; cur = k; mark(k); b.classList.add('wait');
+        try {
+          let blob = s.orig, secs = s.osecs, ext = s.oext, base = s.obase;
+          if (k !== 'normal') { if (!s.buf) s.buf = await vozDecode(s.orig); const r = await vozFx(s.buf, k); blob = vozWav(r); secs = Math.max(1, Math.round(r.duration)); ext = 'wav'; base = 'audio/wav'; }
+          if (my !== jobs || st !== s) return;
+          if (blob.size > 10000000) { cur = prev; mark(prev); return toast(LL('Com esse efeito o áudio ficou grande demais. Grave um áudio mais curto.', 'With this effect the audio got too large. Record a shorter one.')); }
+          s.blob = blob; s.secs = secs; s.ext = ext; s.base = base;
+          const old = s.url; s.url = URL.createObjectURL(blob); au.src = s.url; if (old) URL.revokeObjectURL(old);
+          rg.value = 0; tm.textContent = vozFmt(secs); au.play().catch(() => {});   // já toca para você ouvir o efeito
+        } catch (e) { cur = prev; mark(prev); toast(LL('Não deu para aplicar o efeito neste navegador.', 'Could not apply the effect in this browser.')); }
+        finally { b.classList.remove('wait'); }
+      }, 'sec'); b.dataset.k = k; if (k === 'normal') b.classList.add('on'); fx.append(b);
+    });
+    bar.append(del, pl, rg, tm, fxb, ok, fx);
     const send = async () => {
       if (s.sending) return; s.sending = true; au.pause(); busy(true);
       const { data: u } = await sb().auth.getUser(), id = u && u.user && u.user.id;
