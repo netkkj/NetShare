@@ -3252,7 +3252,63 @@ window.NSTr = (() => {
     };
     return w;
   }
-  return { bar, send, apply, personBtn, setIn, inLang, name, _expand: expand, _dict: DICT, _merged: MERGED };
+  /* ---------- mensagens de voz: transcrição GRÁTIS no próprio aparelho (Whisper via transformers.js) + tradução ---------- */
+  const TF_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0';
+  const WORKER_SRC = `
+    import { pipeline } from '${TF_URL}';
+    let asr = null, cur = '';
+    self.onmessage = async e => {
+      const { id, model, audio } = e.data;
+      try {
+        if (!asr || cur !== model) { asr = await pipeline('automatic-speech-recognition', model, { dtype: 'q8', device: 'wasm', progress_callback: p => self.postMessage({ id, progress: p }) }); cur = model; }
+        const out = await asr(audio, { chunk_length_s: 30, stride_length_s: 5, task: 'transcribe', return_timestamps: false });
+        self.postMessage({ id, text: String((out && out.text) || '').trim() });
+      } catch (err) { self.postMessage({ id, error: String((err && err.message) || err) }); }
+    };`;
+  let asrW = null, asrId = 0; const asrCbs = new Map(), asrCache = new Map();
+  const asrWorker = () => {
+    if (asrW) return asrW;
+    asrW = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' })), { type: 'module' });
+    asrW.onmessage = e => { const d = e.data || {}, cb = asrCbs.get(d.id); if (!cb) return; if (d.progress) cb.prog(d.progress); else { asrCbs.delete(d.id); d.error ? cb.rej(new Error(d.error)) : cb.res(d.text); } };
+    asrW.onerror = e => { asrCbs.forEach(cb => cb.rej(new Error('worker'))); asrCbs.clear(); try { asrW.terminate(); } catch (x) {} asrW = null; };
+    return asrW;
+  };
+  async function pcm16k(url) {   // baixa o áudio e entrega PCM mono 16 kHz (o que o Whisper espera)
+    const r = await fetch(url); if (!r.ok) throw new Error('audio ' + r.status);
+    const AC = window.AudioContext || window.webkitAudioContext, ac = new AC();
+    let buf; try { buf = await ac.decodeAudioData(await r.arrayBuffer()); } finally { try { ac.close(); } catch (e) {} }
+    const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const len = Math.max(1, Math.ceil(buf.duration * 16000)), oc = new OC(1, len, 16000), src = oc.createBufferSource();
+    src.buffer = buf; src.connect(oc.destination); src.start();
+    return (await oc.startRendering()).getChannelData(0).slice();
+  }
+  async function transcribe(url, onStatus) {
+    if (asrCache.has(url)) return asrCache.get(url);
+    const st = onStatus || (() => {});
+    st(T('Preparando o áudio…', 'Preparing the audio…', 'Preparando el audio…'));
+    const audio = await pcm16k(url);
+    const big = innerWidth > 860 && (navigator.deviceMemory || 8) >= 4, model = big ? 'Xenova/whisper-base' : 'Xenova/whisper-tiny';
+    const id = ++asrId, w = asrWorker(), files = {};
+    const text = await new Promise((res, rej) => {
+      asrCbs.set(id, { res, rej, prog: p => {
+        if (p.status === 'progress' && p.file) { files[p.file] = p.progress || 0; const v = Object.values(files); st(T('Baixando o modelo de voz (só na 1ª vez)… ', 'Downloading the speech model (first time only)… ', 'Descargando el modelo de voz (solo la 1.ª vez)… ') + Math.round(v.reduce((a, b) => a + b, 0) / v.length) + '%'); }
+        else if (p.status === 'ready') st(T('Transcrevendo…', 'Transcribing…', 'Transcribiendo…'));
+      } });
+      st(T('Carregando o transcritor…', 'Loading the transcriber…', 'Cargando el transcriptor…'));
+      w.postMessage({ id, model, audio }, [audio.buffer]);
+      setTimeout(() => st(T('Transcrevendo…', 'Transcribing…', 'Transcribiendo…')), 0);
+    });
+    asrCache.set(url, text); return text;
+  }
+  const myLang = () => { const l = loc(); return l === 'pt-BR' ? 'pt' : l; };
+  async function voiceText(url, onStatus) {   // → { text, translated|null }
+    const text = await transcribe(url, onStatus);
+    if (!text || !/\p{L}/u.test(text)) return { text: '', translated: null };
+    let translated = null;
+    try { onStatus && onStatus(T('Traduzindo…', 'Translating…', 'Traduciendo…')); const r = await translate(text, myLang()); if (!r.same) translated = r.text; } catch (e) {}
+    return { text, translated };
+  }
+  return { bar, send, apply, personBtn, setIn, inLang, name, voiceText, _expand: expand, _dict: DICT, _merged: MERGED };
 })();
 </script>
 <script>
@@ -4589,6 +4645,10 @@ applyLang();
   .tr-bar .tr-b1.on::before { background: var(--acc) radial-gradient(circle at 20px 50%, #fff 6px, transparent 6.5px); }
   .tr-bar .tr-b2 { flex: 0 1 auto; max-width: 100%; }
   .tr-bar .tr-b2.on { border-color: color-mix(in srgb, var(--acc) 70%, transparent) !important; }
+  .vwrap { display: grid; gap: 6px; min-width: 0; max-width: 100%; }
+  .vtr { padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.05); font-size: .86rem; line-height: 1.45; overflow-wrap: anywhere; }
+  .vtr small { display: block; margin-top: 4px; color: var(--mut, #9aa3c7); }
+  .vtr.hidden { display: none; }
   .tr-note { display: inline-block; margin-top: 4px; padding: 2px 8px; border: 0; border-radius: 999px; background: rgba(255,255,255,.07); color: var(--mut, #9aa3c7); font: 600 .72rem/1.4 inherit; cursor: pointer; }
   .tr-person { margin-top: 8px; min-width: 0; }
   .tr-person .tr-pbtn { width: 100%; min-width: 0 !important; text-align: left; white-space: normal; overflow-wrap: anywhere; min-height: 40px; padding: 9px 12px; border-radius: 12px; font-size: .85rem; }
@@ -6292,7 +6352,24 @@ function vozNode(path, secs) {   // player dentro da mensagem
   };
   const tog = () => { const a = get(); if (a.paused) a.play().catch(() => {}); else a.pause(); };
   rg.oninput = () => { const a = get(); try { a.currentTime = rg.value / 1000 * dur(); } catch (e) {} };
-  w.append(pl, rg, tm, sp); return w;
+  const tr = mk('📝', () => runTr(), 'vspd'), box = el('div', 'vtr hidden'); let busy = false;
+  tr.title = LL('Transcrever e traduzir (grátis, no seu aparelho)', 'Transcribe and translate (free, on your device)'); tr.setAttribute('aria-label', tr.title);
+  const runTr = async () => {
+    if (busy || !window.NSTr) return;
+    if (box.dataset.done) { box.classList.toggle('hidden'); return; }
+    busy = true; box.classList.remove('hidden'); box.textContent = '…';
+    try {
+      const r = await NSTr.voiceText(url, s => { box.textContent = s; });
+      box.textContent = '';
+      if (!r.text) box.textContent = LL('Não consegui entender fala neste áudio.', 'Could not make out any speech in this audio.');
+      else if (r.translated) { box.append(el('div', '', r.translated), el('small', '', LL('Original: ', 'Original: ') + r.text)); }
+      else { box.append(el('div', '', r.text), el('small', '', LL('Já está no seu idioma.', 'Already in your language.'))); }
+      box.dataset.done = '1';
+    } catch (e) { box.textContent = LL('Não foi possível transcrever agora (precisa de internet para baixar o modelo na 1ª vez).', 'Could not transcribe right now (internet is needed to download the model the first time).'); }
+    busy = false;
+  };
+  w.append(pl, rg, tm, sp, tr);
+  const wrap = el('div', 'vwrap'); wrap.append(w, box); return wrap;
 }
 const VFX = [['normal', '🙂', 'Normal', 'Normal'], ['esquilo', '🐿️', 'Esquilo', 'Chipmunk'], ['grave', '👹', 'Grave', 'Deep'], ['robo', '🤖', 'Robô', 'Robot'], ['alien', '👽', 'Alienígena', 'Alien'],
   ['eco', '🔁', 'Eco', 'Echo'], ['caverna', '🏔️', 'Caverna', 'Cave'], ['radio', '📻', 'Rádio', 'Radio'], ['mega', '📢', 'Megafone', 'Megaphone']];
