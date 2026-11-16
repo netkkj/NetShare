@@ -5533,8 +5533,8 @@ async function vozDecode(blob) {
   try { return await ac.decodeAudioData(await blob.arrayBuffer()); } finally { try { ac.close(); } catch (e) {} }
 }
 async function vozFx(buf, fx) {   // aplica o efeito fora do tempo real (rápido) e devolve um AudioBuffer mono
-  const SR = 16000, rate = fx === 'esquilo' ? 1.6 : fx === 'grave' ? .7 : fx === 'alien' ? 1.15 : 1, tail = fx === 'eco' || fx === 'caverna' ? 2.5 : .1;
-  const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext, oc = new OC(1, Math.ceil((buf.duration / rate + tail) * SR), SR);
+  const SR = 16000, rate = fx === 'esquilo' ? 1.6 : fx === 'grave' ? .7 : fx === 'alien' ? 1.15 : 1, tail = fx === 'eco' || fx === 'caverna' ? 2.5 : .5;   // sobra de silêncio no fim: nada é cortado
+  const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext, oc = new OC(1, Math.ceil((buf.duration / rate * 1.02 + tail) * SR), SR);
   const src = oc.createBufferSource(); src.buffer = buf; src.playbackRate.value = rate;
   const out = oc.createGain(), curve = k => { const c = new Float32Array(256); for (let i = 0; i < 256; i++) c[i] = Math.tanh((i / 128 - 1) * k); return c; };
   const bq = (type, f, q) => { const n = oc.createBiquadFilter(); n.type = type; n.frequency.value = f; if (q) n.Q.value = q; return n; };
@@ -5603,7 +5603,7 @@ function vozAttach(form, ta) {   // põe o botão 🎤 no campo de mensagem: gra
     form.classList.add('vrec'); bar.textContent = '';
     const dot = el('span', 'vdot'), tm = el('span', 'vtime', '0:00'), lv = el('div', 'vlv');
     for (let i = 0; i < 36; i++) lv.append(el('i'));
-    const del = mk('🗑', end, 'sec'), stp = mk('⏹', () => { if (s.rec.state !== 'inactive') s.rec.stop(); }, '');
+    const del = mk('🗑', end, 'sec'), stp = mk('⏹', () => { stp.disabled = true; setTimeout(() => { if (s.rec.state !== 'inactive') s.rec.stop(); }, 250); }, '');   // 0,25 s de folga para não cortar a última palavra
     const pz = mk('⏸', () => {   // pausar / continuar a gravação
       if (s.rec.state === 'recording') { s.acc += Date.now() - s.seg; s.paused = true; s.rec.pause(); pz.textContent = '▶'; dot.classList.add('pz'); }
       else if (s.rec.state === 'paused') { s.seg = Date.now(); s.paused = false; s.rec.resume(); pz.textContent = '⏸'; dot.classList.remove('pz'); }
