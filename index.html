@@ -310,6 +310,31 @@
   .pc-banner img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.04); transition: opacity .6s ease, transform .9s cubic-bezier(.2,.8,.2,1); }
   .pc-banner img.in { opacity: 1; transform: none; }
   .pc-body { display: grid; gap: 4px; padding: 0 20px 22px; }
+  /* tema do cartão */
+  #cardBody.pc-themed { --pa: #8b9bff; border-radius: inherit; background: radial-gradient(130% 55% at 50% 0%, color-mix(in srgb, var(--pa) 30%, #0a0c1a), #070812 72%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pa) 45%, transparent), inset 0 0 40px color-mix(in srgb, var(--pa) 14%, transparent); }
+  .pc-full .pc-banner { aspect-ratio: 2 / 1; -webkit-mask-image: linear-gradient(#000 58%, transparent); mask-image: linear-gradient(#000 58%, transparent); }
+  .pc-full .pc-body { margin-top: -26%; } .pc-full .pc-body .av { margin-top: 0; }
+  .pc-themed .pc-body .av { border-color: var(--pa); box-shadow: 0 0 0 2px #0009, 0 0 16px var(--pa); }
+  .pc-themed .pc-body .av.pc-ring-pulse { animation: pcRing 2.2s ease-in-out infinite; }
+  @keyframes pcRing { 50% { box-shadow: 0 0 0 2px #0009, 0 0 30px 4px var(--pa); } }
+  .pc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .pc-chipx { display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border: 1px solid color-mix(in srgb, var(--pa, #8b9bff) 60%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--pa, #8b9bff) 14%, rgba(0,0,0,.45)); font-size: .78rem; font-weight: 700; }
+  .pc-panel { position: relative; margin-top: 10px; padding: 12px 14px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--pa, #8b9bff) 38%, transparent); border-radius: 14px; background: rgba(8, 10, 22, .62); }
+  .pc-panel h4 { margin: 0 0 6px; color: var(--pa, #8b9bff); font-size: .86rem; letter-spacing: .01em; }
+  .pc-about .pc-bio { margin: 0; position: relative; z-index: 1; padding-right: 54px; }
+  .pc-deco { position: absolute; right: 10px; bottom: 4px; font-size: 3rem; line-height: 1; opacity: .4; filter: drop-shadow(0 0 10px var(--pa)); pointer-events: none; }
+  .pc-stats { display: flex; justify-content: space-around; gap: 10px; flex-wrap: wrap; }
+  .pc-stat { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; } .pc-stat .pc-si { grid-row: span 2; font-size: 1.3rem; } .pc-stat small { font-size: .7rem; } .pc-stat b { font-size: .86rem; }
+  .pc-achs { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pc-ach { display: grid; place-items: center; width: 44px; height: 44px; border: 2px solid var(--pa, #8b9bff); border-radius: 14px; background: color-mix(in srgb, var(--pa, #8b9bff) 16%, #05060f); box-shadow: 0 0 10px color-mix(in srgb, var(--pa, #8b9bff) 55%, transparent); font-size: 1.35rem; }
+  .pc-act { display: flex; align-items: center; gap: 10px; }
+  .pc-actile { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 10px; background: color-mix(in srgb, var(--pa, #8b9bff) 30%, #05060f); font-size: 1.5rem; flex: none; }
+  .pc-actmid { display: grid; min-width: 0; } .pc-actmid b { font-size: .92rem; } .pc-actmid small { font-size: .74rem; }
+  .pc-actq { margin-left: auto; padding: 6px 12px; border: 1px solid color-mix(in srgb, var(--pa, #8b9bff) 45%, transparent); border-radius: 999px; font-size: .76rem; font-style: italic; text-align: right; }
+  .pc-mock { display: grid; gap: 4px; padding: 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--pa, #8b9bff) 45%, transparent); background: radial-gradient(130% 80% at 50% 0%, color-mix(in srgb, var(--pa, #8b9bff) 28%, #0a0c1a), #070812 75%); }
+  .pc-mock .pc-panel { margin-top: 6px; }
+  .nsed .ns-ctl input:not([type=color]) { flex: 1 1 90px; min-width: 0; }
+  @media (prefers-reduced-motion: reduce) { .pc-themed .pc-body .av.pc-ring-pulse { animation: none; } }
   .pc-body .av { --s: 84px; margin-top: -42px; border: 4px solid var(--card-solid); }
   .pc-body h3 { margin: 8px 0 0; font: 800 1.3rem/1.15 'Manrope', sans-serif; letter-spacing: -.03em; overflow-wrap: anywhere; }
   .pc-bio { margin: 8px 0 0; color: #d7def0; font-size: .92rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -1155,6 +1180,7 @@ async function sendHello(c) {
       const pr = window.Acc && Acc.myProfile && Acc.myProfile();   // decorações e estilo do nome vão junto: o convidado sem conta não consegue lê-los no servidor
       if (pr && pr.pfx) hello.fx = String(pr.pfx).slice(0, 60);
       if (pr && pr.ns) hello.ns = { font: pr.ns.font || '', color: pr.ns.color || '', color2: pr.ns.color2 || '', fx: pr.ns.fx || '' };
+      if (pr && pr.tag) hello.tag = pr.tag;
       console.info('[NetShare] enviei no hello:', { fx: hello.fx || null, ns: hello.ns || null, perfil: !!pr });
     }
     c.send(hello);
@@ -1254,7 +1280,7 @@ async function onHello(c, d) {
                      cid, slot: cleanNum(d.slot, 0, MAX_SLOTS), since: performance.now() - theirs, mic: !!d.mic, deaf: !!d.deaf });
   }
   console.info('[NetShare] hello recebido de', name, { sid: typeof d.sid === 'string', fx: d.fx || null, ns: d.ns || null, ver: d.ver });
-  if (window.Acc && typeof d.sid === 'string') Acc.verify(id, d.sid, { fx: typeof d.fx === 'string' ? d.fx.slice(0, 60) : '', ns: d.ns && typeof d.ns === 'object' ? d.ns : null });
+  if (window.Acc && typeof d.sid === 'string') Acc.verify(id, d.sid, { fx: typeof d.fx === 'string' ? d.fx.slice(0, 60) : '', ns: d.ns && typeof d.ns === 'object' ? d.ns : null, tag: d.tag && typeof d.tag === 'object' ? d.tag : null });
   const cur = conns.get(id);
   if (cur !== c && !(cur && cur.open && cur.verified)) {
     if (cur) addSpare(id, cur);
@@ -2410,15 +2436,88 @@ const okHex = c => (typeof c === 'string' && HEX.test(c)) ? c.toLowerCase() : ''
 const clean = s => { s = s || {}; return { font: FONTS[s.font] ? s.font : '', color: okHex(s.color), color2: okHex(s.color2), fx: FX.includes(s.fx) ? s.fx : '' }; };
 const ULOW = /^[a-z0-9_]{3,20}$/;
 
+/* ===== Pronome / tag na frente do nome ===== */
+const TAGPATH = /^[0-9a-f-]{36}\/[A-Za-z0-9._-]{1,80}$/;
+const TG_BG = ['solid', 'gradient', 'glass'], TG_BD = ['solid', 'dashed', 'neon', 'rainbow'], TG_SHAPE = ['round', 'square'], TG_SIZE = ['sm', 'lg'], TG_ANIM = ['pulse', 'float', 'blink', 'shake', 'glow'];
+const tgTxt = (v, n) => [...(typeof v === 'string' ? v : '').replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, '').trim()].slice(0, n).join('');
+function cleanTag(t, keepEmpty) {
+  if (typeof t === 'string') { try { t = JSON.parse(t); } catch (e) { t = null; } }
+  if (!t || typeof t !== 'object') return keepEmpty ? cleanTag({}, false) || emptyTag() : null;
+  const st = clean({ font: t.font, color: t.color, color2: t.color2, fx: t.fx });
+  const o = {
+    t: tgTxt(t.t, 14), emo: tgTxt(t.emo, 8), dl: tgTxt(t.dl, 8), dr: tgTxt(t.dr, 8),
+    img: TAGPATH.test(t.img || '') ? t.img : '',
+    font: st.font, color: st.color, color2: st.color2, fx: st.fx,
+    bg: TG_BG.includes(t.bg) ? t.bg : '', bgc: okHex(t.bgc), bgc2: okHex(t.bgc2),
+    bd: TG_BD.includes(t.bd) ? t.bd : '', bdc: okHex(t.bdc),
+    shape: TG_SHAPE.includes(t.shape) ? t.shape : '', sz: TG_SIZE.includes(t.sz) ? t.sz : '', an: TG_ANIM.includes(t.an) ? t.an : ''
+  };
+  if (keepEmpty) return o;
+  if (!(o.t || o.img || o.emo)) return null;
+  Object.keys(o).forEach(k => { if (!o[k]) delete o[k]; });   // guarda só o que foi escolhido
+  return o;
+}
+function emptyTag() { return { t: '', emo: '', dl: '', dr: '', img: '', font: '', color: '', color2: '', fx: '', bg: '', bgc: '', bgc2: '', bd: '', bdc: '', shape: '', sz: '', an: '' }; }
+const ANIMS = { pulse: 'nsTgPulse 1.6s ease-in-out infinite', float: 'nsTgFloat 2.2s ease-in-out infinite', blink: 'nsTgBlink 1.4s ease-in-out infinite', shake: 'nsTgShake .9s ease-in-out infinite', glow: 'nsTgGlow 1.8s ease-in-out infinite' };
+
+/* monta o elemento da tag (tudo por DOM + valores validados: nada de HTML solto) */
+function buildTag(tag, imgOverride) {
+  const g = cleanTag(tag); if (!g) return null;
+  const root = document.createElement('span'); root.className = 'ns-tag';
+  if (g.shape) root.classList.add('ns-tg-' + g.shape);
+  if (g.sz) root.classList.add('ns-tgs-' + g.sz);
+  const S = root.style, anims = [];
+  let pad = '';
+  if (g.bg === 'solid') { const c = g.bgc || '#2b3270'; pad = 'linear-gradient(' + c + ',' + c + ')'; }
+  else if (g.bg === 'gradient') { const c1 = g.bgc || '#6c7cff', c2 = g.bgc2 || shift(c1, 50); pad = 'linear-gradient(90deg,' + c1 + ',' + c2 + ')'; }
+  else if (g.bg === 'glass') pad = 'linear-gradient(rgba(255,255,255,.16),rgba(255,255,255,.16))';
+  const bc = g.bdc || '#8b9bff';
+  if (g.bd === 'rainbow') {
+    S.border = '1.5px solid transparent';
+    S.backgroundImage = (pad || 'linear-gradient(#12172c,#12172c)') + ', linear-gradient(90deg,#ff5c7a,#ffd166,#5cff9d,#5cc8ff,#a77bff,#ff5c7a)';
+    S.backgroundOrigin = 'padding-box, border-box'; S.backgroundClip = 'padding-box, border-box'; S.backgroundSize = '100% 100%, 300% 100%';
+    anims.push('nsTgRb 4s linear infinite');
+  } else {
+    if (pad) S.backgroundImage = pad;
+    if (g.bd === 'solid') S.border = '1px solid ' + bc;
+    else if (g.bd === 'dashed') S.border = '1px dashed ' + bc;
+    else if (g.bd === 'neon') { S.border = '1px solid ' + bc; S.boxShadow = '0 0 5px ' + bc + ', 0 0 12px ' + bc + '88, inset 0 0 5px ' + bc + '66'; }
+  }
+  if (pad || g.bd) root.classList.add('ns-tg-box');
+  if (g.an && ANIMS[g.an]) anims.push(ANIMS[g.an]);
+  if (anims.length) S.animation = anims.join(', ');
+  if (g.dl) { const d = document.createElement('span'); d.className = 'ns-tg-d'; d.textContent = g.dl; root.append(d); }
+  const url = imgOverride !== undefined ? imgOverride : (g.img && window.Acc && Acc.imgUrl ? Acc.imgUrl('avatars', g.img) : null);
+  if (g.img && url) {
+    const im = new Image(); im.className = 'ns-tg-img'; im.alt = ''; im.decoding = 'async'; im.referrerPolicy = 'no-referrer';
+    im.onerror = () => im.remove(); im.src = url; root.append(im);
+  }
+  if (g.emo) { const e = document.createElement('span'); e.className = 'ns-tg-e'; e.textContent = g.emo; root.append(e); }
+  if (g.t) { const tt = document.createElement('span'); tt.className = 'ns-tt'; tt.textContent = g.t; style(tt, { font: g.font, color: g.color, color2: g.color2, fx: g.fx }, ''); root.append(tt); }
+  if (g.dr) { const d = document.createElement('span'); d.className = 'ns-tg-d'; d.textContent = g.dr; root.append(d); }
+  return root;
+}
+function decorate(node, tag) {
+  const sig = tag ? JSON.stringify(tag) : '';
+  const kids = [...node.children].filter(c => c.classList && c.classList.contains('ns-tag'));
+  if (node._nsg === sig && !!kids.length === !!sig) return;      // nada mudou: não refaz (evita piscar/reiniciar GIF)
+  kids.forEach(c => c.remove());
+  node._nsg = sig;
+  if (!tag) return;
+  const el = buildTag(tag); if (el) node.insertBefore(el, node.firstChild);
+}
+
 const L = {
   pt: { title: 'Estilo do nome', hint: 'Escolha fonte, cor e efeito do seu nome. Ele aparece assim no chat, na lista de membros e nas chamadas.',
         sample: 'Seu nome', font: 'Fonte', def: 'Padrão', fx: 'Efeito', fxNone: 'Sólido', fxGradient: 'Degradê', fxShimmer: 'Brilhante', fxGlow: 'Brilho', fxNeon: 'Neon',
         c1: 'Cor', c2: 'Segunda cor', none: 'Sem cor', themes: 'Temas prontos', reset: 'Restaurar padrão',
-        needV10: 'Seu perfil foi salvo, mas o estilo do nome só funciona depois de rodar a migração SQL v10 no Supabase.' },
+        needV10: 'Seu perfil foi salvo, mas o estilo do nome só funciona depois de rodar a migração SQL v10 no Supabase.',
+        needV37: 'O resto do perfil foi salvo, mas o pronome (tag) só funciona depois de rodar a migração SQL v37 no Supabase (arquivo migracao_v37_pronome.sql).' },
   en: { title: 'Name style', hint: 'Pick a font, color and effect for your name. It shows up in chat, the member list and calls.',
         sample: 'Your name', font: 'Font', def: 'Default', fx: 'Effect', fxNone: 'Solid', fxGradient: 'Gradient', fxShimmer: 'Shimmer', fxGlow: 'Glow', fxNeon: 'Neon',
         c1: 'Color', c2: 'Second color', none: 'No color', themes: 'Ready-made themes', reset: 'Reset to default',
-        needV10: 'Your profile was saved, but the name style only works after you run the v10 SQL migration in Supabase.' }
+        needV10: 'Your profile was saved, but the name style only works after you run the v10 SQL migration in Supabase.',
+        needV37: 'The rest of your profile was saved, but the pronoun tag only works after you run the v37 SQL migration in Supabase (migracao_v37_pronome.sql).' }
 };
 const tr = k => { const d = L[(typeof lang !== 'undefined' && String(lang).startsWith('en')) ? 'en' : 'pt']; return d[k] ?? L.pt[k] ?? k; };
 
@@ -2484,12 +2583,12 @@ function style(node, s, fb) {
 }
 
 /* ----- estilos de outras pessoas (busca em lote, com cache) ----- */
-const cache = new Map(), pend = new Set(); let timer = 0;
+const cache = new Map(), pend = new Set(); let timer = 0, noTagFn = false;
 const TTL = 120000;
 function want(u) {
   const e = cache.get(u), now = Date.now();
   if (e && (e.own || now - e.t < TTL)) return;
-  cache.set(u, { t: now, s: e ? e.s : null });
+  cache.set(u, { t: now, s: e ? e.s : null, g: e ? e.g : null });
   pend.add(u);
   if (!timer) timer = setTimeout(flush, 150);
 }
@@ -2499,19 +2598,30 @@ async function flush() {
   if (pend.size) timer = setTimeout(flush, 150);
   const sb = window.Acc && Acc.sb && Acc.sb();
   if (!names.length || !sb) return;
-  let rows = null;
+  let rows = null, trows = null;
   try { const { data, error } = await sb.rpc('ns_get_name_styles', { p_usernames: names }); if (!error) rows = data || []; } catch (e) {}
-  const now = Date.now(), by = new Map();
+  if (!noTagFn) {   // pronomes (migração v37); se a função não existir, para de perguntar
+    try {
+      const { data, error } = await sb.rpc('ns_get_name_tags', { p_usernames: names });
+      if (!error) trows = data || [];
+      else if (error.code === 'PGRST202' || /could not find the function|schema cache|does not exist/i.test(String(error.message || ''))) noTagFn = true;
+    } catch (e) {}
+  }
+  const now = Date.now(), by = new Map(), tby = new Map();
   (rows || []).forEach(r => by.set(String(r.username || '').toLowerCase(), clean({ font: r.name_font, color: r.name_color, color2: r.name_color2, fx: r.name_fx })));
+  (trows || []).forEach(r => tby.set(String(r.username || '').toLowerCase(), cleanTag(r.name_tag)));
   names.forEach(n => {
     const old = cache.get(n); if (old && old.own) return;
-    cache.set(n, { t: rows ? now : now - TTL + 60000, s: rows ? (by.get(n) || null) : (old ? old.s : null) });   // falhou: tenta de novo em ~1 min
+    cache.set(n, { t: (rows || trows) ? now : now - TTL + 60000,   // falhou: tenta de novo em ~1 min
+                   s: rows ? (by.get(n) || null) : (old ? old.s : null),
+                   g: trows ? (tby.get(n) || null) : (old ? old.g : null) });
   });
   paintAll();
 }
 function paint(node) {
   const e = cache.get(node.dataset.nsu || '');
   style(node, e && e.s, node.dataset.nsf || '');
+  decorate(node, e && e.g);
 }
 function paintAll() { document.querySelectorAll('[data-nsu]').forEach(paint); }
 function apply(node, username, fallback) {
@@ -2522,15 +2632,18 @@ function apply(node, username, fallback) {
   if (ULOW.test(u)) want(u);
   paint(node);
 }
-function setFor(username, s) {   // estilo de outra pessoa que chegou por outro caminho (ex.: cartão de perfil de um convidado)
+function setFor(username, s, tag) {   // estilo de outra pessoa que chegou por outro caminho (ex.: cartão de perfil de um convidado)
   const u = String(username || '').toLowerCase(); if (!ULOW.test(u)) return;
-  const c = clean(s); if (!c.font && !c.color && !c.fx) return;
-  cache.set(u, { own: true, t: Infinity, s: c });   // fixo: a busca em lote não apaga (convidado sem conta não consegue ler do servidor)
+  const c = clean(s), old = cache.get(u), none = !c.font && !c.color && !c.fx;
+  const g = tag === undefined ? (old ? old.g : null) : cleanTag(tag);
+  if (none && !g) return;
+  cache.set(u, { own: true, t: Infinity, s: (none && old) ? old.s : c, g: g || null });   // fixo: a busca em lote não apaga (convidado sem conta não consegue ler do servidor)
   paintAll();
 }
-function setMine(username, s) {
+function setMine(username, s, tag) {
   const u = String(username || '').toLowerCase(); if (!ULOW.test(u)) return;
-  cache.set(u, { own: true, t: Infinity, s: clean(s) });
+  const old = cache.get(u);
+  cache.set(u, { own: true, t: Infinity, s: clean(s), g: tag === undefined ? (old ? old.g : null) : cleanTag(tag) });
   paintAll();
 }
 
@@ -2612,7 +2725,137 @@ function editor(host, init, getName, onChange) {
   return { refresh, get: () => cur };
 }
 
-return { clean, apply, setMine, setFor, editor, style, tr, paintAll };
+/* ----- editor do pronome / tag (dentro do perfil) ----- */
+const TG_EMO = ['✨', '💫', '⭐', '🔥', '⚡', '👑', '🌸', '❄️', '💀', '🎀', '🌈', '💎', '🦋', '🌙', '💜', '🖤'];
+const TG_PRON = ['ele/dele', 'ela/dela', 'elu/delu', 'ele/ela', 'they/them', 'she/her', 'he/him', 'she/they', 'he/they'];
+const TG_PRESETS = [
+  [['Neon rosa', 'Pink neon'], { t: 'ela/dela', font: 'orbitron', color: '#ff2e93', fx: 'neon', bg: 'solid', bgc: '#2a0b1f', bd: 'neon', bdc: '#ff2e93', an: 'glow', dl: '✨' }],
+  [['Ouro real', 'Royal gold'], { t: 'ele/dele', font: 'cinzel', color: '#ffd166', color2: '#fff1b8', fx: 'shimmer', bg: 'gradient', bgc: '#3a2a05', bgc2: '#1c1402', bd: 'solid', bdc: '#ffd166', emo: '👑' }],
+  [['Gelo', 'Ice'], { t: 'elu/delu', color: '#bfe9ff', fx: 'glow', bg: 'glass', bd: 'neon', bdc: '#49d9ff', dl: '❄️', dr: '❄️' }],
+  [['Matrix', 'Matrix'], { t: 'they/them', font: 'pixel', color: '#2ecc71', fx: 'neon', bg: 'solid', bgc: '#04140a', bd: 'dashed', bdc: '#2ecc71', an: 'blink' }],
+  [['Arco-íris', 'Rainbow'], { t: 'ele/ela', color: '#ffffff', bg: 'solid', bgc: '#12172c', bd: 'rainbow', an: 'pulse', emo: '🌈' }],
+  [['Sakura', 'Sakura'], { t: 'ela/dela', font: 'pacifico', color: '#ffb7d5', color2: '#ff6fa5', fx: 'gradient', bg: 'glass', bd: 'solid', bdc: '#ff8fc7', dl: '🌸', shape: 'round' }]
+];
+function tagEditor(host, init, getName, getNs, onChange, opts) {
+  opts = opts || {}; host.textContent = '';
+  const en = () => typeof lang !== 'undefined' && String(lang).startsWith('en');
+  const X = (pt, e) => en() ? e : pt;
+  const MAX = opts.maxBytes || 1048576;
+  let cur = cleanTag(init, true), img = null;
+  const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+  const btn = (txt, fn, cls) => { const b = h('button', cls == null ? 'sec' : cls, txt); b.type = 'button'; b.onclick = fn; return b; };
+  const box = h('div', 'nsed');
+  box.append(h('strong', '', X('Pronome / tag na frente do nome', 'Pronoun / tag before your name')),
+             h('p', 'mut', X('Aparece antes do seu nome no chat, na lista de membros e nas chamadas. Pode ter texto, imagem pequena, GIF, emoji, cores, neon, borda e animação.',
+                             'Shows before your name in chat, the member list and calls. It can have text, a small image, GIF, emoji, colors, neon, border and animation.')));
+  const prev = h('div', 'ns-prev'); box.append(prev);
+  const group = (label, el2) => { const g = h('div', 'ns-grp'); g.append(h('span', 'mut', label), el2); box.append(g); return g; };
+  const groups = [];
+  const emit = () => {
+    cur = cleanTag(cur, true); refresh();
+    onChange({ tag: cur, file: img ? img.file : null, type: img ? img.type : null, url: img ? img.url : null });
+  };
+
+  // texto
+  const ti = h('input'); ti.maxLength = 14; ti.value = cur.t; ti.placeholder = X('ex.: ele/dele', 'e.g. she/her'); ti.autocomplete = 'off';
+  ti.oninput = () => { cur.t = ti.value; emit(); };
+  const pr = h('div', 'chips'); TG_PRON.forEach(p => pr.append(btn(p, () => { cur.t = p; ti.value = p; emit(); }, 'sec fch')));
+  const tw = h('div', 'ns-grp'); tw.append(ti, pr); group(X('Texto do pronome (até 14 letras)', 'Pronoun text (up to 14 chars)'), tw);
+
+  // temas
+  const themes = h('div', 'chips');
+  TG_PRESETS.forEach(([nm, p]) => themes.append(btn(nm[en() ? 1 : 0], () => {
+    cur = cleanTag({ ...p, t: cur.t || p.t, img: cur.img }, true); ti.value = cur.t; emit();
+  }, 'sec fch')));
+  group(X('Temas prontos', 'Ready-made themes'), themes);
+
+  // imagem / GIF
+  const fi = h('input'); fi.type = 'file'; fi.accept = 'image/png,image/jpeg,image/webp,image/gif'; fi.hidden = true;
+  const note = h('span', 'mut', '');
+  const say = m => { note.textContent = m || ''; };
+  fi.onchange = async () => {
+    const f = fi.files && fi.files[0]; fi.value = ''; if (!f) return;
+    if (f.size > MAX) return say(X('Imagem grande demais (máx. 1 MB).', 'Image too large (max 1 MB).'));
+    const type = opts.sniff ? await opts.sniff(f) : { mime: f.type, ext: 'png' };
+    if (!type) return say(X('Formato inválido. Use PNG, JPG, WEBP ou GIF.', 'Invalid format. Use PNG, JPG, WEBP or GIF.'));
+    if (img) URL.revokeObjectURL(img.url);
+    img = { file: f, type, url: URL.createObjectURL(f) }; say(''); emit();
+  };
+  const iw = h('div', 'ns-ctl');
+  iw.append(btn(X('Escolher imagem ou GIF', 'Choose image or GIF'), () => fi.click()),
+            btn(X('Remover imagem', 'Remove image'), () => { if (img) { URL.revokeObjectURL(img.url); img = null; } cur.img = ''; say(''); emit(); }), fi);
+  const iwrap = h('div', 'ns-grp'); iwrap.append(iw, note); group(X('Imagem pequena / GIF (aparece antes do texto)', 'Small image / GIF (shows before the text)'), iwrap);
+
+  // grupos de botões ligados a uma chave
+  const chips = (label, key, list, cls) => {
+    const row = h('div', 'chips' + (cls ? ' ' + cls : '')), map = {};
+    list.forEach(([v, l, fn]) => { const b = btn(l, () => { cur[key] = v; if (fn) fn(); emit(); }, 'sec' + (cls ? ' fch' : '')); map[v] = b; row.append(b); });
+    const g = group(label, row); groups.push({ key, map }); return g;
+  };
+  const emoList = [['', X('Nenhum', 'None')], ...TG_EMO.map(e => [e, e])];
+  chips(X('Emoji antes do texto', 'Emoji before the text'), 'emo', emoList, 'emo');
+  chips(X('Decoração à esquerda', 'Left decoration'), 'dl', emoList, 'emo');
+  chips(X('Decoração à direita', 'Right decoration'), 'dr', emoList, 'emo');
+
+  // fonte
+  const fonts = h('div', 'chips'), fmap = {};
+  const addFont = (id, label) => { const b = btn(label, () => { cur.font = id; emit(); }, 'sec fch'); if (id) { ensureFont(id); style(b, { font: id }, ''); } fmap[id] = b; fonts.append(b); };
+  addFont('', tr('def')); Object.keys(FONTS).forEach(id => addFont(id, FONTS[id].n));
+  group(X('Fonte do texto', 'Text font'), fonts); groups.push({ key: 'font', map: fmap });
+
+  // efeito do texto
+  chips(X('Efeito do texto', 'Text effect'), 'fx', [['', tr('fxNone')], ['gradient', tr('fxGradient')], ['shimmer', tr('fxShimmer')], ['glow', tr('fxGlow')], ['neon', tr('fxNeon')]], '');
+  const rows = {};
+  const colorRow = (key, label) => {
+    const wrap = h('div', 'ns-grp'), sw = h('div', 'swatches'), ctl = h('div', 'ns-ctl');
+    PAL.forEach(c => { const b = btn('', () => { cur[key] = c; emit(); }, 'swatch'); b.style.setProperty('--c', c); b.dataset.c = c; b.title = c; sw.append(b); });
+    const ci = h('input'); ci.type = 'color'; ci.value = '#6c7cff'; ci.oninput = () => { cur[key] = ci.value; emit(); };
+    ctl.append(ci, btn(tr('none'), () => { cur[key] = ''; emit(); }));
+    wrap.append(h('span', 'mut', label), sw, ctl); box.append(wrap); rows[key] = { wrap, sw, ci };
+  };
+  colorRow('color', X('Cor do texto', 'Text color')); colorRow('color2', X('Segunda cor do texto', 'Second text color'));
+
+  // fundo
+  chips(X('Fundo', 'Background'), 'bg', [['', X('Sem fundo', 'None')], ['solid', X('Sólido', 'Solid')], ['gradient', tr('fxGradient')], ['glass', X('Vidro', 'Glass')]], '');
+  colorRow('bgc', X('Cor do fundo', 'Background color')); colorRow('bgc2', X('Segunda cor do fundo', 'Second background color'));
+
+  // borda
+  chips(X('Borda', 'Border'), 'bd', [['', X('Sem borda', 'None')], ['solid', X('Sólida', 'Solid')], ['dashed', X('Tracejada', 'Dashed')], ['neon', 'Neon'], ['rainbow', X('Arco-íris animado', 'Animated rainbow')]], '');
+  colorRow('bdc', X('Cor da borda', 'Border color'));
+
+  chips(X('Formato', 'Shape'), 'shape', [['', X('Pílula', 'Pill')], ['round', X('Arredondado', 'Rounded')], ['square', X('Reto', 'Square')]], '');
+  chips(X('Tamanho', 'Size'), 'sz', [['sm', X('Pequeno', 'Small')], ['', X('Normal', 'Normal')], ['lg', X('Grande', 'Large')]], '');
+  chips(X('Animação', 'Animation'), 'an', [['', X('Nenhuma', 'None')], ['pulse', X('Pulsar', 'Pulse')], ['float', X('Flutuar', 'Float')], ['blink', X('Piscar', 'Blink')], ['shake', X('Balançar', 'Shake')], ['glow', X('Brilho pulsante', 'Pulsing glow')]], '');
+
+  box.append(btn(X('Remover pronome', 'Remove pronoun'), () => { if (img) { URL.revokeObjectURL(img.url); img = null; } cur = emptyTag(); ti.value = ''; say(''); emit(); }));
+
+  function refresh() {
+    // corrige combinações que precisam de duas cores
+    if ((cur.fx === 'gradient' || cur.fx === 'shimmer')) { if (!cur.color) cur.color = '#ff5e62'; if (!cur.color2) cur.color2 = shift(cur.color, 50); }
+    else if ((cur.fx === 'glow' || cur.fx === 'neon') && !cur.color) cur.color = '#6c7cff';
+    prev.textContent = '';
+    const show = { ...cur }; let ov;
+    if (img) { show.img = '00000000-0000-0000-0000-000000000000/p'; ov = img.url; } else ov = undefined;
+    const tg = (show.t || show.emo || show.img) ? buildTag(show, ov) : null;
+    const nm = h('span', 'ns-pn', String(getName() || '').trim() || tr('sample'));
+    style(nm, getNs ? getNs() : null, '');
+    if (tg) prev.append(tg); else prev.append(h('span', 'mut', X('(sem pronome) ', '(no pronoun) ')));
+    prev.append(nm);
+    groups.forEach(g => Object.keys(g.map).forEach(v => g.map[v].classList.toggle('on', (cur[g.key] || '') === v)));
+    Object.keys(rows).forEach(k => {
+      rows[k].sw.querySelectorAll('.swatch').forEach(b => b.classList.toggle('on', b.dataset.c === cur[k]));
+      if (cur[k]) rows[k].ci.value = cur[k];
+    });
+    rows.color2.wrap.classList.toggle('hidden', !(cur.fx === 'gradient' || cur.fx === 'shimmer'));
+    rows.bgc.wrap.classList.toggle('hidden', !cur.bg || cur.bg === 'glass');
+    rows.bgc2.wrap.classList.toggle('hidden', cur.bg !== 'gradient');
+    rows.bdc.wrap.classList.toggle('hidden', !cur.bd || cur.bd === 'rainbow');
+  }
+  host.append(box); refresh();
+  return { refresh, get: () => ({ tag: cur, file: img ? img.file : null, type: img ? img.type : null, url: img ? img.url : null }) };
+}
+
+return { clean, cleanTag, buildTag, apply, setMine, setFor, editor, tagEditor, style, tr, paintAll };
 })();
 </script>
 <style>
@@ -2932,8 +3175,153 @@ window.Acc = (() => {
       avatar_path: PATH_RE.test(r.avatar_path || '') ? r.avatar_path : null,
       banner_path: PATH_RE.test(r.banner_path || '') ? r.banner_path : null,
       ns: window.NS ? NS.clean({ font: r.name_font, color: r.name_color, color2: r.name_color2, fx: r.name_fx }) : null,
+      tag: window.NS ? NS.cleanTag(r.name_tag) : null,
       pfx: (window.PFX && r.profile_fx !== undefined) ? PFX.clean(r.profile_fx) : null   // null = não veio do servidor, buscar depois
     };
+  }
+
+  /* ---------- tema do cartão de perfil (cor neon, selos, idiomas, conquistas, atividade) ---------- */
+  const L3 = (pt, en, es) => { const l = typeof lang !== 'undefined' ? String(lang) : 'pt'; return l.startsWith('en') ? en : (l.startsWith('es') && es) ? es : pt; };
+  const HEX6 = /^#[0-9a-fA-F]{6}$/;
+  const cs = (v, n) => [...cleanStr(v, 200)].slice(0, n).join('');
+  function cleanCard(o) {
+    if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) { o = null; } }
+    if (!o || typeof o !== 'object') return null;
+    const pair = (a, n, tn) => (Array.isArray(a) ? a : []).slice(0, n).map(x => ({ e: cs(x && x.e, 8), t: cs(x && x.t, tn) })).filter(x => x.e || x.t);
+    const r = {
+      accent: HEX6.test(o.accent || '') ? o.accent.toLowerCase() : '', accent2: HEX6.test(o.accent2 || '') ? o.accent2.toLowerCase() : '',
+      full: o.full === true, ring: o.ring === 'glow' || o.ring === 'pulse' ? o.ring : '', deco: cs(o.deco, 8),
+      loc: cs(o.loc, 24), lvl: cs(o.lvl, 14),
+      badges: pair(o.badges, 4, 14), langs: pair(o.langs, 4, 12),
+      ach: (Array.isArray(o.ach) ? o.ach : []).slice(0, 6).map(x => cs(x, 8)).filter(Boolean),
+      act: null
+    };
+    if (o.act && typeof o.act === 'object') { const a = { e: cs(o.act.e, 8), t: cs(o.act.t, 22), s: cs(o.act.s, 26), q: cs(o.act.q, 44) }; if (a.e || a.t || a.s || a.q) r.act = a; }
+    const any = r.accent || r.full || r.ring || r.deco || r.loc || r.lvl || r.badges.length || r.langs.length || r.ach.length || r.act;
+    return any ? r : null;
+  }
+
+  function themeParts(th) {
+    const P = {}, panel = (title) => { const d = el('div', 'pc-panel'); if (title) d.append(el('h4', '', title)); return d; };
+    const chips = (list) => { const r = el('div', 'pc-chips'); list.forEach(b => r.append(el('span', 'pc-chipx', (b.e ? b.e + ' ' : '') + b.t))); return r; };
+    if (th.badges.length) P.badges = chips(th.badges);
+    if (th.langs.length) P.langs = chips(th.langs);
+    if (th.loc || th.lvl) {
+      const d = panel(''); d.classList.add('pc-stats');
+      const cell = (ico, lab, val) => { const c = el('div', 'pc-stat'); c.append(el('span', 'pc-si', ico), el('small', 'mut', lab), el('b', '', val)); return c; };
+      if (th.lvl) d.append(cell('📊', L3('Nível de atividade', 'Activity level', 'Nivel de actividad'), th.lvl));
+      if (th.loc) d.append(cell('📍', L3('Localização', 'Location', 'Ubicación'), th.loc));
+      P.stats = d;
+    }
+    if (th.ach.length) {
+      const d = panel('🏆 ' + L3('Conquistas', 'Achievements', 'Logros')), r = el('div', 'pc-achs');
+      th.ach.forEach(a => r.append(el('span', 'pc-ach', a))); d.append(r); P.ach = d;
+    }
+    if (th.act) {
+      const d = panel('🎮 ' + L3('Minhas atividades', 'My activities', 'Mis actividades')), r = el('div', 'pc-act');
+      const tile = el('span', 'pc-actile', th.act.e || '🎮'), mid = el('div', 'pc-actmid');
+      mid.append(el('b', '', th.act.t), el('small', 'mut', th.act.s));
+      r.append(tile, mid); if (th.act.q) r.append(el('span', 'pc-actq', '“' + th.act.q + '”'));
+      d.append(r); P.act = d;
+    }
+    return P;
+  }
+
+  function applyCardTheme(body, info, bio, cw, th) {
+    body.classList.add('pc-themed'); if (th.full) body.classList.add('pc-full');
+    body.style.setProperty('--pa', th.accent || '#8b9bff'); body.style.setProperty('--pa2', th.accent2 || th.accent || '#c9a6ff');
+    const av = info.querySelector('.av'); if (av && th.ring) av.classList.add('pc-ring-' + th.ring);
+    const P = themeParts(th);
+    const pan = el('div', 'pc-panel pc-about');
+    bio.before(pan);
+    pan.append(el('h4', '', '👤 ' + L3('Sobre mim', 'About me', 'Sobre mí')), bio);
+    if (th.deco) pan.append(el('span', 'pc-deco', th.deco));
+    [P.langs, P.badges].forEach(n => { if (n) pan.before(n); });
+    const after = [P.stats, P.ach, P.act].filter(Boolean); if (after.length) cw.after(...after);
+  }
+
+  async function loadCardTheme(p) {
+    const mine = !!(session && me && ((p.user_id && p.user_id === session.user.id) || (p.username && p.username === me.username)));
+    if (mine) return me.card || null;
+    if (!sb || (!p.user_id && !p.username)) return null;
+    try {
+      const { data, error } = await sb.rpc('ns_get_card_theme', { p_user: p.user_id || null, p_username: p.user_id ? null : String(p.username).toLowerCase() });
+      return error ? null : cleanCard(data);
+    } catch (e) { return null; }
+  }
+
+  /* editor do tema (dentro de Editar perfil) */
+  const CARD_PAL = ['#ff2a3a', '#ff9f43', '#ffd166', '#2ecc71', '#1abc9c', '#49d9ff', '#4d7cff', '#a77bff', '#ff6fa5', '#e8ecff'];
+  const CARD_PRESETS = [
+    ['Vermelho', { accent: '#ff2a3a', full: true, ring: 'glow', deco: '🩸', badges: [{ e: '🛡️', t: 'Nível 28' }, { e: '👑', t: 'VIP' }, { e: '⭐', t: 'Lenda' }], langs: [{ e: '🇦🇷', t: 'Español' }, { e: '🇧🇷', t: 'Português' }, { e: '🇯🇵', t: '日本語' }], ach: ['🔴', '🌀', '☁️', '👁️', '✴️', '🔥'], act: { e: '🎌', t: 'Anime', s: 'Ao vivo agora', q: 'Nunca desista.' } }],
+    ['Roxo lunar', { accent: '#a77bff', full: true, ring: 'pulse', deco: '🐱', badges: [{ e: '🛡️', t: 'Nível 22' }, { e: '👑', t: 'VIP' }, { e: '💜', t: 'Amiga' }], langs: [{ e: '🇧🇷', t: 'Português' }, { e: '🇺🇸', t: 'English' }], ach: ['🐱', '💜', '⭐', '🌙', '✨', '🎧'], act: { e: '🎵', t: 'Música', s: 'Ouvindo agora', q: 'A vida é melhor com música.' } }],
+    ['Rosa', { accent: '#ff6fa5', full: true, ring: 'glow', deco: '🐾', badges: [{ e: '👑', t: 'Nível 20' }, { e: '💖', t: 'Criativa' }], langs: [{ e: '🇧🇷', t: 'Português' }, { e: '🇯🇵', t: '日本語' }], ach: ['🐾', '💗', '⭐', '🎀', '👑'], act: { e: '🎮', t: 'Genshin Impact', s: 'Jogando agora', q: 'Acredite em você.' } }],
+    ['Azul', { accent: '#4d7cff', full: true, ring: 'glow', deco: '⛩️', badges: [{ e: '🛡️', t: 'Nível 25' }, { e: '👑', t: 'Elite' }, { e: '🧭', t: 'Explorador' }], langs: [{ e: '🇧🇷', t: 'Português' }, { e: '🇺🇸', t: 'English' }], ach: ['🌊', '❄️', '🌀', '✴️', '⭐'], act: { e: '⛏️', t: 'Minecraft', s: 'Jogando agora', q: 'Grandes sonhos, grandes aventuras.' } }],
+    ['Branco', { accent: '#e8ecff', full: true, ring: 'glow', deco: '∞', badges: [{ e: '🛡️', t: 'Nível 30' }, { e: '👑', t: 'Deus' }], langs: [{ e: '🇧🇷', t: 'Português' }, { e: '🇯🇵', t: '日本語' }], ach: ['♾️', '💠', '👑', '🌀', '🔵'], act: { e: '🔥', t: 'Free Fire', s: 'Jogando agora', q: 'Que comece o jogo.' } }],
+    ['Borboleta', { accent: '#b04dff', full: true, ring: 'pulse', deco: '🦋', badges: [{ e: '🛡️', t: 'Nível 27' }, { e: '⭐', t: 'Lenda' }], langs: [{ e: '🇧🇷', t: 'Português' }, { e: '🇺🇸', t: 'English' }], ach: ['🦋', '🌸', '✴️', '🌙', '👑', '💜'], act: { e: '🧱', t: 'Roblox', s: 'Jogando agora', q: 'Tudo é possível.' } }]
+  ];
+  function cardEditor(host, init, onChange) {
+    host.textContent = '';
+    const pad = (a, n) => { const r = (a || []).slice(0, n).map(x => (typeof x === 'string' ? x : { e: x.e || '', t: x.t || '' })); while (r.length < n) r.push(typeof (a || [])[0] === 'string' || n === 6 ? '' : { e: '', t: '' }); return r; };
+    const fromTh = th => { th = th || {}; return { accent: th.accent || '', accent2: th.accent2 || '', full: !!th.full, ring: th.ring || '', deco: th.deco || '', loc: th.loc || '', lvl: th.lvl || '', badges: pad(th.badges, 4).map(x => x || { e: '', t: '' }), langs: pad(th.langs, 4).map(x => x || { e: '', t: '' }), ach: pad(th.ach, 6).map(x => x || ''), act: { e: '', t: '', s: '', q: '', ...(th.act || {}) } }; };
+    let raw = fromTh(cleanCard(init));
+    const box = el('div', 'nsed');
+    box.append(el('strong', '', L3('Tema do cartão de perfil', 'Profile card theme', 'Tema de la tarjeta de perfil')),
+               el('p', 'mut', L3('Cor neon do cartão, selos, idiomas, conquistas e atividade — aparece quando alguém abre o seu perfil. O banner pode virar o fundo grande.', 'Neon color, badges, languages, achievements and activity — shown when someone opens your profile. The banner can become the big background.', 'Color neón, insignias, idiomas, logros y actividad al abrir tu perfil.')));
+    const prev = el('div', 'pc-mock'); box.append(prev);
+    const group = (label, node) => { const g = el('div', 'ns-grp'); g.append(el('span', 'mut', label), node); box.append(g); return g; };
+    const emit = () => { refresh(); onChange(cleanCard(raw)); };
+    const inp = (ph, max, get, set, w) => { const i = el('input'); i.maxLength = max; i.placeholder = ph; i.value = get(); i.autocomplete = 'off'; if (w) i.style.maxWidth = w; i.oninput = () => { set(i.value); emit(); }; return i; };
+    const row = (...n) => { const r = el('div', 'ns-ctl'); r.append(...n); return r; };
+    const mkBtn = (txt, fn, cls) => { const b = el('button', cls == null ? 'sec' : cls, txt); b.type = 'button'; b.onclick = fn; return b; };
+    const inputs = [];   // para repreencher ao aplicar um modelo
+
+    const pre = el('div', 'chips'); CARD_PRESETS.forEach(([n, p]) => pre.append(mkBtn(n, () => { raw = { ...fromTh(cleanCard({ ...p })), loc: raw.loc, lvl: raw.lvl }; fill(); emit(); }, 'sec fch')));
+    group(L3('Modelos prontos', 'Ready-made themes', 'Modelos'), pre);
+
+    const sw = el('div', 'swatches'); CARD_PAL.forEach(c => { const b = mkBtn('', () => { raw.accent = c; emit(); }, 'swatch'); b.style.setProperty('--c', c); b.dataset.c = c; sw.append(b); });
+    const ci = el('input'); ci.type = 'color'; ci.value = '#8b9bff'; ci.oninput = () => { raw.accent = ci.value; emit(); };
+    group(L3('Cor neon do cartão', 'Card neon color', 'Color neón'), el('div', 'ns-grp')).append(sw, row(ci, mkBtn(L3('Sem cor', 'No color', 'Sin color'), () => { raw.accent = ''; emit(); })));
+
+    const full = el('input'); full.type = 'checkbox'; full.onchange = () => { raw.full = full.checked; emit(); };
+    const fl = el('label', 'chk'); fl.append(full, el('span', '', L3('Usar o banner como fundo grande do cartão', 'Use the banner as a big card background', 'Usar el banner como fondo grande'))); box.append(fl);
+    const ringB = {}, ringRow = el('div', 'chips');
+    [['', L3('Sem brilho', 'None', 'Ninguno')], ['glow', L3('Anel neon', 'Neon ring', 'Anillo neón')], ['pulse', L3('Anel pulsando', 'Pulsing ring', 'Anillo pulsante')]].forEach(([v, l]) => { ringB[v] = mkBtn(l, () => { raw.ring = v; emit(); }); ringRow.append(ringB[v]); });
+    group(L3('Anel do avatar no cartão', 'Avatar ring on the card', 'Anillo del avatar'), ringRow);
+
+    const mkPairs = (label, key, n, ph1, ph2) => {
+      const wrap = el('div', 'ns-grp');
+      for (let i = 0; i < n; i++) { const a = inp('🙂', 8, () => raw[key][i].e, v => { raw[key][i].e = v; }, '64px'), b = inp(ph2, 14, () => raw[key][i].t, v => { raw[key][i].t = v; }); inputs.push([a, () => raw[key][i].e], [b, () => raw[key][i].t]); wrap.append(row(a, b)); }
+      group(label, wrap);
+    };
+    mkPairs(L3('Selos (emoji + texto), até 4', 'Badges (emoji + text), up to 4', 'Insignias'), 'badges', 4, '', L3('ex.: Nível 28, VIP', 'e.g. Level 28, VIP', 'ej.: Nivel 28'));
+    mkPairs(L3('Idiomas (bandeira + nome), até 4', 'Languages (flag + name), up to 4', 'Idiomas'), 'langs', 4, '', L3('ex.: Português', 'e.g. English', 'ej.: Español'));
+
+    const d1 = inp('🦋', 8, () => raw.deco, v => { raw.deco = v; }, '90px'); inputs.push([d1, () => raw.deco]);
+    group(L3('Decoração grande no "Sobre mim" (um emoji)', 'Big decoration on "About me" (one emoji)', 'Decoración en "Sobre mí"'), d1);
+    const l1 = inp(L3('Muito alta', 'Very high', 'Muy alta'), 14, () => raw.lvl, v => { raw.lvl = v; }), l2 = inp(L3('ex.: Brasil', 'e.g. Brazil', 'ej.: Argentina'), 24, () => raw.loc, v => { raw.loc = v; });
+    inputs.push([l1, () => raw.lvl], [l2, () => raw.loc]);
+    group(L3('Nível de atividade e localização', 'Activity level and location', 'Nivel de actividad y ubicación'), row(l1, l2));
+    const ach = el('div', 'ns-ctl'); for (let i = 0; i < 6; i++) { const a = inp('🏆', 8, () => raw.ach[i], v => { raw.ach[i] = v; }, '64px'); inputs.push([a, () => raw.ach[i]]); ach.append(a); }
+    group(L3('Conquistas (até 6 emojis)', 'Achievements (up to 6 emojis)', 'Logros (hasta 6)'), ach);
+    const a1 = inp('🎮', 8, () => raw.act.e, v => { raw.act.e = v; }, '64px'), a2 = inp(L3('Título (ex.: Minecraft)', 'Title (e.g. Minecraft)', 'Título'), 22, () => raw.act.t, v => { raw.act.t = v; });
+    const a3 = inp(L3('Status (ex.: Jogando agora)', 'Status (e.g. Playing now)', 'Estado'), 26, () => raw.act.s, v => { raw.act.s = v; }), a4 = inp(L3('Frase', 'Quote', 'Frase'), 44, () => raw.act.q, v => { raw.act.q = v; });
+    inputs.push([a1, () => raw.act.e], [a2, () => raw.act.t], [a3, () => raw.act.s], [a4, () => raw.act.q]);
+    const aw = el('div', 'ns-grp'); aw.append(row(a1, a2), a3, a4); group(L3('Atividade em destaque', 'Featured activity', 'Actividad'), aw);
+    box.append(mkBtn(L3('Limpar tema do cartão', 'Clear card theme', 'Limpiar tema'), () => { raw = fromTh(null); fill(); emit(); }));
+
+    function fill() { inputs.forEach(([i, g]) => { i.value = g(); }); full.checked = raw.full; }
+    function refresh() {
+      prev.textContent = ''; const th = cleanCard(raw);
+      prev.style.setProperty('--pa', raw.accent || '#8b9bff');
+      prev.className = 'pc-mock' + (th && th.full ? ' full' : '');
+      prev.append(el('span', 'mut', L3('Prévia (o banner e o avatar aparecem no cartão real)', 'Preview (banner and avatar show on the real card)', 'Vista previa')));
+      if (th) { const P = themeParts(th); [P.badges, P.langs, P.stats, P.ach, P.act].forEach(n => { if (n) prev.append(n); }); }
+      Object.keys(ringB).forEach(v => ringB[v].classList.toggle('on', raw.ring === v));
+      sw.querySelectorAll('.swatch').forEach(b => b.classList.toggle('on', b.dataset.c === raw.accent));
+      if (raw.accent) ci.value = raw.accent;
+    }
+    host.append(box); fill(); refresh();
   }
 
   function avatar(p, size, forceUrl) {
@@ -3000,8 +3388,11 @@ window.Acc = (() => {
     if (!session) { me = null; return; }
     try {
       let { data, error } = await sb.from('profiles')
-        .select('username,display_name,bio,avatar_path,banner_path,name_font,name_color,name_color2,name_fx,profile_fx')
+        .select('username,display_name,bio,avatar_path,banner_path,name_font,name_color,name_color2,name_fx,profile_fx,name_tag')
         .eq('id', session.user.id).maybeSingle();
+      if (error) ({ data, error } = await sb.from('profiles')                       // coluna name_tag ainda não existe (v37)
+        .select('username,display_name,bio,avatar_path,banner_path,name_font,name_color,name_color2,name_fx,profile_fx')
+        .eq('id', session.user.id).maybeSingle());
       if (error) ({ data, error } = await sb.from('profiles')                       // coluna profile_fx ainda não existe
         .select('username,display_name,bio,avatar_path,banner_path,name_font,name_color,name_color2,name_fx')
         .eq('id', session.user.id).maybeSingle());
@@ -3009,6 +3400,7 @@ window.Acc = (() => {
         .select('username,display_name,bio,avatar_path,banner_path')
         .eq('id', session.user.id).maybeSingle());
       me = error ? null : cleanProfile(data);
+      if (me) { try { const r = await sb.from('profiles').select('card_theme').eq('id', session.user.id).maybeSingle(); me.card = r.error ? null : cleanCard(r.data && r.data.card_theme); } catch (e) { me.card = null; } }
     } catch (e) { me = null; }
   }
 
@@ -3022,7 +3414,7 @@ window.Acc = (() => {
       const who = el('div', 'acc-who');
       const t = el('div', 'acc-txt');
       const nmS = el('strong', '', me.display_name);
-      if (window.NS) { NS.setMine(me.username, me.ns); NS.apply(nmS, me.username); }
+      if (window.NS) { NS.setMine(me.username, me.ns, me.tag); NS.apply(nmS, me.username); }
       t.append(nmS, el('span', 'mut', me.username ? '@' + me.username : ''));
       who.append(avatar(me, 40), t);
       who.style.cursor = 'pointer'; who.tabIndex = 0; who.setAttribute('role', 'button');
@@ -3199,10 +3591,11 @@ window.Acc = (() => {
   }
 
   /* ---------- editor de perfil ---------- */
-  function newPend() { return { avatar: null, banner: null, rmAvatar: false, rmBanner: false, ns: null }; }
+  function newPend() { return { avatar: null, banner: null, rmAvatar: false, rmBanner: false, ns: null, tag: null, card: null }; }
   function dropPend() {
     if (!pend) return;
     ['avatar', 'banner'].forEach(k => { if (pend[k]) URL.revokeObjectURL(pend[k].url); });
+    if (pend.tag && pend.tag.url) URL.revokeObjectURL(pend.tag.url);
     pend = null;
   }
 
@@ -3266,7 +3659,7 @@ window.Acc = (() => {
     paintConns();
   }
 
-  let nsEd = null;
+  let nsEd = null, tagEd = null;
   function openProfile() {
     if (!me) return;
     dropPend(); pend = newPend();
@@ -3278,8 +3671,12 @@ window.Acc = (() => {
     paintPreview();
     if (window.NS) {
       let host = $('pfNS');
-      if (!host) { host = document.createElement('div'); host.id = 'pfNS'; $('pfName').closest('label').after(host); $('pfName').addEventListener('input', () => { if (nsEd) nsEd.refresh(); }); }
-      nsEd = NS.editor(host, me.ns, () => $('pfName').value, v => { if (pend) pend.ns = v; });
+      if (!host) { host = document.createElement('div'); host.id = 'pfNS'; $('pfName').closest('label').after(host); $('pfName').addEventListener('input', () => { if (nsEd) nsEd.refresh(); if (tagEd) tagEd.refresh(); }); }
+      nsEd = NS.editor(host, me.ns, () => $('pfName').value, v => { if (pend) { pend.ns = v; if (tagEd) tagEd.refresh(); } });
+      let th = $('pfTag'); if (!th) { th = document.createElement('div'); th.id = 'pfTag'; host.after(th); }
+      tagEd = NS.tagEditor(th, me.tag, () => $('pfName').value, () => (nsEd ? nsEd.get() : null), v => { if (pend) pend.tag = v; }, { sniff, maxBytes: 1048576 });
+      let ch = $('pfCard'); if (!ch) { ch = document.createElement('div'); ch.id = 'pfCard'; $('pfTag').after(ch); }
+      cardEditor(ch, me.card, v => { if (pend) pend.card = { v }; });
     }
     if (window.PFX) {
       let fh = $('pfFX'); if (!fh) { fh = document.createElement('div'); fh.id = 'pfFX'; $('pfConns').before(fh); }
@@ -3346,7 +3743,7 @@ window.Acc = (() => {
     msgTo('pfMsg', 'pfSaving', '');
     const uid = session.user.id;
     const uploaded = [], toDelete = [];
-    let nsMissing = false, connMissing = false, pfxMissing = false;
+    let nsMissing = false, connMissing = false, pfxMissing = false, tagMissing = '', cardMissing = '';
     try {
       // conexões primeiro: se falhar, ainda não subiu nenhuma imagem
       if (connState.loaded && JSON.stringify(connState.cur) !== JSON.stringify(connState.orig)) {
@@ -3380,12 +3777,29 @@ window.Acc = (() => {
       }
       if (error) throw error;
       if (pend.pfx != null) { const r2 = await sb.from('profiles').update({ profile_fx: pend.pfx || null }).eq('id', uid); if (r2.error) pfxMissing = r2.error.message || 'erro'; }
+      if (pend.tag) {   // pronome / tag (imagem vai para o bucket avatars, na pasta da própria conta)
+        const st = pend.tag, oldImg = (me.tag && me.tag.img) || '';
+        let newImg = st.tag.img || '', upPath = null;
+        if (st.file) {
+          upPath = uid + '/tag-' + Date.now() + '-' + rndHex(4) + '.' + st.type.ext;
+          const { error: ue } = await sb.storage.from('avatars').upload(upPath, st.file, { contentType: st.type.mime, cacheControl: '31536000', upsert: false });
+          if (ue) throw Object.assign(new Error(ue.message), { upload: true });
+          uploaded.push(['avatars', upPath]); newImg = upPath;
+        }
+        const tg = NS.cleanTag({ ...st.tag, img: newImg });
+        const r3 = await sb.from('profiles').update({ name_tag: tg }).eq('id', uid);
+        if (r3.error) { tagMissing = r3.error.message || 'erro'; if (upPath) bg(sb.storage.from('avatars').remove([upPath])); }
+        else if (oldImg && oldImg !== ((tg && tg.img) || '')) toDelete.push(['avatars', oldImg]);
+      }
+      if (pend.card) { const r4 = await sb.from('profiles').update({ card_theme: pend.card.v }).eq('id', uid); if (r4.error) cardMissing = r4.error.message || 'erro'; }
       toDelete.forEach(([b, p]) => bg(sb.storage.from(b).remove([p])));
       await loadMe();
       paint();
       $('dlgProfile').close();
       if (nsMissing) alert(NS.tr('needV10'));
       if (pfxMissing) alert('Os efeitos não foram salvos (' + pfxMissing + '). O resto do perfil foi salvo.');
+      if (cardMissing) alert(/card_theme|column|schema cache|PGRST/i.test(cardMissing) ? 'O resto do perfil foi salvo, mas o tema do cartão só funciona depois de rodar a migração SQL v38 no Supabase (arquivo migracao_v38_tema_cartao.sql).' : cardMissing);
+      if (tagMissing) alert(/name_tag|column|schema cache|PGRST/i.test(tagMissing) ? NS.tr('needV37') : tagMissing);
       if (connMissing) alert(T('cnNeed'));
     } catch (err) {
       uploaded.forEach(([b, p]) => bg(sb.storage.from(b).remove([p])));
@@ -3639,10 +4053,13 @@ window.Acc = (() => {
     info.append(avatar(p, 84), h3);
     if (p.username) info.append(el('span', 'mut', '@' + p.username));
     const v = el('span', 'vf', '✓ ' + T('cardVerified'));
-    info.append(v, el('p', 'pc-bio', p.bio || T('cardNoBio')));
+    const bioEl = el('p', 'pc-bio', p.bio || T('cardNoBio'));
+    info.append(v, bioEl);
+    body.classList.remove('pc-themed', 'pc-full'); body.style.removeProperty('--pa'); body.style.removeProperty('--pa2');
     const since = el('p', 'mut pc-since hidden'), cw = el('div', 'pc-conns hidden');
     info.append(since, cw);
     fillExtras(p, info, since, cw);   // data de criação da conta e conexões (chegam logo depois)
+    loadCardTheme(p).then(th => { if (th && body.contains(info)) applyCardTheme(body, info, bioEl, cw, th); }).catch(() => {});   // tema do cartão (cor neon, selos, conquistas...)
     /* é o meu próprio cartão: edito o perfil aqui mesmo, sem voltar à página principal */
     const mine = !!(session && me && ((p.user_id && p.user_id === session.user.id) || (p.username && p.username === me.username)));
     if (!mine) { const vc = voiceCtl(p); if (vc) info.append(vc); }   // volume / silêncio só dessa pessoa (se ela está na minha call)
@@ -3731,7 +4148,8 @@ window.Acc = (() => {
         if (!prof.pfx && extra.fx && window.PFX) prof.pfx = PFX.clean(extra.fx);
         const nsEmpty = x => !x || (!x.font && !x.color && !x.fx);
         if (window.NS && nsEmpty(prof.ns) && extra.ns) prof.ns = NS.clean(extra.ns);
-        if (window.NS && prof.username && !nsEmpty(prof.ns)) NS.setFor(prof.username, prof.ns);
+        const hTag = window.NS && extra.tag ? NS.cleanTag(extra.tag) : null;
+        if (window.NS && prof.username && (!nsEmpty(prof.ns) || hTag)) NS.setFor(prof.username, prof.ns, hTag || undefined);
         p0.prof = prof;
         p0.name = prof.display_name;
         render();
@@ -3896,6 +4314,22 @@ applyLang();
   .mem-row.click:hover { background: var(--surface-hover); }
   /* estilo do nome */
   .ns-open { overflow: visible !important; text-overflow: clip !important; }
+  /* pronome / tag na frente do nome */
+  .ns-tag { display: inline-flex; align-items: center; gap: .3em; flex: none; vertical-align: .06em; margin-right: .5em; max-width: 16em; font: 700 .72em/1.25 'DM Sans', sans-serif; letter-spacing: 0; text-transform: none; font-style: normal; text-shadow: none; white-space: nowrap; color: #e8ecff; -webkit-text-fill-color: currentColor; border-radius: 999px; background-repeat: no-repeat; }
+  .ns-tag.ns-tg-box { padding: .08em .6em; }
+  .ns-tag.ns-tg-round { border-radius: .55em; } .ns-tag.ns-tg-square { border-radius: .12em; }
+  .ns-tag.ns-tgs-sm { font-size: .58em; } .ns-tag.ns-tgs-lg { font-size: .92em; }
+  .ns-tag .ns-tg-img { display: block; height: 1.3em; width: auto; max-width: 3.2em; object-fit: contain; border-radius: .2em; -webkit-text-fill-color: initial; }
+  .ns-tag .ns-tg-d, .ns-tag .ns-tg-e { line-height: 1; -webkit-text-fill-color: initial; }
+  @keyframes nsTgPulse { 50% { transform: scale(1.12); } }
+  @keyframes nsTgFloat { 50% { transform: translateY(-.14em); } }
+  @keyframes nsTgBlink { 50% { opacity: .35; } }
+  @keyframes nsTgShake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-4deg); } 75% { transform: rotate(4deg); } }
+  @keyframes nsTgGlow { 50% { filter: drop-shadow(0 0 .4em currentColor) brightness(1.3); } }
+  @keyframes nsTgRb { from { background-position: 0 0, 0 0; } to { background-position: 0 0, 300% 0; } }
+  @media (prefers-reduced-motion: reduce) { .ns-tag { animation: none !important; } }
+  .nsed .chips.emo button { min-width: 34px; padding: 3px 6px; }
+  .nsed input:not([type=color]):not([type=file]) { width: 100%; }
   .ns-pad { padding-block: .14em .24em; margin-block: -.14em -.24em; }
   .ns-shimmer { animation: nsShimmer 4s linear infinite; }
   @keyframes nsShimmer { from { background-position: 0% 0; } to { background-position: 200% 0; } }
@@ -5380,7 +5814,7 @@ async function delChan(c) {
 }
 
 /* ----- GIFs (Klipy): aba GIFs do seletor + GIF dentro da mensagem ----- */
-const KLIPY_KEY = '8TzPCXjFtkVhA9aK2etN0M02hfY7oKufJIdbC4f2XgfOYGgkhi3MDBchlK2AsZMy';   // <<< cole aqui a sua chave da API do Klipy (klipy.com/developers)
+const KLIPY_KEY = '';   // <<< cole aqui a sua chave da API do Klipy (klipy.com/developers)
 const GIF_FAV = 'ns-gif-fav', GIF_CID = 'ns-gif-cid';
 let pickMode = 'emoji';
 const gifPrevCache = new Map();
