@@ -4127,6 +4127,23 @@ applyLang();
   .mgfav { position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; min-width: 0; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: rgba(0, 0, 0, .6); box-shadow: none; color: #fff; font-size: 1rem; line-height: 1; opacity: 0; }
   .mgifw:hover .mgfav, .mgfav.on { opacity: 1; }
   @media (hover: none) { .mgfav { opacity: 1; } }
+
+  /* ---------- mensagens de áudio ---------- */
+  .vmic { font-size: 1.15rem; padding: 0 12px; }
+  form.vrec > :not(.vbar) { display: none !important; }
+  .vbar { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 12px; background: rgba(5, 9, 22, .65); }
+  .vbar button { min-width: 40px; min-height: 38px; padding: 0 10px; }
+  .vdot { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; background: var(--bad); animation: vpulse 1s infinite; }
+  .vdot.pz { animation: none; opacity: .4; }
+  @keyframes vpulse { 50% { opacity: .25; } }
+  .vtime { flex: 0 0 auto; min-width: 38px; font-size: .85rem; font-variant-numeric: tabular-nums; color: var(--mut); }
+  .vlv { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 2px; height: 30px; overflow: hidden; }
+  .vlv i { flex: 1 1 0; max-width: 4px; height: 8%; min-height: 3px; border-radius: 2px; background: var(--acc); }
+  .vseek { flex: 1 1 0; min-width: 0; height: 28px; padding: 0; border: 0; background: transparent; box-shadow: none; accent-color: var(--acc); }
+  .vmsg { display: flex; align-items: center; gap: 8px; width: min(320px, 100%); margin: 4px 0; padding: 6px 10px 6px 6px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+  .vmsg button { flex: 0 0 auto; min-width: 0; min-height: 0; width: 36px; height: 36px; padding: 0; border-radius: 50%; }
+  .vmsg .vspd { width: auto; padding: 0 9px; border-radius: 999px; font-size: .72rem; }
+  @media (max-width: 860px) { .vbar { gap: 6px; } .vbar button { min-width: 44px; min-height: 44px; } }
   .mgif { display: block; width: auto; max-width: min(320px, 100%); max-height: 300px; min-height: 60px; margin: 4px 0; border-radius: 10px; background: var(--surface); cursor: pointer; }
 
   #srvRail .sadmin { margin-top: auto; font-size: 1.2rem; }
@@ -5353,7 +5370,7 @@ async function delChan(c) {
 }
 
 /* ----- GIFs (Klipy): aba GIFs do seletor + GIF dentro da mensagem ----- */
-const KLIPY_KEY = '8TzPCXjFtkVhA9aK2etN0M02hfY7oKufJIdbC4f2XgfOYGgkhi3MDBchlK2AsZMy';   // <<< cole aqui a sua chave da API do Klipy (klipy.com/developers)
+const KLIPY_KEY = '';   // <<< cole aqui a sua chave da API do Klipy (klipy.com/developers)
 const GIF_FAV = 'ns-gif-fav', GIF_CID = 'ns-gif-cid';
 let pickMode = 'emoji';
 const gifPrevCache = new Map();
@@ -5469,6 +5486,120 @@ function gifPane(choose) {
   return { node, start() { if (!started) { started = true; home(); } if (matchMedia('(hover: hover)').matches) inp.focus({ preventScroll: true }); } };
 }
 
+/* ----- mensagens de áudio (estilo WhatsApp) ----- */
+const VOZ_RE = /^\[voz:([0-9a-f-]{36}\/[A-Za-z0-9._-]{1,80})\|(\d{1,3})\]$/, VOZ_MAX = 180;
+let vozStop = null;
+const vozFmt = n => { n = Math.max(0, Math.round(n || 0)); return Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0'); };
+function vozNode(path, secs) {   // player dentro da mensagem
+  const url = A().imgUrl('voice-messages', path), w = el('div', 'vmsg');
+  if (!url) { w.textContent = '🎤 ' + LL('Áudio indisponível', 'Audio unavailable'); return w; }
+  let au = null, rate = 1;
+  const pl = mk('▶', () => tog(), ''), rg = el('input', 'vseek'), tm = el('span', 'vtime', vozFmt(secs));
+  const sp = mk('1x', () => { rate = rate === 1 ? 1.5 : rate === 1.5 ? 2 : 1; sp.textContent = rate + 'x'; if (au) au.playbackRate = rate; }, 'vspd');
+  rg.type = 'range'; rg.min = 0; rg.max = 1000; rg.value = 0; pl.title = LL('Ouvir', 'Play'); sp.title = LL('Velocidade', 'Speed');
+  const dur = () => au && isFinite(au.duration) && au.duration > 0 ? au.duration : secs || 1;
+  const stop = () => { if (au) au.pause(); };
+  const get = () => {
+    if (au) return au; au = new Audio(); au.preload = 'none'; au.src = url; au.playbackRate = rate;
+    au.onplay = () => { pl.textContent = '⏸'; if (vozStop && vozStop !== stop) vozStop(); vozStop = stop; };
+    au.onpause = () => { pl.textContent = '▶'; };
+    au.onended = () => { au.currentTime = 0; rg.value = 0; tm.textContent = vozFmt(secs); pl.textContent = '▶'; };
+    au.ontimeupdate = () => { rg.value = Math.min(1000, au.currentTime / dur() * 1000); tm.textContent = vozFmt(au.currentTime); };
+    au.onerror = () => { pl.textContent = '▶'; toast(LL('Não foi possível tocar este áudio.', 'Could not play this audio.')); };
+    return au;
+  };
+  const tog = () => { const a = get(); if (a.paused) a.play().catch(() => {}); else a.pause(); };
+  rg.oninput = () => { const a = get(); try { a.currentTime = rg.value / 1000 * dur(); } catch (e) {} };
+  w.append(pl, rg, tm, sp); return w;
+}
+function vozSend(ta, form, tk) {
+  const d = ta.value.replace(/\s+$/, ''), v = (d ? d + '\n' : '') + tk;
+  if (v.length > (ta.maxLength > 0 ? ta.maxLength : 1000)) return toast(LL('Mensagem grande demais para anexar o áudio.', 'Message too long to attach the audio.'));
+  ta.value = v; ta.dispatchEvent(new Event('input')); form.requestSubmit();
+}
+function vozAttach(form, ta) {   // põe o botão 🎤 no campo de mensagem: gravar → ouvir → enviar
+  const mic = mk('🎤', () => start(), 'sec vmic'); mic.title = LL('Gravar áudio', 'Record audio');
+  const go = form.querySelector('button[type="submit"]'); if (go) form.insertBefore(mic, go); else form.append(mic);
+  const bar = el('div', 'vbar'); let st = null;
+  const vozEl = s => s.acc + (s.paused ? 0 : Date.now() - s.seg);   // tempo gravado, sem contar as pausas
+  const busy = on => bar.querySelectorAll('button').forEach((b, i) => { b.disabled = on && i > 0; });   // o 🗑 continua valendo durante o envio
+  function end() {
+    if (!st) return; const s = st; st = null; clearInterval(s.tk);
+    try { if (s.rec && s.rec.state !== 'inactive') { s.rec.onstop = null; s.rec.stop(); } } catch (e) {}
+    if (s.stream) s.stream.getTracks().forEach(t => t.stop());
+    if (s.ac) { try { s.ac.close(); } catch (e) {} }
+    if (s.au) s.au.pause(); if (s.url) URL.revokeObjectURL(s.url);
+    bar.remove(); form.classList.remove('vrec');
+  }
+  async function start() {
+    if (st || ta.disabled) return;
+    if (!navigator.mediaDevices || !window.MediaRecorder) return toast(LL('Este navegador não consegue gravar áudio.', 'This browser cannot record audio.'));
+    st = { wait: true }; let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+    catch (e) { st = null; return toast(LL('Não deu para usar o microfone. Libere a permissão no navegador.', 'Could not use the microphone. Allow access in the browser.')); }
+    const mime = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+    let rec; try { rec = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : { audioBitsPerSecond: 32000 }); }
+    catch (e) { stream.getTracks().forEach(t => t.stop()); st = null; return toast(LL('Este navegador não consegue gravar áudio.', 'This browser cannot record audio.')); }
+    const s = st = { stream, rec, chunks: [], t0: Date.now(), acc: 0, seg: Date.now(), paused: false, mime: rec.mimeType || mime || 'audio/webm', lv: [] };
+    rec.ondataavailable = e => { if (e.data && e.data.size) s.chunks.push(e.data); };
+    rec.onstop = () => done(s);
+    try { const ac = new (window.AudioContext || window.webkitAudioContext)(), an = ac.createAnalyser(); an.fftSize = 512; ac.createMediaStreamSource(stream).connect(an); s.ac = ac; s.an = an; } catch (e) {}
+    rec.start(250); paintRec(s);
+  }
+  function paintRec(s) {
+    form.classList.add('vrec'); bar.textContent = '';
+    const dot = el('span', 'vdot'), tm = el('span', 'vtime', '0:00'), lv = el('div', 'vlv');
+    for (let i = 0; i < 36; i++) lv.append(el('i'));
+    const del = mk('🗑', end, 'sec'), stp = mk('⏹', () => { if (s.rec.state !== 'inactive') s.rec.stop(); }, '');
+    const pz = mk('⏸', () => {   // pausar / continuar a gravação
+      if (s.rec.state === 'recording') { s.acc += Date.now() - s.seg; s.paused = true; s.rec.pause(); pz.textContent = '▶'; dot.classList.add('pz'); }
+      else if (s.rec.state === 'paused') { s.seg = Date.now(); s.paused = false; s.rec.resume(); pz.textContent = '⏸'; dot.classList.remove('pz'); }
+    }, '');
+    del.title = LL('Cancelar', 'Cancel'); stp.title = LL('Parar', 'Stop'); pz.title = LL('Pausar / continuar', 'Pause / resume');
+    bar.append(del, dot, tm, lv, pz, stp); form.append(bar);
+    const data = s.an ? new Uint8Array(s.an.fftSize) : null;
+    s.tk = setInterval(() => {
+      if (!form.isConnected) return end();
+      const sec = vozEl(s) / 1000; tm.textContent = vozFmt(sec);
+      let r = .2; if (data) { s.an.getByteTimeDomainData(data); let m = 0; for (const v of data) m = Math.max(m, Math.abs(v - 128)); r = Math.min(1, m / 60 + .08); }
+      if (!s.paused) { s.lv.push(r); if (s.lv.length > 36) s.lv.shift(); }
+      [...lv.children].forEach((b, i) => { const v = s.lv[s.lv.length - 36 + i]; b.style.height = Math.round((v == null ? .08 : v) * 100) + '%'; });
+      if (sec >= VOZ_MAX && s.rec.state !== 'inactive') s.rec.stop();
+    }, 90);
+  }
+  function done(s) {
+    if (st !== s) return; clearInterval(s.tk);
+    s.stream.getTracks().forEach(t => t.stop()); if (s.ac) { try { s.ac.close(); } catch (e) {} }
+    s.secs = Math.max(1, Math.round(vozEl(s) / 1000));
+    s.ext = /mp4/.test(s.mime) ? 'm4a' : /ogg/.test(s.mime) ? 'ogg' : 'webm';
+    s.base = s.ext === 'm4a' ? 'audio/mp4' : s.ext === 'ogg' ? 'audio/ogg' : 'audio/webm';
+    s.blob = new Blob(s.chunks, { type: s.base });
+    if (s.secs < 1 || s.blob.size < 600) { end(); return toast(LL('Áudio muito curto.', 'Audio too short.')); }
+    paintReview(s);
+  }
+  function paintReview(s) {   // ouvir antes de enviar
+    bar.textContent = ''; s.url = URL.createObjectURL(s.blob); const au = s.au = new Audio(s.url);
+    const del = mk('🗑', end, 'sec'), pl = mk('▶', () => { if (au.paused) au.play().catch(() => {}); else au.pause(); }, ''), rg = el('input', 'vseek');
+    const tm = el('span', 'vtime', vozFmt(s.secs)), ok = mk('➤', () => send(), '');
+    rg.type = 'range'; rg.min = 0; rg.max = 1000; rg.value = 0; del.title = LL('Descartar', 'Discard'); pl.title = LL('Ouvir antes de enviar', 'Listen before sending'); ok.title = LL('Enviar', 'Send');
+    const dur = () => isFinite(au.duration) && au.duration > 0 ? au.duration : s.secs;
+    au.onplay = () => { pl.textContent = '⏸'; }; au.onpause = () => { pl.textContent = '▶'; };
+    au.onended = () => { au.currentTime = 0; rg.value = 0; tm.textContent = vozFmt(s.secs); pl.textContent = '▶'; };
+    au.ontimeupdate = () => { rg.value = Math.min(1000, au.currentTime / dur() * 1000); tm.textContent = vozFmt(au.currentTime); };
+    rg.oninput = () => { try { au.currentTime = rg.value / 1000 * dur(); } catch (e) {} };
+    bar.append(del, pl, rg, tm, ok);
+    const send = async () => {
+      if (s.sending) return; s.sending = true; au.pause(); busy(true);
+      const { data: u } = await sb().auth.getUser(), id = u && u.user && u.user.id;
+      const path = id + '/' + Date.now() + '-' + rndHex(4) + '.' + s.ext;
+      const up = id ? await sb().storage.from('voice-messages').upload(path, s.blob, { contentType: s.base, cacheControl: '31536000', upsert: false }) : { error: { message: 'login' } };
+      if (st !== s) { if (!up.error) sb().storage.from('voice-messages').remove([path]); return; }   // cancelou durante o envio
+      if (up.error) { s.sending = false; busy(false); return toast(/not found|bucket/i.test(String(up.error.message)) ? LL('Falta rodar a migração SQL de áudio no Supabase.', 'The audio SQL migration still needs to be run in Supabase.') : String(up.error.message || up.error)); }
+      end(); vozSend(ta, form, '[voz:' + path + '|' + s.secs + ']');
+    };
+  }
+}
+
 /* ----- emojis: servidor, texto rico e seletor ----- */
 async function loadEmojis() {
   const s = cur; if (!s) return;
@@ -5546,6 +5677,7 @@ function mdInto(root, text) {
       i++; const pre = el('pre', 'mpre'); pre.append(el('code', '', buf.join('\n'))); root.append(pre); continue;
     }
     if (!ln.trim()) { endAll(); i++; continue; }
+    { const vm = VOZ_RE.exec(ln.trim()); if (vm) { endAll(); root.append(vozNode(vm[1], +vm[2])); i++; continue; } }   // áudio
     if (gifUrlOk(ln.trim())) { endAll(); root.append(gifNode(ln.trim())); i++; continue; }   // GIF do Klipy
     let m;
     if ((m = /^(#{1,3})\s+(.+)$/.exec(ln))) {    // títulos
@@ -5696,6 +5828,7 @@ function insertText(s) {
   try { i.setSelectionRange(a + s.length, a + s.length); } catch (e) {}
 }
 $('svEmoji').title = t('emojiBtn');
+vozAttach($('svForm'), $('svInput'));
 $('svEmoji').onclick = e => openPicker(e.currentTarget, p => insertText(p.c ? ':' + p.c.name + ': ' : p.u), false, u => gifSend($('svInput'), $('svForm'), u));
 
 /* ----- chat ----- */
@@ -7125,7 +7258,7 @@ async function dmOpen(p) {
   const callB = mk('📞', () => callStart(o), 'sec x'); callB.title = LL('Ligar', 'Call');
   head.append(avw, who, callB, mk('✕', dmClose, 'sec x'));
   ta.rows = 1; ta.maxLength = 1000; ta.placeholder = LL('Escreva uma mensagem', 'Write a message'); ta.autocomplete = 'off'; emo.title = LL('Emojis', 'Emojis'); go.type = 'submit';
-  f.append(emo, ta, go); d.append(head, list, f);
+  f.append(emo, ta, go); vozAttach(f, ta); d.append(head, list, f);
   const ins = t => {
     const a = ta.selectionStart == null ? ta.value.length : ta.selectionStart, e2 = ta.selectionEnd == null ? a : ta.selectionEnd, v = ta.value.slice(0, a) + t + ta.value.slice(e2);
     if (v.length > ta.maxLength) return; ta.value = v; ta.focus(); try { ta.setSelectionRange(a + t.length, a + t.length); } catch (e) {} fit();
@@ -7769,7 +7902,7 @@ async function grpOpen(id) {
     ta.placeholder = LL('Escreva uma mensagem', 'Write a message'); emo.title = LL('Emojis', 'Emojis');
   };
   ta.rows = 1; ta.maxLength = 1000; ta.autocomplete = 'off'; go.type = 'submit';
-  f.append(emo, ta, go); d.append(head, banner, list, f, sheet);
+  f.append(emo, ta, go); vozAttach(f, ta); d.append(head, banner, list, f, sheet);
   const ins = tx => {
     const a = ta.selectionStart == null ? ta.value.length : ta.selectionStart, e2 = ta.selectionEnd == null ? a : ta.selectionEnd, v = ta.value.slice(0, a) + tx + ta.value.slice(e2);
     if (v.length > ta.maxLength) return; ta.value = v; ta.focus(); try { ta.setSelectionRange(a + tx.length, a + tx.length); } catch (e) {} fit();
