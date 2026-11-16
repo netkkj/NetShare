@@ -2509,14 +2509,15 @@ function buildTag(tag, imgOverride) {
   if (g.dr) { const d = document.createElement('span'); d.className = 'ns-tg-d'; d.textContent = g.dr; root.append(d); }
   return root;
 }
-function decorate(node, tag) {
+function decorate(node, tag, front) {
   const sig = tag ? JSON.stringify(tag) : '';
   const kids = [...node.children].filter(c => c.classList && c.classList.contains('ns-tag'));
   if (node._nsg === sig && !!kids.length === !!sig) return;      // nada mudou: não refaz (evita piscar/reiniciar GIF)
   kids.forEach(c => c.remove());
   node._nsg = sig;
   if (!tag) return;
-  const el = buildTag(tag); if (el) node.insertBefore(el, node.firstChild);
+  const el = buildTag(tag); if (!el) return;
+  if (front) node.insertBefore(el, node.firstChild); else { el.classList.add('aft'); node.append(el); }   // padrão: pronome depois do nome
 }
 
 const L = {
@@ -2637,15 +2638,15 @@ function paint(node) {
 }
 function paintAll() {
   document.querySelectorAll('[data-nsu]').forEach(paint);
-  document.querySelectorAll('[data-nst]').forEach(n => { const e = cache.get(n.dataset.nst); decorate(n, e && e.g); });
+  document.querySelectorAll('[data-nst]').forEach(n => { const e = cache.get(n.dataset.nst); decorate(n, e && e.g, true); });
 }
 /* só o pronome (sem mudar fonte/cor do texto): usado em textos como a legenda do vídeo na sala */
 function applyTag(node, username) {
   if (!node) return;
   const u = String(username || '').toLowerCase();
-  if (!ULOW.test(u)) { delete node.dataset.nst; decorate(node, null); return; }
+  if (!ULOW.test(u)) { delete node.dataset.nst; decorate(node, null, true); return; }
   node.dataset.nst = u; want(u);
-  const e = cache.get(u); decorate(node, e && e.g);
+  const e = cache.get(u); decorate(node, e && e.g, true);
 }
 function apply(node, username, fallback, noTag) {
   if (!node) return;
@@ -2764,7 +2765,7 @@ function tagEditor(host, init, getName, getNs, onChange, opts) {
   opts = opts || {}; host.textContent = '';
   const en = () => typeof lang !== 'undefined' && String(lang).startsWith('en');
   const X = (pt, e) => en() ? e : pt;
-  const MAX = opts.maxBytes || 1048576;
+  const MAX = opts.maxBytes || 3145728;
   let cur = cleanTag(init, true), img = null;
   const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const btn = (txt, fn, cls) => { const b = h('button', cls == null ? 'sec' : cls, txt); b.type = 'button'; b.onclick = fn; return b; };
@@ -2799,7 +2800,7 @@ function tagEditor(host, init, getName, getNs, onChange, opts) {
   const say = m => { note.textContent = m || ''; };
   fi.onchange = async () => {
     const f = fi.files && fi.files[0]; fi.value = ''; if (!f) return;
-    if (f.size > MAX) return say(X('Imagem grande demais (máx. 1 MB).', 'Image too large (max 1 MB).'));
+    if (f.size > MAX) return say(X('Imagem grande demais (máx. 3 MB).', 'Image too large (max 3 MB).'));
     const type = opts.sniff ? await opts.sniff(f) : { mime: f.type, ext: 'png' };
     if (!type) return say(X('Formato inválido. Use PNG, JPG, WEBP ou GIF.', 'Invalid format. Use PNG, JPG, WEBP or GIF.'));
     if (img) URL.revokeObjectURL(img.url);
@@ -2863,8 +2864,8 @@ function tagEditor(host, init, getName, getNs, onChange, opts) {
     const tg = (show.t || show.emo || show.img) ? buildTag(show, ov) : null;
     const nm = h('span', 'ns-pn', String(getName() || '').trim() || tr('sample'));
     style(nm, getNs ? getNs() : null, '');
-    if (tg) prev.append(tg); else prev.append(h('span', 'mut', X('(sem pronome) ', '(no pronoun) ')));
     prev.append(nm);
+    if (tg) { tg.classList.add('aft'); prev.append(tg); } else prev.append(h('span', 'mut', X(' (sem pronome)', ' (no pronoun)')));
     groups.forEach(g => Object.keys(g.map).forEach(v => g.map[v].classList.toggle('on', (cur[g.key] || '') === v)));
     Object.keys(rows).forEach(k => {
       rows[k].sw.querySelectorAll('.swatch').forEach(b => b.classList.toggle('on', b.dataset.c === cur[k]));
@@ -3703,7 +3704,7 @@ window.Acc = (() => {
       if (!host) { host = document.createElement('div'); host.id = 'pfNS'; $('pfName').closest('label').after(host); $('pfName').addEventListener('input', () => { if (nsEd) nsEd.refresh(); if (tagEd) tagEd.refresh(); }); }
       nsEd = NS.editor(host, me.ns, () => $('pfName').value, v => { if (pend) { pend.ns = v; if (tagEd) tagEd.refresh(); } });
       let th = $('pfTag'); if (!th) { th = document.createElement('div'); th.id = 'pfTag'; host.after(th); }
-      tagEd = NS.tagEditor(th, me.tag, () => $('pfName').value, () => (nsEd ? nsEd.get() : null), v => { if (pend) pend.tag = v; }, { sniff, maxBytes: 1048576 });
+      tagEd = NS.tagEditor(th, me.tag, () => $('pfName').value, () => (nsEd ? nsEd.get() : null), v => { if (pend) pend.tag = v; }, { sniff, maxBytes: 3145728 });
       let ch = $('pfCard'); if (!ch) { ch = document.createElement('div'); ch.id = 'pfCard'; $('pfTag').after(ch); }
       cardEditor(ch, me.card, v => { if (pend) pend.card = { v }; });
     }
@@ -4349,6 +4350,7 @@ applyLang();
   .ns-open { overflow: visible !important; text-overflow: clip !important; }
   /* pronome / tag na frente do nome */
   .ns-tag { display: inline-flex; align-items: center; gap: .3em; flex: none; vertical-align: .06em; margin-right: .5em; max-width: 16em; font: 700 .72em/1.25 'DM Sans', sans-serif; letter-spacing: 0; text-transform: none; font-style: normal; text-shadow: none; white-space: nowrap; color: #e8ecff; -webkit-text-fill-color: currentColor; border-radius: 999px; background-repeat: no-repeat; }
+  .ns-tag.aft { margin-right: 0; margin-left: .5em; }
   .ns-tag.ns-tg-box { padding: .08em .6em; }
   .ns-tag.ns-tg-round { border-radius: .55em; } .ns-tag.ns-tg-square { border-radius: .12em; }
   .ns-tag.ns-tgs-sm { font-size: .58em; } .ns-tag.ns-tgs-lg { font-size: .92em; }
