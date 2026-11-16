@@ -3811,6 +3811,7 @@ applyLang();
   /* =====================  SERVIDORES  ===================== */
   :root { --rail: 72px; --dock: 400px; }
   body.hasrail #room { margin-left: var(--rail); width: calc(100vw - var(--rail) - var(--dmo, 0px)); }
+  body.hasrail #room { margin-right: auto; }   /* o corpo centraliza a sala: sem isso, o espaço do painel da direita (conversa/grupo) é dividido ao meio e abre um vão à esquerda */
   body.dockopen #room { margin-left: calc(var(--rail) + var(--dock)); width: calc(100vw - var(--rail) - var(--dock) - var(--dmo, 0px)); }
   #srvView.dock { inset: 0 auto 0 var(--rail); width: var(--dock); grid-template-columns: minmax(0, 1fr); border-right: 1px solid var(--line); box-shadow: 8px 0 30px rgba(0,0,0,.35); }
   #srvView.dock .sv-mem { display: none; }
@@ -4092,6 +4093,37 @@ applyLang();
   #emoPick .egrid button { min-height: 38px; padding: 0; border: 0; border-radius: 8px; background: transparent; box-shadow: none; font-size: 1.3rem; }
   #emoPick .egrid button:hover:not(:disabled) { transform: none; box-shadow: none; background: var(--surface-hover); }
   #emoPick .egrid .cemoji { width: 28px; height: 28px; vertical-align: middle; }
+
+  /* ---------- GIFs no seletor (Klipy) ---------- */
+  #emoPick [hidden] { display: none !important; }
+  #emoPick.hasgif { width: min(420px, calc(100vw - 16px)); height: 440px; }
+  #emoPick .ppane, #emoPick .gpane { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+  #emoPick .pmodes { display: flex; gap: 4px; padding: 8px 8px 6px; }
+  #emoPick .pmodes button { min-height: 36px; padding: 0 14px; border: 0; border-radius: 9px; background: transparent; box-shadow: none; color: var(--mut); font-size: .9rem; font-weight: 700; }
+  #emoPick .pmodes button.on { background: var(--surface-hover); color: var(--fg); }
+  #emoPick .pmodes button:hover:not(:disabled) { transform: none; box-shadow: none; background: var(--surface-hover); }
+  #emoPick .gsearch { display: flex; align-items: center; gap: 8px; margin: 4px 10px 6px; padding: 0 12px; border: 2px solid var(--acc); border-radius: 10px; background: rgba(5, 9, 22, .65); }
+  #emoPick .gsearch input { flex: 1 1 0; min-width: 0; min-height: 40px; padding: 0; border: 0; outline: 0; box-shadow: none; background: transparent; color: var(--fg); font: inherit; font-size: 16px; }
+  #emoPick .gsearch .gback { min-width: 0; min-height: 32px; padding: 0 6px; border: 0; background: transparent; box-shadow: none; font-size: 1.1rem; }
+  #emoPick .gbody { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 4px 10px 10px; }
+  #emoPick .gcats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #emoPick .gcat { position: relative; height: 110px; padding: 0; border: 0; border-radius: 8px; overflow: hidden; background: linear-gradient(135deg, var(--acc), var(--acc-2)); box-shadow: none; color: #fff; font-weight: 800; }
+  #emoPick .gcat img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #emoPick .gcat::after { content: ""; position: absolute; inset: 0; background: rgba(0, 0, 0, .45); }
+  #emoPick .gcat span { position: relative; z-index: 1; }
+  #emoPick .gcat:hover:not(:disabled) { transform: none; box-shadow: none; filter: brightness(1.12); }
+  #emoPick .gcols { display: flex; gap: 6px; align-items: flex-start; }
+  #emoPick .gcol { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  #emoPick .gcell { position: relative; border-radius: 8px; overflow: hidden; background: var(--surface); line-height: 0; }
+  #emoPick .gcell .gpick { display: block; width: 100%; min-height: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+  #emoPick .gcell img { display: block; width: 100%; height: auto; }
+  #emoPick .gcell .gfav { position: absolute; top: 4px; right: 4px; width: 30px; height: 30px; min-width: 0; min-height: 0; padding: 0; border-radius: 50%; background: rgba(0, 0, 0, .6); box-shadow: none; font-size: .95rem; opacity: 0; }
+  #emoPick .gcell:hover .gfav, #emoPick .gcell .gfav.on { opacity: 1; }
+  @media (hover: none) { #emoPick .gcell .gfav { opacity: 1; } }
+  #emoPick .gmsg { padding: 18px 10px; text-align: center; color: var(--mut); font-size: .9rem; line-height: 1.4; }
+  #emoPick.sheet { left: 0; right: 0; width: 100%; max-width: none; height: min(440px, 62vh); border-radius: 16px 16px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  #emoPick.sheet .gcat { height: 92px; }
+  .mgif { display: block; width: auto; max-width: min(320px, 100%); max-height: 300px; min-height: 60px; margin: 4px 0; border-radius: 10px; background: var(--surface); cursor: pointer; }
 
   #srvRail .sadmin { margin-top: auto; font-size: 1.2rem; }
 
@@ -5316,6 +5348,119 @@ async function delChan(c) {
   await loadChans(); renderChans();
 }
 
+/* ----- GIFs (Klipy): aba GIFs do seletor + GIF dentro da mensagem ----- */
+const KLIPY_KEY = '8TzPCXjFtkVhA9aK2etN0M02hfY7oKufJIdbC4f2XgfOYGgkhi3MDBchlK2AsZMy';   // <<< cole aqui a sua chave da API do Klipy (klipy.com/developers)
+const GIF_FAV = 'ns-gif-fav', GIF_CID = 'ns-gif-cid';
+let pickMode = 'emoji';
+const gifPrevCache = new Map();
+function gifUrlOk(u) {   // só imagens do próprio Klipy (nada de URL qualquer virar imagem)
+  try { const x = new URL(String(u)); return x.protocol === 'https:' && /(^|\.)klipy\.com$/i.test(x.hostname) && /\.(gif|webp|png|jpe?g)$/i.test(x.pathname); } catch (e) { return false; }
+}
+function gifCid() {
+  try { let v = localStorage.getItem(GIF_CID); if (!v) { v = 'u' + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(GIF_CID, v); } return v; } catch (e) { return 'anon'; }
+}
+function gifFavs() { try { const a = JSON.parse(localStorage.getItem(GIF_FAV) || '[]'); return Array.isArray(a) ? a.filter(x => x && gifUrlOk(x.u) && gifUrlOk(x.p)) : []; } catch (e) { return []; } }
+function gifFavToggle(g) {
+  const a = gifFavs(), i = a.findIndex(x => x.u === g.u);
+  if (i >= 0) a.splice(i, 1); else a.unshift({ u: g.u, p: g.p, w: g.w, h: g.h });
+  try { localStorage.setItem(GIF_FAV, JSON.stringify(a.slice(0, 60))); } catch (e) {}
+  return i < 0;
+}
+function gifItem(g) {
+  if (!g || g.type === 'ad' || g.kind === 'ad') return null;
+  const f = g.file || {}, get = (...sz) => { for (const k of sz) { const x = f[k] && f[k].gif; if (x && x.url) return x; } return null; };
+  const full = get('md', 'hd', 'sm'), pv = get('sm', 'xs', 'md') || full;
+  if (!full || !gifUrlOk(full.url) || !gifUrlOk(pv.url)) return null;
+  return { u: full.url, p: pv.url, w: +pv.width || 0, h: +pv.height || 0, t: String(g.title || '') };
+}
+async function gifFetch(q, page, per) {
+  if (!KLIPY_KEY) throw new Error('nokey');
+  const u = new URL('https://api.klipy.com/api/v1/' + encodeURIComponent(KLIPY_KEY) + '/gifs/' + (q ? 'search' : 'trending'));
+  if (q) u.searchParams.set('q', q);
+  u.searchParams.set('page', page); u.searchParams.set('per_page', per || 24); u.searchParams.set('customer_id', gifCid());
+  const r = await fetch(u); if (!r.ok) throw new Error('http ' + r.status);
+  const d = ((await r.json()) || {}).data || {};
+  return { items: (d.data || []).map(gifItem).filter(Boolean), more: !!d.has_next };
+}
+function gifPreview(key, q) {
+  if (!gifPrevCache.has(key)) gifPrevCache.set(key, gifFetch(q, 1, 8).then(r => (r.items[0] || {}).p || null).catch(() => { gifPrevCache.delete(key); return null; }));
+  return gifPrevCache.get(key);
+}
+function gifNode(u) {   // GIF dentro da mensagem
+  const a = el('a', 'mgifw'); a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer nofollow';
+  const im = new Image(); im.className = 'mgif'; im.alt = 'GIF'; im.loading = 'lazy'; im.decoding = 'async'; im.referrerPolicy = 'no-referrer';
+  im.onload = () => {   // se o chat estava no fim, continua no fim
+    const sc = im.closest('#svMsgs, .dm-list'); if (sc && sc.scrollHeight - sc.scrollTop - sc.clientHeight - im.offsetHeight < 90) sc.scrollTop = sc.scrollHeight;
+  };
+  im.onerror = () => { a.textContent = u; };
+  im.src = u; a.append(im); return a;
+}
+function gifSend(ta, form, u) {   // escolher um GIF = enviar a mensagem (com o texto que já estava escrito, se houver)
+  if (!gifUrlOk(u) || ta.disabled) return;
+  const d = ta.value.replace(/\s+$/, ''), v = (d ? d + '\n' : '') + u;
+  if (v.length > (ta.maxLength > 0 ? ta.maxLength : 1000)) return toast(LL('Mensagem grande demais para anexar o GIF.', 'Message too long to attach the GIF.'));
+  ta.value = v; ta.dispatchEvent(new Event('input')); form.requestSubmit();
+}
+function gifPane(choose) {
+  const node = el('div', 'gpane'), bar = el('div', 'gsearch'), ico = el('span', '', '🔍'), inp = el('input'), body = el('div', 'gbody');
+  const back = mk('←', () => home(), 'gback'); back.hidden = true;
+  inp.type = 'search'; inp.maxLength = 60; inp.autocomplete = 'off'; inp.enterKeyHint = 'search'; inp.placeholder = LL('Buscar no Klipy', 'Search Klipy');
+  bar.append(ico, back, inp); node.append(bar, body);
+  let token = 0, page = 1, more = false, busy = false, kind = 'home', q = '', cols = null, hs = [0, 0], started = false, tm = 0;
+  const cats = () => [{ k: 'fav', t: LL('Favoritos', 'Favorites') }, { k: 'trend', t: '📈 ' + LL('GIFs em alta', 'Trending GIFs') }]
+    .concat(['hello', 'lol', 'love', 'happy birthday', 'sad', 'omg', 'thanks', 'bye'].map(w => ({ k: 'q', q: w, t: w })));
+  const err = (my, e) => {
+    const m = el('div', 'gmsg', e && e.message === 'nokey' ? LL('Os GIFs ainda não foram ativados: falta colocar a chave do Klipy (KLIPY_KEY) no código do site.', 'GIFs are not enabled yet: the Klipy key (KLIPY_KEY) is missing in the site code.') : LL('Não deu para carregar os GIFs. ', 'Could not load GIFs. '));
+    if (!(e && e.message === 'nokey')) m.append(mk(LL('Tentar de novo', 'Retry'), () => { m.remove(); busy = false; next(my); }, 'sec'));
+    body.append(m);
+  };
+  const cell = g => {
+    const c = el('div', 'gcell'), b = mk('', () => choose(g.u), 'gpick'), im = new Image();
+    im.src = g.p; im.alt = g.t || 'GIF'; im.loading = 'lazy'; im.decoding = 'async'; im.referrerPolicy = 'no-referrer'; if (g.w && g.h) { im.width = g.w; im.height = g.h; }
+    b.append(im);
+    const on0 = gifFavs().some(x => x.u === g.u), fv = mk(on0 ? '★' : '☆', e => {
+      e.stopPropagation(); const on = gifFavToggle(g); fv.textContent = on ? '★' : '☆'; fv.classList.toggle('on', on);
+      if (kind === 'fav' && !on) { c.remove(); if (!body.querySelector('.gcell')) body.append(el('div', 'gmsg', LL('Nenhum favorito ainda.', 'No favorites yet.'))); }
+    }, 'gfav' + (on0 ? ' on' : '')); fv.title = LL('Favoritar', 'Favorite');
+    c.append(b, fv); return c;
+  };
+  const add = g => { const i = hs[0] <= hs[1] ? 0 : 1; hs[i] += g.w && g.h ? g.h / g.w : .75; cols[i].append(cell(g)); };
+  const list = () => { cols = [el('div', 'gcol'), el('div', 'gcol')]; hs = [0, 0]; const w = el('div', 'gcols'); w.append(cols[0], cols[1]); body.append(w); };
+  const next = async my => {
+    if (busy || my !== token) return; busy = true;
+    const sp = el('div', 'gmsg', LL('Carregando…', 'Loading…')); body.append(sp);
+    try {
+      const r = await gifFetch(kind === 'q' ? q : '', page);
+      if (my !== token) return;
+      sp.remove(); r.items.forEach(add); more = r.more; page++;
+      if (!body.querySelector('.gcell')) body.append(el('div', 'gmsg', LL('Nenhum GIF encontrado.', 'No GIFs found.')));
+    } catch (e) { if (my === token) { sp.remove(); err(my, e); } }
+    finally { if (my === token) busy = false; }
+  };
+  const run = (k, query) => {
+    const my = ++token; kind = k; q = query || ''; page = 1; more = false; busy = false;
+    ico.hidden = true; back.hidden = false; body.textContent = ''; body.scrollTop = 0; list();
+    if (k === 'fav') { const a = gifFavs(); if (a.length) a.forEach(add); else body.append(el('div', 'gmsg', LL('Nenhum favorito ainda. Toque na ☆ de um GIF para guardar.', 'No favorites yet. Tap the ☆ on a GIF to save it.'))); return; }
+    next(my);
+  };
+  function home() {
+    token++; kind = 'home'; busy = false; inp.value = ''; ico.hidden = false; back.hidden = true; body.textContent = ''; body.scrollTop = 0;
+    const g = el('div', 'gcats');
+    cats().forEach(c => {
+      const b = el('button', 'gcat'); b.type = 'button'; b.append(el('span', '', c.t));
+      b.onclick = () => { if (c.k === 'fav') run('fav'); else if (c.k === 'trend') run('trend'); else { inp.value = c.q; run('q', c.q); } };
+      g.append(b);
+      const put = u => { if (!u || !b.isConnected) return; const im = new Image(); im.alt = ''; im.referrerPolicy = 'no-referrer'; im.src = u; b.prepend(im); };
+      if (c.k === 'fav') put((gifFavs()[0] || {}).p); else if (KLIPY_KEY) gifPreview(c.k === 'trend' ? '#trend' : c.q, c.k === 'trend' ? '' : c.q).then(put);
+    });
+    body.append(g);
+  }
+  body.addEventListener('scroll', () => { if (more && !busy && kind !== 'home' && kind !== 'fav' && body.scrollTop + body.clientHeight > body.scrollHeight - 220) next(token); });
+  inp.oninput = () => { clearTimeout(tm); tm = setTimeout(() => { const v = inp.value.trim(); if (v) run('q', v); else home(); }, 350); };
+  inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(tm); const v = inp.value.trim(); if (v) run('q', v); } };
+  return { node, start() { if (!started) { started = true; home(); } if (matchMedia('(hover: hover)').matches) inp.focus({ preventScroll: true }); } };
+}
+
 /* ----- emojis: servidor, texto rico e seletor ----- */
 async function loadEmojis() {
   const s = cur; if (!s) return;
@@ -5393,6 +5538,7 @@ function mdInto(root, text) {
       i++; const pre = el('pre', 'mpre'); pre.append(el('code', '', buf.join('\n'))); root.append(pre); continue;
     }
     if (!ln.trim()) { endAll(); i++; continue; }
+    if (gifUrlOk(ln.trim())) { endAll(); root.append(gifNode(ln.trim())); i++; continue; }   // GIF do Klipy
     let m;
     if ((m = /^(#{1,3})\s+(.+)$/.exec(ln))) {    // títulos
       endAll(); const h = el('div', 'mh' + m[1].length); mdInline(h, m[2].trim()); root.append(h); i++; continue;
@@ -5472,14 +5618,23 @@ function closePicker() {
   pick.box.remove();
   document.removeEventListener('pointerdown', pick.out, true);
   document.removeEventListener('keydown', pick.key, true);
+  if (pick.off) pick.off();
   pick = null;
 }
-function openPicker(anchor, onPick, noCustom) {
+function openPicker(anchor, onPick, noCustom, onGif) {
   if (pick && pick.anchor === anchor) return closePicker();
   closePicker();
   const box = el('div'); box.id = 'emoPick';
   const tabs = el('div', 'etabs'), grid = el('div', 'egrid');
-  box.append(tabs, grid);
+  const gifOn = typeof onGif === 'function'; let gp = null, setMode = null;
+  if (gifOn) {   // com GIF: abas GIFs | Emoji no topo (igual ao Discord)
+    box.classList.add('hasgif');
+    const modes = el('div', 'pmodes'), epane = el('div', 'ppane'); gp = gifPane(u => { onGif(u); closePicker(); });
+    epane.append(tabs, grid);
+    const bg = mk('GIFs', () => setMode('gif'), ''), be = mk('Emoji', () => setMode('emoji'), ''); modes.append(bg, be);
+    setMode = m => { pickMode = m; bg.classList.toggle('on', m === 'gif'); be.classList.toggle('on', m === 'emoji'); epane.hidden = m !== 'emoji'; gp.node.hidden = m !== 'gif'; if (m === 'gif') gp.start(); };
+    box.append(modes, epane, gp.node);
+  } else box.append(tabs, grid);
   const cats = EMO.map(([icon, k, list]) => {
     const all = list.split(' '), okl = all.filter(emoOk);
     return { icon, title: t(k), list: okl.length >= all.length / 2 ? okl : all };   // se o teste falhar em massa, mostra tudo
@@ -5495,7 +5650,13 @@ function openPicker(anchor, onPick, noCustom) {
   };
   cats.forEach((c, i) => { const b = mk(c.icon, () => show(i), ''); b.title = c.title; tabs.append(b); });
   (anchor.closest('dialog') || document.body).append(box);   // dentro de uma janela, senão ela cobre o seletor
-  show(0);                                                   // enche a grade antes de medir (antes media só as abas e a caixa crescia pra fora da tela)
+  show(0); if (setMode) setMode(pickMode);                   // enche a grade antes de medir (antes media só as abas e a caixa crescia pra fora da tela)
+  let off = null;
+  if (gifOn && matchMedia('(max-width: 860px)').matches) {
+    box.classList.add('sheet'); const vv = window.visualViewport;
+    const fitSheet = () => { const h2 = vv ? vv.height : innerHeight, bot = vv ? Math.max(0, innerHeight - vv.height - vv.offsetTop) : 0; box.style.bottom = bot + 'px'; box.style.maxHeight = Math.min(440, h2 - 24) + 'px'; };
+    fitSheet(); if (vv) { vv.addEventListener('resize', fitSheet); vv.addEventListener('scroll', fitSheet); off = () => { vv.removeEventListener('resize', fitSheet); vv.removeEventListener('scroll', fitSheet); }; }
+  } else {
   const r = anchor.getBoundingClientRect(), vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
   const w = box.offsetWidth, h = box.offsetHeight;
   const dmh = anchor.closest('#dmView'), hr = dmh && dmh.getBoundingClientRect();
@@ -5511,11 +5672,12 @@ function openPicker(anchor, onPick, noCustom) {
   } else {                                                    // sem espaço em cima: abre para baixo
     box.style.maxHeight = Math.min(360, below) + 'px'; box.style.top = (r.bottom + 8) + 'px';
   }
+  }
   const out = e => { if (!box.contains(e.target) && !anchor.contains(e.target)) closePicker(); };
   const key = e => { if (e.key === 'Escape') closePicker(); };
   document.addEventListener('pointerdown', out, true);
   document.addEventListener('keydown', key, true);
-  pick = { box, anchor, out, key };
+  pick = { box, anchor, out, key, off };
 }
 const pickKey = p => p.c ? 'c:' + p.c.id : p.u;
 function insertText(s) {
@@ -5526,7 +5688,7 @@ function insertText(s) {
   try { i.setSelectionRange(a + s.length, a + s.length); } catch (e) {}
 }
 $('svEmoji').title = t('emojiBtn');
-$('svEmoji').onclick = e => openPicker(e.currentTarget, p => insertText(p.c ? ':' + p.c.name + ': ' : p.u));
+$('svEmoji').onclick = e => openPicker(e.currentTarget, p => insertText(p.c ? ':' + p.c.name + ': ' : p.u), false, u => gifSend($('svInput'), $('svForm'), u));
 
 /* ----- chat ----- */
 async function pickChan(c) {
@@ -6947,7 +7109,7 @@ async function dmOpen(p) {
   const mp = A().myProfile() || {}, meo = { display_name: mp.display_name || '?', username: mp.username || '', avatar_path: mp.avatar_path || null };
   const d = el('aside'); d.id = 'dmView'; dmPanel = d;
   const head = el('div', 'dm-head'), avw = el('div', 'dm-av'), who = el('div', 'dm-who'), nm = el('b', '', o.display_name);
-  const list = el('div', 'dm-list'), f = el('form', 'dm-form'), ta = el('textarea'), go = el('button', '', '➤'), emo = mk('😊', e => openPicker(e.currentTarget, q => ins(q.u), true), 'sec dm-emo');
+  const list = el('div', 'dm-list'), f = el('form', 'dm-form'), ta = el('textarea'), go = el('button', '', '➤'), emo = mk('😊', e => openPicker(e.currentTarget, q => ins(q.u), true, u => gifSend(ta, f, u)), 'sec dm-emo');
   if (o.username && window.NS) NS.apply(nm, o.username);
   const openCard = () => A().showCard({ user_id: id, username: o.username, display_name: o.display_name, avatar_path: o.avatar_path });
   avw.append(A().avatar(o, 40), presDot(id, 'pos-dm')); avw.onclick = openCard; who.onclick = openCard;
@@ -7443,9 +7605,15 @@ function grpStart() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_group_members' }, kick)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_groups' }, kick)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_group_calls' }, () => grpPollCalls())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_group_call_parts' }, () => grpCallKick())
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_group_call_parts' }, () => grpCallKick())
       .subscribe();
   } catch (e) { grpCh = null; }
   grpTimer = setInterval(() => { if (!document.hidden) { grpLoad(); grpPollCalls(); } }, 10000);   // garantia caso o tempo real falhe
+}
+function grpCallKick() {   // alguém entrou/saiu de uma call: atualiza o painel aberto e a bolinha da barra lateral
+  clearTimeout(grpCallKick._t);
+  grpCallKick._t = setTimeout(() => { if (dmCur && dmCur.group && dmCur.call) dmCur.call(); grpSig = ''; grpLoad(); }, 150);
 }
 function grpStop() {
   clearInterval(grpTimer); grpTimer = 0; clearTimeout(grpStart._t);
@@ -7455,7 +7623,7 @@ function grpStop() {
 }
 
 /* ----- call do grupo: quem liga entra na hora e todos os outros recebem a chamada para atender ----- */
-function grpLeaveCall(gc) { if (!gc) return; clearInterval(gc.beat); try { sb().rpc('grp_call_leave', { p_call: gc.id }).then(() => {}, () => {}); } catch (e) {} }
+function grpLeaveCall(gc) { if (!gc) return; clearInterval(gc.beat); try { sb().rpc('grp_call_leave', { p_call: gc.id }).then(() => grpCallKick(), () => {}); } catch (e) {} }
 function grpBusy() { return !!(grpCall && !$('room').classList.contains('hidden')); }
 async function grpJoin(g, c) {
   if (!g || !c || !UUID_RE.test(String(c.id || '')) || typeof c.room_key !== 'string' || !c.room_key) return;
@@ -7466,7 +7634,7 @@ async function grpJoin(g, c) {
   voiceCh = null; vsrv = null; vmem = []; clearInterval(vmemT);
   voiceJoin = true;
   const gc = grpCall = { id: c.id, gid: g.id, beat: 0 };
-  const beat = () => { if (grpCall === gc) sb().rpc('grp_call_beat', { p_call: gc.id }).then(() => {}, () => {}); };
+  const beat = () => { if (grpCall === gc) sb().rpc('grp_call_beat', { p_call: gc.id }).then(() => grpCallKick(), () => {}); };
   gc.beat = setInterval(() => { if (!$('room').classList.contains('hidden')) beat(); }, 20000);   // mantém a call ativa e eu na lista de quem está nela
   beat();
   $('inRoom').value = 'g' + c.id.replace(/-/g, '').slice(0, 20);
@@ -7579,7 +7747,7 @@ async function grpOpen(id) {
   const head = el('div', 'dm-head'), avw = el('div', 'dm-av'), who = el('div', 'dm-who'), nm = el('b'), sm = el('small', 'mut');
   const banner = el('div', 'grp-call hidden'), sheet = el('div', 'grp-mem hidden');
   const list = el('div', 'dm-list'), f = el('form', 'dm-form'), ta = el('textarea'), go = el('button', '', '➤');
-  const emo = mk('😊', e => openPicker(e.currentTarget, q => ins(q.u), true), 'sec dm-emo');
+  const emo = mk('😊', e => openPicker(e.currentTarget, q => ins(q.u), true, u => gifSend(ta, f, u)), 'sec dm-emo');
   const callB = mk('📞', () => grpCallStart(g), 'sec x'), muteB = mk('', () => toggleMute(), 'sec x'), memB = mk('👥', () => toggleSheet(), 'sec x');
   who.onclick = () => toggleSheet(); avw.onclick = () => toggleSheet();
   who.append(nm, sm); head.append(avw, who, callB, muteB, memB, mk('✕', dmClose, 'sec x'));
@@ -7713,7 +7881,7 @@ async function grpOpen(id) {
     const { data, error } = await sb().rpc('grp_members', { p_group: id });
     if (error || dmPanel !== d) return;
     gm = new Map((data || []).map(x => [x.user_id, { id: x.user_id, username: x.username || '', display_name: cleanStr(x.display_name, 24) || x.username || '?', avatar_path: x.avatar_path || null, owner: !!x.is_owner }]));
-    rewho(); if (!sheet.classList.contains('hidden')) paintSheet();
+    rewho(); paintCall(); if (!sheet.classList.contains('hidden')) paintSheet();
   };
   const refreshAll = async () => { grpSig = ''; await grpLoad(); await loadMembers(); };
   const doKick = async x => {
@@ -7791,10 +7959,7 @@ async function grpOpen(id) {
   };
 
   /* call em andamento: quem não atendeu (ou chegou depois) entra por aqui */
-  const checkCall = async () => {
-    const { data, error } = await sb().rpc('grp_call_active', { p_group: id });
-    if (dmPanel !== d || error) return;
-    activeCall = data && UUID_RE.test(String(data.id || '')) ? data : null;
+  const paintCall = () => {
     banner.textContent = '';
     if (!activeCall) { activeUsers = new Set(); banner.classList.add('hidden'); if (!sheet.classList.contains('hidden')) paintSheet(); return; }
     const inMine = !!(grpBusy() && grpCall.gid === id);
@@ -7820,6 +7985,12 @@ async function grpOpen(id) {
     banner.classList.remove('hidden');
     if (!sheet.classList.contains('hidden')) paintSheet();
   };
+  const checkCall = async () => {
+    const { data, error } = await sb().rpc('grp_call_active', { p_group: id });
+    if (dmPanel !== d || error) return;
+    activeCall = data && UUID_RE.test(String(data.id || '')) ? data : null;
+    paintCall();
+  };
 
   d._grpRefresh = () => {
     const ng = grpL.find(x => x.id === id);
@@ -7831,10 +8002,11 @@ async function grpOpen(id) {
   };
   d._relang = () => { paintHead(); emptyTxt(); if (!sheet.classList.contains('hidden')) paintSheet(); };
   paintHead();
-  document.body.append(d); document.body.classList.add('dmopen'); dmCur = { id, pull, group: true };
-  loadMembers(); checkCall();
+  document.body.append(d); document.body.classList.add('dmopen'); dmCur = { id, pull, group: true, call: checkCall };
+  loadMembers().then(() => checkCall());   // nomes primeiro, para a lista da call já nascer completa
   await pull(); if (dmPanel !== d) return;
-  clearInterval(dmPoll); dmPoll = setInterval(() => { pull(); checkCall(); }, 6000); ta.focus();
+  let tk = 0;   // a call é checada a cada 3 s; as mensagens, a cada 6 s (o tempo real cobre o resto)
+  clearInterval(dmPoll); dmPoll = setInterval(() => { if (document.hidden) return; checkCall(); if (++tk % 2 === 0) pull(); }, 3000); ta.focus();
 }
 
 function frSet(on) {
