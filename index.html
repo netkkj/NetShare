@@ -9,6 +9,8 @@
 <link rel="apple-touch-icon" href="NetIcon.png">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+  /* bandeiras: Windows não desenha emoji de bandeira (aparece "BR", "JP"); esta fonte só cobre as bandeiras e entra antes das outras */
+  @font-face { font-family: 'Twemoji Country Flags'; unicode-range: U+1F1E6-1F1FF, U+1F3F4, U+E0062-E007F; src: url('https://cdn.jsdelivr.net/npm/country-flag-emoji-polyfill@0.1/dist/TwemojiCountryFlags.woff2') format('woff2'); font-display: swap; }
 
   :root {
     --bg: #070b18;
@@ -48,7 +50,7 @@
     min-height: 100dvh;
     display: grid;
     place-items: center;
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: 'Twemoji Country Flags', 'DM Sans', system-ui, sans-serif;
     background: transparent;
     color: var(--fg);
     overflow: hidden;
@@ -66,7 +68,7 @@
     background-size: 56px 56px;
   }
 
-  button, input, select { font: inherit; }
+  button, input, select, textarea { font: inherit; }
   button, a, input, select { -webkit-tap-highlight-color: transparent; }
   button {
     min-height: 44px;
