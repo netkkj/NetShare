@@ -3036,6 +3036,197 @@ window.PFX = (() => {
 </script>
 <script>
 /* =====================================================================
+   TRADUÇÃO (opcional) — enviar traduzido e ler mensagens de uma pessoa traduzidas
+   Motor: endpoint público do Google Tradutor (translate.googleapis.com). Preferências ficam só neste aparelho (localStorage).
+   ===================================================================== */
+window.NSTr = (() => {
+  const OUT_K = 'ns-tr-out', IN_K = 'ns-tr-in';
+  const CODES = ['af','sq','am','ar','hy','az','eu','be','bn','bs','bg','ca','ceb','zh-CN','zh-TW','co','hr','cs','da','nl','en','eo','et','fi','fr','fy','gl','ka','de','el','gu','ht','ha','haw','he','hi','hmn','hu','is','ig','id','ga','it','ja','jv','kn','kk','km','rw','ko','ku','ky','lo','la','lv','lt','lb','mk','mg','ms','ml','mt','mi','mr','mn','my','ne','no','ny','or','ps','fa','pl','pt','pt-PT','pa','ro','ru','sm','gd','sr','st','sn','sd','si','sk','sl','so','es','su','sw','sv','tl','tg','ta','tt','te','th','tr','tk','uk','ur','ug','uz','vi','cy','xh','yi','yo','zu'];
+  const T = (pt, en, es) => { const l = String(typeof lang !== 'undefined' ? lang : 'pt'); return l.startsWith('en') ? en : (l.startsWith('es') && es) ? es : pt; };
+  const loc = () => { const l = String(typeof lang !== 'undefined' ? lang : 'pt'); return l.startsWith('en') ? 'en' : l.startsWith('es') ? 'es' : 'pt-BR'; };
+  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  const el = (tag, cls, txt) => { const n = document.createElement(tag); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; };
+  const jget = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v && typeof v === 'object' ? v : d; } catch (e) { return d; } };
+  const jset = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  const okCode = c => typeof c === 'string' && CODES.includes(c);
+
+  let dn = null, dnLoc = '';
+  const name = code => {
+    if (code === 'pt') return T('Português (Brasil)', 'Portuguese (Brazil)', 'Portugués (Brasil)');
+    try { if (!dn || dnLoc !== loc()) { dn = new Intl.DisplayNames([loc()], { type: 'language' }); dnLoc = loc(); } return cap(dn.of(code) || code); } catch (e) { return code; }
+  };
+  const nativeName = code => { try { return cap(new Intl.DisplayNames([code === 'pt' ? 'pt-BR' : code], { type: 'language' }).of(code === 'pt' ? 'pt-BR' : code) || ''); } catch (e) { return ''; } };
+  const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+  /* ---------- preferências ---------- */
+  const getOut = () => { const o = jget(OUT_K, {}); return { on: o.on === true && okCode(o.lang), lang: okCode(o.lang) ? o.lang : '' }; };
+  const inMap = () => jget(IN_K, {});
+  const inLang = id => { const l = inMap()[String(id || '')]; return okCode(l) ? l : ''; };
+  const changed = () => { bars.forEach(b => { if (b.bar.isConnected) b.paint(); else if (b.att) bars.delete(b); }); document.dispatchEvent(new CustomEvent('nstr-change')); };
+  const setOut = p => { const o = { ...getOut(), ...p }; jset(OUT_K, { on: !!o.on && okCode(o.lang), lang: o.lang }); changed(); };
+  const setIn = (id, l) => { const m = inMap(); if (okCode(l)) m[String(id)] = l; else delete m[String(id)]; jset(IN_K, m); changed(); reapply(); };
+
+  /* ---------- tradução ---------- */
+  const cache = new Map(), flying = new Map();
+  const base = c => String(c || '').toLowerCase().split('-')[0];
+  /* vários tradutores: se um falhar (bloqueio, limite, fora do ar), tenta o próximo; o último que funcionou vai primeiro */
+  const tfetch = async (url, ms) => { const ac = new AbortController(), t = setTimeout(() => ac.abort(), ms || 7000); try { const r = await fetch(url, { signal: ac.signal }); if (!r.ok) throw new Error('http ' + r.status); return await r.json(); } finally { clearTimeout(t); } };
+  const LINGVA = ['https://lingva.ml', 'https://lingva.lunar.icu', 'https://translate.plausibility.cloud'];
+  const lingCode = c => ({ 'zh-CN': 'zh', 'zh-TW': 'zh_HANT', 'he': 'iw', 'pt-PT': 'pt' })[c] || c;
+  const myCode = c => ({ 'pt': 'pt-BR', 'he': 'iw' })[c] || c;
+  const PROV = [
+    ['google', async (text, to) => {
+      const j = await tfetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=' + encodeURIComponent(to) + '&dt=t&q=' + encodeURIComponent(text));
+      const out = (Array.isArray(j[0]) ? j[0] : []).map(x => (x && x[0]) || '').join(''); if (!out) throw new Error('vazio');
+      return { text: out, src: j[2] };
+    }],
+    ['google2', async (text, to) => {
+      const j = await tfetch('https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl=' + encodeURIComponent(to) + '&q=' + encodeURIComponent(text));
+      const x = Array.isArray(j) ? j[0] : null, out = Array.isArray(x) ? x[0] : (typeof x === 'string' ? x : ''); if (!out) throw new Error('vazio');
+      return { text: out, src: Array.isArray(x) ? x[1] : '' };
+    }],
+    ...LINGVA.map((host, i) => ['lingva' + i, async (text, to) => {
+      if (text.length > 900) throw new Error('longo');
+      const j = await tfetch(host + '/api/v1/auto/' + encodeURIComponent(lingCode(to)) + '/' + encodeURIComponent(text), 8000);
+      if (!j || !j.translation) throw new Error('vazio');
+      return { text: j.translation, src: j.info && j.info.detectedSource };
+    }]),
+    ['mymemory', async (text, to) => {
+      const parts = text.length <= 450 ? [text] : (text.match(/[^.!?\n]+[.!?\n]*\s*/g) || [text]).reduce((a, x) => { if (a.length && (a[a.length - 1] + x).length <= 450) a[a.length - 1] += x; else a.push(x.slice(0, 450)); return a; }, []);
+      let src = '';
+      const out = await Promise.all(parts.map(async part => {
+        const j = await tfetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(part) + '&langpair=' + encodeURIComponent('Autodetect|' + myCode(to)));
+        const r = j && j.responseData; if (!r || !r.translatedText || +j.responseStatus !== 200 || /MYMEMORY WARNING|INVALID/i.test(r.translatedText)) throw new Error('mymemory');
+        if (r.detectedLanguage && !src) src = r.detectedLanguage;
+        return r.translatedText;
+      }));
+      return { text: out.join(''), src };
+    }]
+  ];
+  let bestProv = 0;
+  async function one(text, to) {
+    const key = to + '|' + text; if (cache.has(key)) return cache.get(key);
+    if (flying.has(key)) return flying.get(key);
+    const p = (async () => {
+      let lastErr = null;
+      for (let k = 0; k < PROV.length; k++) {
+        const idx = (bestProv + k) % PROV.length;
+        try {
+          const r = await PROV[idx][1](text, to);
+          const same = (r.src ? base(r.src) === base(to) : false) || norm(r.text) === norm(text);
+          const res = { text: r.text || text, same };
+          bestProv = idx; cache.set(key, res); if (cache.size > 400) cache.delete(cache.keys().next().value);
+          return res;
+        } catch (e) { lastErr = e; }
+      }
+      throw lastErr || new Error('translate');
+    })();
+    flying.set(key, p); try { return await p; } finally { flying.delete(key); }
+  }
+  const KEEP = /(```[\s\S]*?```|`[^`\n]+`|https?:\/\/\S+|\[voz:[^\]]+\]|@[A-Za-z0-9_]{3,20}|:[A-Za-z0-9_]{2,24}:)/;
+  async function translate(text, to) {
+    const parts = String(text || '').split(KEEP);
+    let anyDiff = false, anySeg = false;
+    const out = await Promise.all(parts.map(async (seg, i) => {
+      if (i % 2 === 1 || !/\p{L}/u.test(seg)) return seg;
+      const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(seg); anySeg = true;
+      const r = await one(m[2], to); if (!r.same) anyDiff = true;
+      return m[1] + r.text + m[3];
+    }));
+    return { text: out.join(''), same: !anySeg || !anyDiff };
+  }
+  const send = async c => {
+    const o = getOut(); if (!o.on || !o.lang || !c) return c;
+    try { const r = await translate(c, o.lang); return r.same ? c : r.text; }
+    catch (e) { if (typeof toast === 'function') toast(T('Não consegui traduzir agora; enviei no idioma original.', 'Could not translate right now; sent in the original language.', 'No pude traducir ahora; se envió en el idioma original.')); return c; }
+  };
+
+  /* ---------- seletor de idioma (janela no PC, folha de baixo no celular) ---------- */
+  function pick({ title, cur, none, onPick }) {
+    const ov = el('div', 'tr-ov'), box = el('div', 'tr-box'); ov.append(box);
+    box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
+    const hd = el('div', 'tr-hd'); hd.append(el('b', '', title)); const x = el('button', 'tr-x', '✕'); x.type = 'button'; x.setAttribute('aria-label', T('Fechar', 'Close', 'Cerrar')); hd.append(x);
+    const q = el('input', 'tr-q'); q.type = 'search'; q.placeholder = T('Buscar idioma…', 'Search language…', 'Buscar idioma…'); q.autocomplete = 'off';
+    const list = el('div', 'tr-list');
+    const close = () => { ov.remove(); document.removeEventListener('keydown', esc, true); };
+    const esc = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    const item = (code, label, sub) => { const b = el('button', 'tr-it' + (code === cur ? ' on' : '')); b.type = 'button'; b.append(el('span', '', label)); if (sub && norm(sub) !== norm(label)) b.append(el('small', '', sub)); b.onclick = () => { close(); onPick(code); }; return b; };
+    const all = CODES.map(c => ({ c, n: name(c), nn: nativeName(c) })).sort((a, b) => (a.c === 'pt' ? -1 : b.c === 'pt' ? 1 : a.n.localeCompare(b.n, loc())));
+    const fill = () => {
+      const s = norm(q.value); list.textContent = '';
+      if (none && !s) list.append(item('', T('Não traduzir (desativar)', 'Do not translate (off)', 'No traducir (desactivar)')));
+      all.filter(l => !s || norm(l.n).includes(s) || norm(l.nn).includes(s) || norm(l.c) === s).forEach(l => list.append(item(l.c, l.n, l.nn)));
+      if (!list.children.length) list.append(el('p', 'tr-empty', T('Nenhum idioma encontrado.', 'No language found.', 'No se encontró ningún idioma.')));
+    };
+    q.oninput = fill; fill();
+    x.onclick = close; ov.addEventListener('mousedown', e => { if (e.target === ov) close(); });
+    box.append(hd, q, list); document.body.append(ov); document.addEventListener('keydown', esc, true);
+    setTimeout(() => { const on = list.querySelector('.on'); if (on) on.scrollIntoView({ block: 'center' }); if (innerWidth > 860) q.focus(); }, 30);
+  }
+
+  /* ---------- 2 botões acima da caixa de mensagem de qualquer chat ---------- */
+  const bars = new Set();
+  function bar(f) {
+    if (!f) return;
+    const w = el('div', 'tr-bar'), b1 = el('button', 'tr-b1'), b2 = el('button', 'tr-b2'); b1.type = b2.type = 'button';
+    w.append(b1, b2);
+    const entry = { bar: w, att: false, paint: () => {
+      const o = getOut();
+      b1.textContent = '🌐 ' + T('Traduzir o meu texto para o idioma:', 'Translate my text to language:', 'Traducir mi texto al idioma:');
+      b1.classList.toggle('on', o.on); b1.setAttribute('aria-pressed', o.on ? 'true' : 'false');
+      b2.textContent = (o.lang ? name(o.lang) : T('Escolher idioma', 'Choose language', 'Elegir idioma')) + ' ▾';
+      b2.classList.toggle('on', o.on);
+    } };
+    const choose = then => pick({ title: T('Traduzir o meu texto para:', 'Translate my text to:', 'Traducir mi texto a:'), cur: getOut().lang, onPick: l => then(l) });
+    b1.onclick = () => { const o = getOut(); if (o.on) setOut({ on: false }); else if (o.lang) setOut({ on: true }); else choose(l => setOut({ lang: l, on: true })); };
+    b2.onclick = () => choose(l => setOut({ lang: l, on: true }));
+    bars.add(entry); entry.paint();
+    const put = () => { if (f.parentNode) { f.before(w); entry.att = true; return true; } return false; };
+    if (!put()) { queueMicrotask(() => { if (!put()) setTimeout(put, 0); }); }
+  }
+
+  /* ---------- ler mensagens de uma pessoa traduzidas ---------- */
+  const reg = new Set();
+  const render = (tx, text) => { tx.textContent = ''; if (typeof mdInto === 'function') mdInto(tx, text); else tx.textContent = text; };
+  function apply(mt, content, sid) {
+    if (!mt) return;
+    const old = mt.querySelector(':scope > .tr-note'); if (old) old.remove();
+    const to = sid ? inLang(sid) : '';
+    const tx = mt.querySelector('.mtx');
+    if (!tx) return;
+    let e = [...reg].find(x => x.mt === mt);
+    if (!to || !/\p{L}/u.test(String(content || ''))) { if (e) reg.delete(e); return; }
+    if (!e) { e = { mt }; reg.add(e); }
+    e.content = String(content); e.sid = sid; const tk = (e.tk = (e.tk || 0) + 1);
+    const note = el('button', 'tr-note', '🌐 ' + T('Traduzindo…', 'Translating…', 'Traduciendo…')); note.type = 'button'; mt.append(note);
+    translate(e.content, to).then(r => {
+      if (e.tk !== tk || !mt.isConnected) return;
+      if (r.same) { note.remove(); return; }
+      let shown = true; render(tx, r.text);
+      const lab = () => { note.textContent = '🌐 ' + (shown ? T('Traduzido · ver original', 'Translated · show original', 'Traducido · ver original') : T('Original · ver tradução', 'Original · show translation', 'Original · ver traducción')); };
+      lab(); note.onclick = ev => { ev.stopPropagation(); shown = !shown; render(tx, shown ? r.text : e.content); lab(); };
+    }).catch(() => { if (e.tk !== tk) return; note.textContent = '🌐 ' + T('Falha ao traduzir', 'Translation failed', 'Error al traducir'); note.onclick = ev => { ev.stopPropagation(); apply(mt, e.content, e.sid); }; });
+  }
+  function reapply() { [...reg].forEach(e => { if (!e.mt.isConnected) { reg.delete(e); return; } const tx = e.mt.querySelector('.mtx'); if (tx) render(tx, e.content); apply(e.mt, e.content, e.sid); }); }
+
+  /* ---------- botão no perfil da pessoa ---------- */
+  function personBtn(p, getId) {
+    const w = el('div', 'tr-person'), b = el('button', 'sec tr-pbtn'); b.type = 'button'; w.append(b);
+    let id = (p && (p.user_id || p.other_id || p.id)) || null;
+    const paint = () => { const l = id && inLang(id); b.textContent = '🌐 ' + T('Traduzir as mensagens desta pessoa para:', 'Translate this person’s messages to:', 'Traducir los mensajes de esta persona a:') + ' ' + (l ? name(l) : T('Desativado', 'Off', 'Desactivado')) + ' ▾'; b.classList.toggle('on', !!l); };
+    paint();
+    b.onclick = async () => {
+      if (!id && getId) { try { id = await getId(); } catch (e) { id = null; } }
+      if (!id) return;
+      pick({ title: T('Traduzir mensagens desta pessoa para:', 'Translate this person’s messages to:', 'Traducir mensajes de esta persona a:'), cur: inLang(id), none: true, onPick: l => { setIn(id, l); paint(); } });
+    };
+    return w;
+  }
+  return { bar, send, apply, personBtn, setIn, inLang, name };
+})();
+</script>
+<script>
+/* =====================================================================
    CONTAS (Supabase)  —  CONFIGURE AQUI
    No painel do Supabase: Project Settings → API
    ===================================================================== */
@@ -4100,6 +4291,7 @@ window.Acc = (() => {
     loadCardTheme(p).then(th => { if (th && body.contains(info)) applyCardTheme(body, info, bioEl, cw, th); }).catch(() => {});   // tema do cartão (cor neon, selos, conquistas...)
     /* é o meu próprio cartão: edito o perfil aqui mesmo, sem voltar à página principal */
     const mine = !!(session && me && ((p.user_id && p.user_id === session.user.id) || (p.username && p.username === me.username)));
+    if (!mine && session && me && window.NSTr) info.append(NSTr.personBtn(p, async () => { if (!p.username) return null; const { data } = await sb.from('profiles').select('id').eq('username', String(p.username).toLowerCase()).maybeSingle(); return data && data.id; }));   // traduzir mensagens desta pessoa (opcional)
     if (!mine) { const vc = voiceCtl(p); if (vc) info.append(vc); }   // volume / silêncio só dessa pessoa (se ela está na minha call)
     if (!mine && session && me) { const mu = el('div', 'pc-mut hidden'); info.append(mu); fillMutuals(p, info, mu); }   // amigos e servidores em comum
     if (mine) {
@@ -4354,6 +4546,35 @@ applyLang();
   .ns-open { overflow: visible !important; text-overflow: clip !important; }
   /* pronome / tag na frente do nome */
   .ns-tag { display: inline-flex; align-items: center; gap: .3em; flex: none; vertical-align: .06em; margin-right: .5em; max-width: 16em; font: 700 .72em/1.25 'DM Sans', sans-serif; letter-spacing: 0; text-transform: none; font-style: normal; text-shadow: none; white-space: nowrap; color: #e8ecff; -webkit-text-fill-color: currentColor; border-radius: 999px; background-repeat: no-repeat; }
+
+  /* ---- tradução ---- */
+  .tr-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 14px 0; border-top: 1px solid var(--line); min-width: 0; width: 100%; box-sizing: border-box; }
+  .tr-bar:has(+ form.hidden) { display: none; }
+  .tr-bar + form { border-top: 0 !important; padding-top: 8px !important; }
+  .tr-bar button { flex: 0 1 auto; min-width: 0; max-width: 100%; min-height: 36px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.05); color: inherit; font: 600 .8rem/1.2 inherit; text-align: left; cursor: pointer; white-space: normal; overflow-wrap: anywhere; }
+  .tr-bar button.on { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 22%, transparent); }
+  .tr-note { display: inline-block; margin-top: 4px; padding: 2px 8px; border: 0; border-radius: 999px; background: rgba(255,255,255,.07); color: var(--mut, #9aa3c7); font: 600 .72rem/1.4 inherit; cursor: pointer; }
+  .tr-person { margin-top: 8px; min-width: 0; }
+  .tr-person .tr-pbtn { width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; min-height: 40px; padding: 8px 12px; border-radius: 12px; }
+  .tr-person .tr-pbtn.on { border-color: var(--acc); }
+  .tr-ov { position: fixed; inset: 0; z-index: 100000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(3,5,14,.66); }
+  .tr-box { display: flex; flex-direction: column; width: min(440px, 100%); max-height: min(620px, 86vh); border: 1px solid var(--line); border-radius: 16px; background: var(--card-solid, #12162b); box-shadow: 0 20px 60px #000a; overflow: hidden; }
+  .tr-hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 14px 8px; }
+  .tr-x { flex: 0 0 auto; min-width: 40px; min-height: 40px; border: 0; border-radius: 10px; background: transparent; color: inherit; font-size: 1rem; cursor: pointer; }
+  .tr-q { margin: 0 14px 8px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(0,0,0,.25); color: inherit; font-size: 16px; outline: none; }
+  .tr-q:focus { border-color: var(--acc); }
+  .tr-list { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 8px 10px; }
+  .tr-it { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 10px; background: transparent; color: inherit; font: 600 .92rem/1.25 inherit; text-align: left; cursor: pointer; }
+  .tr-it small { color: var(--mut, #9aa3c7); font-weight: 500; }
+  .tr-it:hover, .tr-it:focus-visible { background: rgba(255,255,255,.07); outline: none; }
+  .tr-it.on { background: color-mix(in srgb, var(--acc) 24%, transparent); }
+  .tr-empty { padding: 16px; text-align: center; color: var(--mut, #9aa3c7); }
+  @media (max-width: 860px) {
+    .tr-bar { padding: 6px 8px 0; }
+    .tr-bar button { flex: 1 1 100%; min-height: 42px; border-radius: 12px; }
+    .tr-ov { align-items: flex-end; padding: 0; }
+    .tr-box { width: 100%; max-height: 88vh; border-radius: 18px 18px 0 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
+  }
   .ns-tag.aft { margin-right: 0; margin-left: .5em; }
   /* nome com pronome no fim: quebra a linha em vez de cortar com "…" (no celular o pronome sumia em nomes longos) */
   :has(> .ns-tag.aft):not(.pc-pr) { overflow: visible !important; text-overflow: clip !important; white-space: normal !important; overflow-wrap: anywhere; }
@@ -6296,6 +6517,7 @@ function paintText(mt, r) {
   if (r.edited_at) mt.append(el('span', 'edited', t('edited')));
   mt.classList.toggle('jumbo', isJumbo(r.content || ''));
   const dm = mt.closest && mt.closest('.msg'); if (dm) markMention(dm, r);
+  NSTr.apply(mt, r.content || '', r.user_id && r.user_id !== uid ? r.user_id : null);
 }
 function repaintMessages() {
   msgData.forEach((r, id) => {
@@ -6553,15 +6775,17 @@ async function toggleReact(id, key) {
   reactSet(String(id), key, uid, data === true); renderReacts(String(id));
 }
 
+NSTr.bar($('svForm'));
 $('svForm').onsubmit = async e => {
   e.preventDefault();
-  const inp = $('svInput'), c = inp.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000);
-  if (!c || !chan || !canWriteChan(chan) || Date.now() - lastSend < 500 || (slowOf(chan) && (coolUntil.get(chan.id) || 0) > Date.now())) return;
-  if (EVERY_RE.test(c)) { await loadEveryone(); if (!canEveryone()) return err(everyoneMsg()); }
+  const inp = $('svInput'), c0 = inp.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000);
+  if (!c0 || !chan || !canWriteChan(chan) || Date.now() - lastSend < 500 || (slowOf(chan) && (coolUntil.get(chan.id) || 0) > Date.now())) return;
+  if (EVERY_RE.test(c0)) { await loadEveryone(); if (!canEveryone()) return err(everyoneMsg()); }
   lastSend = Date.now(); inp.value = '';
+  const c = (await NSTr.send(c0)).slice(0, 1000);
   const { data, error } = await sb().from('messages').insert({ channel_id: chan.id, server_id: cur.id, content: c }).select('id,user_id,content,created_at').single();
   if (error) {
-    inp.value = c;
+    inp.value = c0;
     const m = /Modo lento: aguarde (\d+)/.exec(String(error.message || ''));
     if (m) { coolUntil.set(chan.id, Date.now() + (+m[1]) * 1000); return tickCool(); }   // o servidor mandou esperar
     return err(error);
@@ -7873,6 +8097,7 @@ async function dmOpen(p) {
     mt.textContent = ''; const tx = el('div', 'mtx'), c = String(r.content || ''); mdInto(tx, c); mt.append(tx);
     if (r.edited_at) mt.append(el('span', 'edited', t('edited')));
     mt.classList.toggle('jumbo', isJumbo(c));
+    NSTr.apply(mt, c, r.sender_id && r.sender_id !== uid ? r.sender_id : null);
   };
   const renderDmReacts = key => {
     const x = rows.get(key); if (!x) return;
@@ -7985,8 +8210,9 @@ async function dmOpen(p) {
     sb().rpc('dm_mark_read', { p_other: id }).then(() => dmLoadInbox());
     if (rows.size) loadDmReacts();
   };
+  NSTr.bar(f);
   f.onsubmit = async e => {
-    e.preventDefault(); const c = ta.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000); if (!c) return; go.disabled = true;
+    e.preventDefault(); const c0 = ta.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000); if (!c0) return; go.disabled = true; const c = (await NSTr.send(c0)).slice(0, 1000);
     const { data, error } = await sb().rpc('dm_send', { p_to: id, p_content: c }); go.disabled = false;
     if (error || data !== 'ok') return toast(dmMsg(error ? (missingFn(error) ? 'sql' : error.message) : data));
     ta.value = ''; fit(); closePicker(); await pull(); ta.focus();
@@ -8518,6 +8744,7 @@ async function grpOpen(id) {
     mt.textContent = ''; const tx = el('div', 'mtx'), c = String(r.content || ''); mdInto(tx, c); mt.append(tx);
     if (r.edited_at) mt.append(el('span', 'edited', t('edited')));
     mt.classList.toggle('jumbo', isJumbo(c));
+    NSTr.apply(mt, c, r.sender_id && r.sender_id !== uid ? r.sender_id : null);
   };
   const dropRow = key => { const x = rows.get(key); if (!x) return; x.d.remove(); rows.delete(key); };
   const startEdit = key => {
@@ -8600,8 +8827,9 @@ async function grpOpen(id) {
     paint((data || []).reverse(), (data || []).length >= 100);
     if (needRead) { needRead = false; sb().rpc('grp_mark_read', { p_group: id }).then(() => grpLoad()); }
   };
+  NSTr.bar(f);
   f.onsubmit = async e => {
-    e.preventDefault(); const c = ta.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000); if (!c) return; go.disabled = true;
+    e.preventDefault(); const c0 = ta.value.replace(/\r/g, '').replace(CTRL, '').trim().slice(0, 1000); if (!c0) return; go.disabled = true; const c = (await NSTr.send(c0)).slice(0, 1000);
     const { data, error } = await sb().rpc('grp_send', { p_group: id, p_content: c }); go.disabled = false;
     if (error || data !== 'ok') return toast(grpMsg(error || data));
     ta.value = ''; fit(); closePicker(); await pull(); ta.focus();
