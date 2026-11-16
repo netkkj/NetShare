@@ -3114,7 +3114,7 @@ window.NSTr = (() => {
         try {
           const r = await PROV[idx][1](text, to);
           const same = (r.src ? base(r.src) === base(to) : false) || norm(r.text) === norm(text);
-          const res = { text: r.text || text, same };
+          const res = { text: r.text || text, same, src: r.src || '' };
           bestProv = idx; cache.set(key, res); if (cache.size > 400) cache.delete(cache.keys().next().value);
           return res;
         } catch (e) { lastErr = e; }
@@ -3123,21 +3123,50 @@ window.NSTr = (() => {
     })();
     flying.set(key, p); try { return await p; } finally { flying.delete(key); }
   }
+  /* ---------- gírias e abreviações (vc, idk, tqm…): são escritas por extenso antes de traduzir, pois os tradutores erram muito nelas ---------- */
+  const DICT = {
+    pt: { vc: 'você', vcs: 'vocês', pq: 'porque', pqp: 'puxa', tb: 'também', tbm: 'também', blz: 'beleza', mt: 'muito', mto: 'muito', mta: 'muita', mtos: 'muitos', hj: 'hoje', td: 'tudo', tds: 'todos', msm: 'mesmo', nd: 'nada', ngm: 'ninguém', cmg: 'comigo', ctg: 'contigo', pfv: 'por favor', pf: 'por favor', pfvr: 'por favor', obg: 'obrigado', obgd: 'obrigado', vlw: 'valeu', flw: 'falou', tmj: 'tamo junto', sdds: 'saudades', bjs: 'beijos', bjo: 'beijo', tlgd: 'tá ligado', mds: 'meu Deus', dps: 'depois', agr: 'agora', qdo: 'quando', qto: 'quanto', qm: 'quem', naum: 'não', nao: 'não', n: 'não', eh: 'é', ta: 'está', tava: 'estava', q: 'que', oq: 'o que', cmo: 'como', fzr: 'fazer', blza: 'beleza', amg: 'amigo', amgs: 'amigos', ft: 'foto', msg: 'mensagem', vdd: 'verdade', tipo: 'tipo', pdc: 'pode crer', slc: 'e aí' },
+    en: { idk: "I don't know", idc: "I don't care", idgaf: "I don't care", imo: 'in my opinion', imho: 'in my humble opinion', tbh: 'to be honest', ngl: 'not gonna lie', brb: 'be right back', btw: 'by the way', omg: 'oh my god', thx: 'thanks', thnx: 'thanks', ty: 'thank you', tysm: 'thank you so much', pls: 'please', plz: 'please', u: 'you', ur: 'your', r: 'are', rn: 'right now', ikr: 'I know, right', ily: 'I love you', smh: 'shaking my head', fyi: 'for your information', afk: 'away from keyboard', gtg: 'got to go', g2g: 'got to go', ttyl: 'talk to you later', np: 'no problem', nvm: 'never mind', wdym: 'what do you mean', wyd: 'what are you doing', hbu: 'how about you', jk: 'just kidding', tho: 'though', cuz: 'because', bc: 'because', gonna: 'going to', wanna: 'want to', gotta: 'got to', lemme: 'let me', dunno: "don't know", b4: 'before', '2day': 'today', tmrw: 'tomorrow', gn: 'good night', gm: 'good morning', irl: 'in real life', fr: 'for real', ofc: 'of course', jus: 'just', rly: 'really', prob: 'probably', convo: 'conversation', bff: 'best friend forever', ez: 'easy', gg: 'good game', wtf: 'what the heck', lmk: 'let me know', ik: 'I know', ig: 'I guess', ppl: 'people', msg: 'message', pic: 'picture', abt: 'about', y: 'why' },
+    es: { q: 'que', ke: 'que', k: 'que', xq: 'porque', pq: 'porque', porq: 'porque', tb: 'también', tmb: 'también', tqm: 'te quiero mucho', tkm: 'te quiero mucho', ntp: 'no te preocupes', xfa: 'por favor', xfavor: 'por favor', porfa: 'por favor', grax: 'gracias', grac: 'gracias', salu2: 'saludos', bn: 'bien', mñn: 'mañana', dnd: 'dónde', cmo: 'cómo', stoy: 'estoy', toy: 'estoy', finde: 'fin de semana', msj: 'mensaje', pa: 'para', xa: 'para', d: 'de', x: 'por', tmbn: 'también', nose: 'no sé', ns: 'no sé', nse: 'no sé', ntc: 'no te creas', bss: 'besos', cdt: 'cuídate', mxo: 'mucho', mcho: 'mucho' }
+  };
+  /* para texto de idioma desconhecido: só entram as abreviações que existem em um único idioma e não são palavra comum de outro */
+  const MERGED = (() => {
+    const cnt = {}, out = {};
+    Object.values(DICT).forEach(d => Object.keys(d).forEach(k => { cnt[k] = (cnt[k] || 0) + 1; }));
+    Object.entries(DICT).forEach(([lg, d]) => Object.entries(d).forEach(([k, v]) => { if (cnt[k] === 1 && k.length >= 2 && !['ya', 'to', 'pa', 'xa', 'ta', 'ig', 'fr', 'ez', 'ft', 'ik', 'qm', 'np', 'ur', 'tho', 'jus', 'pic', 'tipo', 'ke', 'bc', 'gm', 'gn', 'cmo', 'pf'].includes(k)) out[k] = v; }));
+    return out;
+  })();
+  const expand = (text, d) => {
+    if (!d) return text;
+    return String(text).replace(/[\p{L}\p{N}'’]+/gu, w => {
+      const k = w.toLowerCase();
+      if (/^k{2,}$/.test(k) || /^(ha|ja|he|ra){2,}h?$/i.test(k) || /^(rs)+$/.test(k)) return w;   // risadas ficam como estão
+      if (!Object.prototype.hasOwnProperty.call(d, k)) return w;
+      const v = d[k]; return (w[0] !== w[0].toLowerCase() && w.length > 1 && w === w.toUpperCase() && k.length > 3) ? v.toUpperCase() : (w[0] !== w[0].toLowerCase() ? v.charAt(0).toUpperCase() + v.slice(1) : v);
+    });
+  };
   const KEEP = /(```[\s\S]*?```|`[^`\n]+`|https?:\/\/\S+|\[voz:[^\]]+\]|@[A-Za-z0-9_]{3,20}|:[A-Za-z0-9_]{2,24}:)/;
-  async function translate(text, to) {
+  async function translate(text, to, hint) {
     const parts = String(text || '').split(KEEP);
     let anyDiff = false, anySeg = false;
     const out = await Promise.all(parts.map(async (seg, i) => {
       if (i % 2 === 1 || !/\p{L}/u.test(seg)) return seg;
       const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(seg); anySeg = true;
-      const r = await one(m[2], to); if (!r.same) anyDiff = true;
+      let body = m[2];
+      const first = expand(body, hint && DICT[hint] ? DICT[hint] : MERGED);   // idioma conhecido (quem envia) ou só abreviações sem ambiguidade
+      let r = await one(first, to);
+      if (!hint && r.src && DICT[base(r.src)] && base(r.src) !== base(to)) {   // o tradutor identificou o idioma: agora vale o dicionário completo dele
+        const full = expand(body, DICT[base(r.src)]);
+        if (full !== first) r = await one(full, to);
+      }
+      if (!r.same) anyDiff = true;
       return m[1] + r.text + m[3];
     }));
     return { text: out.join(''), same: !anySeg || !anyDiff };
   }
   const send = async c => {
     const o = getOut(); if (!o.on || !o.lang || !c) return c;
-    try { const r = await translate(c, o.lang); return r.same ? c : r.text; }
+    try { const r = await translate(c, o.lang, base(loc())); return r.same ? c : r.text; }
     catch (e) { if (typeof toast === 'function') toast(T('Não consegui traduzir agora; enviei no idioma original.', 'Could not translate right now; sent in the original language.', 'No pude traducir ahora; se envió en el idioma original.')); return c; }
   };
 
@@ -3162,7 +3191,7 @@ window.NSTr = (() => {
     x.onclick = close; ov.addEventListener('mousedown', e => { if (e.target === ov) close(); });
     box.append(hd, q, list); document.body.append(ov);
     try { ov.showModal(); } catch (e) { ov.setAttribute('open', ''); }
-    setTimeout(() => { const on = list.querySelector('.on'); if (on) on.scrollIntoView({ block: 'center' }); if (innerWidth > 860) q.focus(); }, 30);
+    setTimeout(() => { const on = list.querySelector('.on'); if (on) list.scrollTop = Math.max(0, on.offsetTop - list.clientHeight / 2 + on.offsetHeight / 2); if (innerWidth > 860) q.focus(); }, 30);
   }
 
   /* ---------- 2 botões acima da caixa de mensagem de qualquer chat ---------- */
@@ -3223,7 +3252,7 @@ window.NSTr = (() => {
     };
     return w;
   }
-  return { bar, send, apply, personBtn, setIn, inLang, name };
+  return { bar, send, apply, personBtn, setIn, inLang, name, _expand: expand, _dict: DICT, _merged: MERGED };
 })();
 </script>
 <script>
@@ -4567,10 +4596,10 @@ applyLang();
   dialog.tr-ov { position: fixed; inset: 0; z-index: 100000; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0; padding: 16px; box-sizing: border-box; background: rgba(3,5,14,.66); color: inherit; overflow: hidden; }
   dialog.tr-ov[open] { display: flex; align-items: center; justify-content: center; }
   dialog.tr-ov::backdrop { background: transparent; }
-  .tr-box { display: flex; flex-direction: column; width: min(420px, 100%); max-height: min(600px, 86vh); border: 1px solid var(--line); border-radius: 18px; background: var(--card-solid, #12162b); box-shadow: 0 24px 70px #000b; overflow: hidden; }
+  .tr-box { display: flex; flex-direction: column; box-sizing: border-box; min-width: 0; width: min(420px, 100%); max-height: min(600px, 86vh); border: 1px solid var(--line); border-radius: 18px; background: var(--card-solid, #12162b); box-shadow: 0 24px 70px #000b; overflow: hidden; }
   .tr-hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 16px 12px 10px 18px; font-size: 1rem; }
   .tr-ov .tr-x { flex: 0 0 auto; width: 36px; min-width: 36px !important; height: 36px; min-height: 36px !important; padding: 0 !important; border: 0 !important; border-radius: 10px !important; background: rgba(255,255,255,.06) !important; box-shadow: none !important; color: inherit; font-size: .9rem; cursor: pointer; }
-  .tr-ov .tr-q { margin: 0 16px 8px; padding: 11px 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(0,0,0,.28); color: inherit; font-size: 16px; outline: none; }
+  .tr-ov .tr-q { display: block; box-sizing: border-box; width: calc(100% - 32px); max-width: 100%; margin: 0 16px 8px; padding: 11px 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(0,0,0,.28); color: inherit; font-size: 16px; outline: none; }
   .tr-ov .tr-q:focus { border-color: var(--acc); }
   .tr-list { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 8px 12px; scrollbar-width: thin; }
   .tr-ov .tr-it { display: flex !important; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-width: 0 !important; min-height: 46px !important; margin: 0 !important; padding: 10px 12px !important; border: 0 !important; border-radius: 10px !important; background: transparent !important; box-shadow: none !important; color: inherit; font: 600 .92rem/1.25 'DM Sans', system-ui, sans-serif !important; text-align: left; text-transform: none; letter-spacing: 0; cursor: pointer; }
