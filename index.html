@@ -327,6 +327,14 @@
   .mu-chip .av { flex: 0 0 auto; }
   .mu-ico { flex: 0 0 auto; display: grid; place-items: center; width: 20px; height: 20px; overflow: hidden; border-radius: 7px; background: var(--surface-hover); font-size: .68rem; font-weight: 800; }
   .mu-ico img { width: 100%; height: 100%; object-fit: cover; }
+  .pc-vol { display: grid; gap: 6px; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  .pc-voll { font-size: .8rem; }
+  .pc-volrow { display: flex; align-items: center; gap: 10px; }
+  .pc-volrow input[type=range] { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 0; accent-color: var(--acc); background: none; border: 0; }
+  .pc-volb { flex: 0 0 auto; width: 40px; min-height: 40px; padding: 0; font-size: 1.05rem; }
+  .pc-volpct { flex: 0 0 auto; min-width: 44px; text-align: right; font-size: .82rem; font-weight: 700; }
+  .pc-vol small { font-size: .74rem; line-height: 1.3; }
+  @media (hover: none) { .pc-volb { width: 46px; min-height: 46px; } .pc-volrow input[type=range] { min-height: 32px; } }
   .cn-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   a.cn-chip:hover { background: color-mix(in srgb, var(--c) 26%, transparent); }
   .cn-lab { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: inherit; text-decoration: none; }
@@ -1524,10 +1532,45 @@ function applyMods() {
   syncVoiceOut(); syncAudio(); updateButtons(); render();
 }
 
+/* ---- volume e silêncio por pessoa: vale só no meu aparelho e fica salvo ---- */
+const UVOL_KEY = 'ns-uvol', UNAME_RE = /^[a-z0-9_]{3,20}$/;
+const volSupported = (() => { try { const a = new Audio(); a.volume = .5; return a.volume === .5; } catch (e) { return true; } })();   // iPhone/iPad ignoram o volume do <audio>: lá só dá para silenciar
+const uvol = (() => {
+  const r = {};
+  try {
+    const o = JSON.parse(localStorage.getItem(UVOL_KEY) || '{}');
+    if (o && typeof o === 'object') Object.keys(o).slice(0, 300).forEach(k => {
+      const x = o[k]; if (!UNAME_RE.test(k) || !x || typeof x !== 'object') return;
+      const v = Number.isFinite(+x.v) ? Math.min(1, Math.max(0, +x.v)) : 1;
+      if (v < 1 || x.m) r[k] = { v, m: !!x.m };
+    });
+  } catch (e) {}
+  return r;
+})();
+const uvKey = id => { const p = people.get(id), u = p && p.prof && p.prof.username; return typeof u === 'string' && u ? u.toLowerCase() : null; };
+function userGain(id) { const k = uvKey(id), x = k && uvol[k]; return x ? (x.m ? 0 : x.v) : 1; }
+window.NSVoice = {
+  canVol: volSupported,
+  here(name) {   // essa pessoa está na minha call agora? (call privada, canal de voz de servidor ou call de grupo)
+    const k = String(name || '').toLowerCase();
+    if ($('room').classList.contains('hidden') || !roomIsVoice || !UNAME_RE.test(k)) return false;
+    let f = false; people.forEach((p, id) => { if (id !== own.id && p.prof && String(p.prof.username || '').toLowerCase() === k) f = true; });
+    return f;
+  },
+  get(name) { const x = uvol[String(name || '').toLowerCase()]; return x ? { v: x.v, m: x.m } : { v: 1, m: false }; },
+  set(name, v, m) {
+    const k = String(name || '').toLowerCase(); if (!UNAME_RE.test(k)) return;
+    v = Number.isFinite(+v) ? Math.min(1, Math.max(0, +v)) : 1;
+    if (v >= 1 && !m) delete uvol[k]; else uvol[k] = { v, m: !!m };
+    try { localStorage.setItem(UVOL_KEY, JSON.stringify(uvol)); } catch (e) {}
+    syncAudio(); tiles.forEach(t => { if (!t.local) { applyVolume(t); updateSoundBtn(t); } });
+  }
+};
+
 /* ---- o que eu escuto ---- */
 const deaf = () => selfDeaf || !!modOf(myKeys()).d;
 function silenced(id) { const p = people.get(id); return !!p && !!modOf(peerKeys(p)).m; }
-const forcedMute = id => deaf() || silenced(id);
+const forcedMute = id => deaf() || silenced(id) || userGain(id) === 0;
 function syncAudio() {
   tiles.forEach((t, id) => {
     if (t.local) return;
@@ -1544,7 +1587,7 @@ function syncAudio() {
   vplay.forEach((r, id) => {
     const a = r.el; if (!a) return;
     a.muted = forcedMute(id);
-    a.volume = Math.min(1, Math.max(0, masterVol));
+    a.volume = Math.min(1, Math.max(0, masterVol * userGain(id)));
     if (!a.muted && a.srcObject && a.paused) { const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); }
   });
 }
@@ -2014,7 +2057,7 @@ let masterVol = (() => {
   catch (e) { return 1; }
 })();
 function applyVolume(t) {
-  try { t.video.volume = Math.min(1, Math.max(0, masterVol * (t.vol == null ? 1 : t.vol))); } catch (e) {}
+  try { t.video.volume = Math.min(1, Math.max(0, masterVol * (t.vol == null ? 1 : t.vol) * userGain(t.id))); } catch (e) {}
 }
 $('vol').value = Math.round(masterVol * 100);
 $('vol').oninput = () => {
@@ -2767,7 +2810,8 @@ const ACC_I18N = {
   dzBadCode:'Código inválido ou expirado.', dzNoCode:'Digite o código que chegou no seu e-mail.', dzNoEmail:'Sua conta não tem e-mail cadastrado, então não dá para confirmar.',
   dzNeed:'Falta rodar a migração SQL v34 no Supabase para usar essa opção.',
   dzDoneDel:'Conta excluída.', dzDoneOff:'Conta desabilitada. Entre de novo quando quiser reativar.', dzBack:'Conta reativada. Bem-vindo de volta!',
-  muFriends:'Amigos em comum · {n}', muServers:'Servidores em comum · {n}'
+  muFriends:'Amigos em comum · {n}', muServers:'Servidores em comum · {n}',
+  pcVol:'Volume da voz', pcMuted:'Mudo', pcMute:'Silenciar essa pessoa', pcUnmute:'Voltar a ouvir', pcNoSlider:'Neste aparelho só dá para silenciar.', pcVolHint:'Só você nota a diferença; a pessoa não é avisada.'
 },
 'en': {
   eyebrowA:'Direct connection', eyebrowB:'No sign-up', eyebrowB2:'Account optional',
@@ -2803,7 +2847,8 @@ const ACC_I18N = {
   dzBadCode:'Invalid or expired code.', dzNoCode:'Enter the code from your email.', dzNoEmail:'Your account has no email, so it cannot be confirmed.',
   dzNeed:'The v34 SQL migration still needs to be run in Supabase to use this option.',
   dzDoneDel:'Account deleted.', dzDoneOff:'Account disabled. Sign in again whenever you want to reactivate it.', dzBack:'Account reactivated. Welcome back!',
-  muFriends:'Mutual friends · {n}', muServers:'Mutual servers · {n}'
+  muFriends:'Mutual friends · {n}', muServers:'Mutual servers · {n}',
+  pcVol:'Voice volume', pcMuted:'Muted', pcMute:'Mute this person', pcUnmute:'Listen again', pcNoSlider:'On this device you can only mute.', pcVolHint:'Only you notice the difference; the person is not notified.'
 },
 'pt-PT': {
   accPass:'Palavra-passe', accPassNew:'Nova palavra-passe', accForgot:'Esqueci-me da palavra-passe',
@@ -3475,6 +3520,30 @@ window.Acc = (() => {
     } catch (e) {}
   }
 
+  /* volume / silêncio só dessa pessoa: aparece quando ela está na minha call (privada, servidor ou grupo) */
+  function voiceCtl(p) {
+    const V = window.NSVoice, un = p && p.username ? String(p.username).toLowerCase() : '';
+    if (!V || !un || !V.here(un)) return null;
+    const box = el('div', 'pc-vol'), row = el('div', 'pc-volrow'), pct = el('span', 'pc-volpct'), mb = el('button'), rg = el('input');
+    const st = V.get(un); let vol = st.v > 0 ? st.v : 1, muted = st.m || st.v === 0;
+    mb.type = 'button'; rg.type = 'range'; rg.min = '0'; rg.max = '100'; rg.step = '5'; rg.setAttribute('aria-label', T('pcVol'));
+    const paint = () => {
+      rg.value = muted ? 0 : Math.round(vol * 100);
+      pct.textContent = muted ? T('pcMuted') : Math.round(vol * 100) + '%';
+      mb.textContent = muted ? '🔇' : '🔊'; mb.title = muted ? T('pcUnmute') : T('pcMute'); mb.className = 'pc-volb ' + (muted ? 'bad' : 'sec');
+    };
+    mb.onclick = () => { muted = !muted; V.set(un, vol, muted); paint(); };
+    rg.oninput = () => {
+      const v = rg.value / 100;
+      if (v === 0) { muted = true; V.set(un, vol, true); } else { muted = false; vol = v; V.set(un, v, false); }
+      paint();
+    };
+    row.append(mb); if (V.canVol) row.append(rg); row.append(pct);
+    box.append(el('b', 'pc-voll', '🔊 ' + T('pcVol')), row, el('small', 'mut', V.canVol ? T('pcVolHint') : T('pcNoSlider') + ' ' + T('pcVolHint')));
+    paint();
+    return box;
+  }
+
   /* amigos e servidores em comum (só no cartão de outra pessoa) */
   async function fillMutuals(p, info, host) {
     if (!sb || !session || (!p.user_id && !p.username)) return;
@@ -3576,6 +3645,7 @@ window.Acc = (() => {
     fillExtras(p, info, since, cw);   // data de criação da conta e conexões (chegam logo depois)
     /* é o meu próprio cartão: edito o perfil aqui mesmo, sem voltar à página principal */
     const mine = !!(session && me && ((p.user_id && p.user_id === session.user.id) || (p.username && p.username === me.username)));
+    if (!mine) { const vc = voiceCtl(p); if (vc) info.append(vc); }   // volume / silêncio só dessa pessoa (se ela está na minha call)
     if (!mine && session && me) { const mu = el('div', 'pc-mut hidden'); info.append(mu); fillMutuals(p, info, mu); }   // amigos e servidores em comum
     if (mine) {
       const eb = btn('accEdit', '', () => { $('dlgCard').close(); openProfile(); });
@@ -4064,8 +4134,14 @@ applyLang();
   .dlg label.grp-pk input { flex: 0 0 auto; width: 18px; height: 18px; min-height: 0; padding: 0; accent-color: var(--acc); }
   .dlg label.grp-pk b { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .grp-cnt { margin: 0; font-size: .8rem; }
-  .grp-call { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--ok) 14%, transparent); font-size: .88rem; font-weight: 700; }
+  .grp-call { display: flex; flex-direction: column; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--ok) 14%, transparent); font-size: .88rem; font-weight: 700; }
   .grp-call button { min-height: 36px; padding: 0 14px; }
+  .grp-call-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .grp-cp { display: flex; flex-wrap: wrap; gap: 6px; }
+  .grp-call .grp-cchip { display: inline-flex; align-items: center; gap: 6px; min-height: 0; padding: 3px 10px 3px 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); box-shadow: none; color: var(--fg); font-size: .8rem; font-weight: 600; max-width: 100%; }
+  .grp-call .grp-cchip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .grp-call .grp-cchip:hover:not(:disabled) { transform: none; box-shadow: none; background: var(--surface-hover); }
+  #srvRail .gcall { position: absolute; left: -2px; bottom: -3px; display: grid; place-items: center; width: 17px; height: 17px; border: 2px solid #060a18; border-radius: 50%; background: var(--ok); font-size: .55rem; line-height: 1; box-sizing: content-box; pointer-events: none; }
   .grp-mem { position: absolute; left: 0; right: 0; bottom: 0; top: calc(56px + env(safe-area-inset-top)); z-index: 3; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; overflow-y: auto; background: var(--card-solid); }
   .grp-mem-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
   .grp-mem-tb { display: flex; align-items: center; gap: 6px; }
@@ -4407,7 +4483,8 @@ function renderRail() {
   if ((grpL || []).length) rail.append(el('div', 'sdiv'));
   (grpL || []).forEach(g => {
     const gw = el('div', 'shomewrap'), gb = mk('', () => grpOpen(g.id), 'sbtn sgrpb' + (g.muted ? ' gmuted' : ''));
-    gb.title = grpTitle(g) + (g.muted ? ' 🔕' : ''); gb.append(grpIcon(g)); gw.append(gb);
+    gb.title = grpTitle(g) + (g.muted ? ' 🔕' : '') + (g.incall ? ' · 🔊 ' + g.incall : ''); gb.append(grpIcon(g)); gw.append(gb);
+    if (g.incall) gw.append(el('span', 'gcall', '🔊'));
     if (g.unread && !g.muted) gw.append(el('span', 'fbadge', g.unread > 99 ? '99+' : String(g.unread)));
     rail.append(gw);
   });
@@ -4427,7 +4504,7 @@ function syncRail() {
   document.body.classList.toggle('hasrail', !!uid);
   if (inJoin && voiceCh) { voiceCh = null; if (cur) renderChans(); }   // saiu da chamada: limpa e repinta a lista (senão o destaque do canal de voz fica preso)
   if (inJoin && callActive) { const cid = callActive; callActive = null; try { sb().rpc('dm_call_respond', { p_id: cid, p_action: 'end' }).then(() => {}, () => {}); } catch (e) {} try { callDropped(cid); } catch (e) {} }
-  if (inJoin && grpCall) { clearInterval(grpCall.beat); grpCall = null; }   // saí da call do grupo
+  if (inJoin && grpCall) { grpLeaveCall(grpCall); grpCall = null; }   // saí da call do grupo
   if (inJoin && voiceJoin) { voiceJoin = false; $('inRoom').value = ''; $('inPass').value = ''; }
   if (inJoin && cur && view.classList.contains('hidden')) closeView();
   layout();
@@ -7051,7 +7128,7 @@ function dmStop() { callHalt(); clearInterval(dmPoll); if (dmCh) { try { sb().re
 function dmInboxPaint(b) {
   (grpL || []).forEach(g => {
     const r = el('div', 'fr-row'), tx = el('div', 'fr-tx'), nm = el('b', '', '👥 ' + grpTitle(g));
-    tx.append(nm, el('small', 'mut', String(g.last_content || (g.count + LL(' membros', ' members'))).replace(/\s+/g, ' ').slice(0, 60)));
+    tx.append(nm, el('small', 'mut', (g.incall ? '🔊 ' + g.incall + LL(' na call · ', ' in call · ') : '') + String(g.last_content || (g.count + LL(' membros', ' members'))).replace(/\s+/g, ' ').slice(0, 60)));
     r.append(grpIcon(g, 40), tx);
     if (g.unread && !g.muted) r.append(el('span', 'ub', String(g.unread)));
     r.onclick = () => grpOpen(g.id); b.append(r);
@@ -7331,7 +7408,7 @@ function grpIcon(g, size) {
 }
 const cleanGrp = r => ({
   id: String(r.id), name: cleanStr(r.name, 32), names: cleanStr(r.names, 80), owner_id: r.owner_id || null, muted: !!r.muted,
-  unread: Math.max(0, +r.unread || 0), last_content: String(r.last_content || ''), last_at: r.last_at || null, count: +r.member_count || 0
+  unread: Math.max(0, +r.unread || 0), last_content: String(r.last_content || ''), last_at: r.last_at || null, count: +r.member_count || 0, incall: Math.max(0, +r.call_count || 0)
 });
 async function grpLoad() {
   const me = uid; if (!me) return;
@@ -7374,23 +7451,24 @@ function grpStop() {
   clearInterval(grpTimer); grpTimer = 0; clearTimeout(grpStart._t);
   if (grpCh) { try { sb().removeChannel(grpCh); } catch (e) {} grpCh = null; }
   grpL = []; grpSig = ''; grpSql = false; grpDeclined.clear();
-  if (grpCall) { clearInterval(grpCall.beat); grpCall = null; }
+  if (grpCall) { grpLeaveCall(grpCall); grpCall = null; }
 }
 
 /* ----- call do grupo: quem liga entra na hora e todos os outros recebem a chamada para atender ----- */
+function grpLeaveCall(gc) { if (!gc) return; clearInterval(gc.beat); try { sb().rpc('grp_call_leave', { p_call: gc.id }).then(() => {}, () => {}); } catch (e) {} }
 function grpBusy() { return !!(grpCall && !$('room').classList.contains('hidden')); }
 async function grpJoin(g, c) {
   if (!g || !c || !UUID_RE.test(String(c.id || '')) || typeof c.room_key !== 'string' || !c.room_key) return;
-  if (grpCall) { clearInterval(grpCall.beat); grpCall = null; }
+  if (grpCall) { grpLeaveCall(grpCall); grpCall = null; }
   callOfferHide();
   if (!$('room').classList.contains('hidden')) { leaveRoom(); await new Promise(res => setTimeout(res, 400)); }
   window.__roomLimit = GRP_MAX; window.__roomSpeak = true;
   voiceCh = null; vsrv = null; vmem = []; clearInterval(vmemT);
   voiceJoin = true;
   const gc = grpCall = { id: c.id, gid: g.id, beat: 0 };
-  gc.beat = setInterval(() => {   // enquanto eu estiver na call, ela continua "ativa" para quem quiser entrar depois
-    if (grpCall === gc && !$('room').classList.contains('hidden')) sb().rpc('grp_call_beat', { p_call: gc.id }).then(() => {}, () => {});
-  }, 30000);
+  const beat = () => { if (grpCall === gc) sb().rpc('grp_call_beat', { p_call: gc.id }).then(() => {}, () => {}); };
+  gc.beat = setInterval(() => { if (!$('room').classList.contains('hidden')) beat(); }, 20000);   // mantém a call ativa e eu na lista de quem está nela
+  beat();
   $('inRoom').value = 'g' + c.id.replace(/-/g, '').slice(0, 20);
   $('inPass').value = c.room_key;
   window.__roomLabel = '👥 ' + grpTitle(g); window.__roomNs = 'v';
@@ -7494,7 +7572,7 @@ async function grpOpen(id) {
   const g0 = grpL.find(x => x.id === id); if (!g0) return;
   if (dmCur && dmCur.group && dmCur.id === id && dmPanel) { const t0 = dmPanel.querySelector('textarea'); if (t0) t0.focus(); return; }
   dmClose();
-  let g = g0, gm = new Map(), activeCall = null, last = 0, needRead = true;
+  let g = g0, gm = new Map(), activeCall = null, activeUsers = new Set(), last = 0, needRead = true;
   const mp = A().myProfile() || {}, meo = { id: uid, display_name: mp.display_name || '?', username: mp.username || '', avatar_path: mp.avatar_path || null };
   const whoOf = u => gm.get(u) || (u === uid ? meo : { id: u || '', display_name: '?', username: '', avatar_path: null });
   const d = el('aside'); d.id = 'dmView'; dmPanel = d;
@@ -7686,7 +7764,7 @@ async function grpOpen(id) {
     if (mine) { const a = mk('➕ ' + LL('Adicionar', 'Add'), doAdd, 'sec'), r = mk('✏️', doRename, 'sec'); r.title = LL('Renomear grupo', 'Rename group'); tb.append(a, r); }
     tb.append(mk('✕', () => toggleSheet(false), 'sec x')); top.append(tb); sheet.append(top);
     [...gm.values()].sort((a, b) => (b.owner - a.owner) || String(a.display_name).localeCompare(String(b.display_name))).forEach(x => {
-      const row = el('div', 'grp-mrow'), tx = el('div', 'grp-mtx'), n2 = el('b', '', x.display_name + (x.owner ? ' 👑' : '') + (x.id === uid ? LL(' (você)', ' (you)') : ''));
+      const row = el('div', 'grp-mrow'), tx = el('div', 'grp-mtx'), n2 = el('b', '', x.display_name + (x.owner ? ' 👑' : '') + (activeUsers.has(x.id) ? ' 🔊' : '') + (x.id === uid ? LL(' (você)', ' (you)') : ''));
       if (x.username && window.NS) NS.apply(n2, x.username);
       tx.append(n2, el('small', 'mut', x.username ? '@' + x.username : ''));
       const av = A().avatar(x, 36); av.classList.add('click'); av.onclick = () => openWho(x.id); tx.onclick = () => openWho(x.id);
@@ -7714,18 +7792,33 @@ async function grpOpen(id) {
 
   /* call em andamento: quem não atendeu (ou chegou depois) entra por aqui */
   const checkCall = async () => {
-    if (grpBusy()) { banner.classList.add('hidden'); return; }
     const { data, error } = await sb().rpc('grp_call_active', { p_group: id });
     if (dmPanel !== d || error) return;
     activeCall = data && UUID_RE.test(String(data.id || '')) ? data : null;
     banner.textContent = '';
-    if (!activeCall) { banner.classList.add('hidden'); return; }
-    banner.append(el('span', '', '📞 ' + LL('Call em andamento', 'Call in progress')),
-      mk(LL('Entrar', 'Join'), () => {
-        if (callActive || callOut || !$('room').classList.contains('hidden')) return toast(LL('Saia da call atual antes de entrar.', 'Leave your current call before joining.'));
-        grpJoin(g, activeCall);
-      }, 'callok'));
+    if (!activeCall) { activeUsers = new Set(); banner.classList.add('hidden'); if (!sheet.classList.contains('hidden')) paintSheet(); return; }
+    const inMine = !!(grpBusy() && grpCall.gid === id);
+    const users = (Array.isArray(activeCall.users) ? activeCall.users : []).filter(u => UUID_RE.test(String(u)));
+    if (inMine && !users.includes(uid)) users.push(uid);
+    activeUsers = new Set(users);
+    const top = el('div', 'grp-call-top');
+    top.append(el('span', '', (inMine ? '🔊 ' + LL('Você está na call', 'You are in the call') : '📞 ' + LL('Call em andamento', 'Call in progress')) + (users.length ? ' · ' + users.length : '')));
+    if (!inMine) top.append(mk(LL('Entrar', 'Join'), () => {
+      if (callActive || callOut || !$('room').classList.contains('hidden')) return toast(LL('Saia da call atual antes de entrar.', 'Leave your current call before joining.'));
+      grpJoin(g, activeCall);
+    }, 'callok'));
+    banner.append(top);
+    if (users.length) {   // quem está na call agora
+      const ps = el('div', 'grp-cp');
+      users.slice(0, 12).forEach(u => {
+        const w = whoOf(u), c = el('button', 'grp-cchip'); c.type = 'button';
+        c.append(A().avatar(w, 22), el('span', '', u === uid ? LL('Você', 'You') : w.display_name));
+        c.onclick = () => openWho(u); ps.append(c);
+      });
+      banner.append(ps);
+    }
     banner.classList.remove('hidden');
+    if (!sheet.classList.contains('hidden')) paintSheet();
   };
 
   d._grpRefresh = () => {
