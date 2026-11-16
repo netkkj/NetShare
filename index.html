@@ -4146,7 +4146,7 @@ window.Acc = (() => {
           const f = cf[k]; if (!f || !cv) continue;
           const path = uid + '/card-' + tag + '-' + Date.now() + '-' + rndHex(4) + '.' + f.type.ext;
           const { error: ue } = await sb.storage.from('avatars').upload(path, f.file, { contentType: f.type.mime, cacheControl: '31536000', upsert: false });
-          if (ue) throw Object.assign(new Error(ue.message), { upload: true });
+          if (ue) throw Object.assign(new Error(/maximum allowed size/i.test(ue.message || '') ? 'o limite de tamanho do bucket "avatars" no Supabase é menor que esta imagem (rode o SQL que sobe o limite para 5 MB, ou use uma imagem menor)' : ue.message), { upload: true });
           uploaded.push(['avatars', path]); cardUp.push(path);
           if (k === 'di') cv.di = path; else if (cv.act) cv.act.i = path;
         }
