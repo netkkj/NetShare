@@ -338,6 +338,9 @@
   .pc-ach { display: grid; place-items: center; width: 44px; height: 44px; border: 2px solid var(--pa, #8b9bff); border-radius: 14px; background: color-mix(in srgb, var(--pa, #8b9bff) 16%, #05060f); box-shadow: 0 0 10px color-mix(in srgb, var(--pa, #8b9bff) 55%, transparent); font-size: 1.35rem; }
   .pc-act { display: flex; align-items: center; gap: 10px; }
   .pc-actile { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 10px; background: color-mix(in srgb, var(--pa, #8b9bff) 30%, #05060f); font-size: 1.5rem; flex: none; }
+  .pc-actile { overflow: hidden; } .pc-actile.has-img { background: transparent; } .pc-actile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pc-deco.pc-deco-img { width: 3.4rem; height: 3.4rem; object-fit: contain; opacity: .9; }
+  .pc-thumb { width: 44px; height: 44px; flex: none; border-radius: 10px; object-fit: cover; border: 1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.35); }
   .pc-actmid { display: grid; min-width: 0; } .pc-actmid b { font-size: .92rem; } .pc-actmid small { font-size: .74rem; }
   .pc-actq { margin-left: auto; padding: 6px 12px; border: 1px solid color-mix(in srgb, var(--pa, #8b9bff) 45%, transparent); border-radius: 999px; font-size: .76rem; font-style: italic; text-align: right; }
   .pc-mock { display: grid; gap: 4px; padding: 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--pa, #8b9bff) 45%, transparent); background: radial-gradient(130% 80% at 50% 0%, color-mix(in srgb, var(--pa, #8b9bff) 28%, #0a0c1a), #070812 75%); }
@@ -3496,17 +3499,19 @@ window.Acc = (() => {
     const r = {
       accent: HEX6.test(o.accent || '') ? o.accent.toLowerCase() : '', accent2: HEX6.test(o.accent2 || '') ? o.accent2.toLowerCase() : '',
       full: o.full === true, ring: o.ring === 'glow' || o.ring === 'pulse' ? o.ring : '', deco: cs(o.deco, 8),
+      di: PATH_RE.test(o.di || '') ? o.di : '',   // foto/GIF no lugar da decoração grande
       loc: cs(o.loc, 24), lvl: cs(o.lvl, 14),
       badges: pair(o.badges, 4, 14), langs: pair(o.langs, 4, 12),
       ach: (Array.isArray(o.ach) ? o.ach : []).slice(0, 6).map(x => cs(x, 8)).filter(Boolean),
       act: null
     };
-    if (o.act && typeof o.act === 'object') { const a = { e: cs(o.act.e, 8), t: cs(o.act.t, 22), s: cs(o.act.s, 26), q: cs(o.act.q, 44) }; if (a.e || a.t || a.s || a.q) r.act = a; }
-    const any = r.accent || r.full || r.ring || r.deco || r.loc || r.lvl || r.badges.length || r.langs.length || r.ach.length || r.act;
+    if (o.act && typeof o.act === 'object') { const a = { e: cs(o.act.e, 8), t: cs(o.act.t, 22), s: cs(o.act.s, 26), q: cs(o.act.q, 44), i: PATH_RE.test(o.act.i || '') ? o.act.i : '' }; if (a.e || a.t || a.s || a.q || a.i) r.act = a; }
+    const any = r.accent || r.full || r.ring || r.deco || r.di || r.loc || r.lvl || r.badges.length || r.langs.length || r.ach.length || r.act;
     return any ? r : null;
   }
 
-  function themeParts(th) {
+  function themeParts(th, ov) {
+    ov = ov || {};
     const P = {}, panel = (title) => { const d = el('div', 'pc-panel'); if (title) d.append(el('h4', '', title)); return d; };
     const chips = (list) => { const r = el('div', 'pc-chips'); list.forEach(b => r.append(el('span', 'pc-chipx', (b.e ? b.e + ' ' : '') + b.t))); return r; };
     if (th.badges.length) P.badges = chips(th.badges);
@@ -3524,7 +3529,9 @@ window.Acc = (() => {
     }
     if (th.act) {
       const d = panel('🎮 ' + L3('Minhas atividades', 'My activities', 'Mis actividades')), r = el('div', 'pc-act');
-      const tile = el('span', 'pc-actile', th.act.e || '🎮'), mid = el('div', 'pc-actmid');
+      const tile = el('span', 'pc-actile'), mid = el('div', 'pc-actmid');
+      const aiu = th.act.i ? (ov.ai || imgUrl('avatars', th.act.i)) : null;
+      if (aiu) { const im = el('img'); im.src = aiu; im.alt = ''; im.decoding = 'async'; tile.classList.add('has-img'); tile.append(im); } else tile.textContent = th.act.e || '🎮';
       mid.append(el('b', '', th.act.t), el('small', 'mut', th.act.s));
       r.append(tile, mid); if (th.act.q) r.append(el('span', 'pc-actq', '“' + th.act.q + '”'));
       d.append(r); P.act = d;
@@ -3540,7 +3547,9 @@ window.Acc = (() => {
     const pan = el('div', 'pc-panel pc-about');
     bio.before(pan);
     pan.append(el('h4', '', '👤 ' + L3('Sobre mim', 'About me', 'Sobre mí')), bio);
-    if (th.deco) pan.append(el('span', 'pc-deco', th.deco));
+    const diu = th.di ? imgUrl('avatars', th.di) : null;
+    if (diu) { const im = el('img', 'pc-deco pc-deco-img'); im.src = diu; im.alt = ''; im.decoding = 'async'; pan.append(im); }
+    else if (th.deco) pan.append(el('span', 'pc-deco', th.deco));
     [P.langs, P.badges].forEach(n => { if (n) pan.before(n); });
     const tail = [P.stats];
     if (P.ach && P.act) { const duo = el('div', 'pc-duo'); duo.append(P.ach, P.act); tail.push(duo); } else tail.push(P.ach, P.act);
@@ -3570,21 +3579,48 @@ window.Acc = (() => {
   function cardEditor(host, init, onChange) {
     host.textContent = '';
     const pad = (a, n) => { const r = (a || []).slice(0, n).map(x => (typeof x === 'string' ? x : { e: x.e || '', t: x.t || '' })); while (r.length < n) r.push(typeof (a || [])[0] === 'string' || n === 6 ? '' : { e: '', t: '' }); return r; };
-    const fromTh = th => { th = th || {}; return { accent: th.accent || '', accent2: th.accent2 || '', full: !!th.full, ring: th.ring || '', deco: th.deco || '', loc: th.loc || '', lvl: th.lvl || '', badges: pad(th.badges, 4).map(x => x || { e: '', t: '' }), langs: pad(th.langs, 4).map(x => x || { e: '', t: '' }), ach: pad(th.ach, 6).map(x => x || ''), act: { e: '', t: '', s: '', q: '', ...(th.act || {}) } }; };
+    const fromTh = th => { th = th || {}; return { accent: th.accent || '', accent2: th.accent2 || '', full: !!th.full, ring: th.ring || '', deco: th.deco || '', di: th.di || '', loc: th.loc || '', lvl: th.lvl || '', badges: pad(th.badges, 4).map(x => x || { e: '', t: '' }), langs: pad(th.langs, 4).map(x => x || { e: '', t: '' }), ach: pad(th.ach, 6).map(x => x || ''), act: { e: '', t: '', s: '', q: '', i: '', ...(th.act || {}) } }; };
     let raw = fromTh(cleanCard(init));
+    const imgs = { di: null, ai: null };   // fotos/GIFs escolhidos e ainda não enviados
+    const PENDING = '00000000-0000-0000-0000-000000000000/pendente';
+    const MAXI = 5242880;
     const box = el('div', 'nsed');
     box.append(el('strong', '', L3('Tema do cartão de perfil', 'Profile card theme', 'Tema de la tarjeta de perfil')),
                el('p', 'mut', L3('Cor neon do cartão, selos, idiomas, conquistas e atividade — aparece quando alguém abre o seu perfil. O banner pode virar o fundo grande.', 'Neon color, badges, languages, achievements and activity — shown when someone opens your profile. The banner can become the big background.', 'Color neón, insignias, idiomas, logros y actividad al abrir tu perfil.')));
     const prev = el('div', 'pc-mock'); box.append(prev);
     const group = (label, node) => { const g = el('div', 'ns-grp'); g.append(el('span', 'mut', label), node); box.append(g); return g; };
-    const emit = () => { refresh(); onChange(cleanCard(raw)); };
+    const emit = () => { refresh(); onChange(cleanCard(raw), { di: imgs.di, ai: imgs.ai }); };
+    const dropImgs = () => { ['di', 'ai'].forEach(k => { if (imgs[k]) { URL.revokeObjectURL(imgs[k].url); imgs[k] = null; } }); };
+    const pickers = [];
+    // botão "Foto / GIF" + miniatura + remover (kind: 'di' = decoração grande, 'ai' = ícone da atividade)
+    const imgPicker = (kind, get, set) => {
+      const wrap = el('div', 'ns-ctl'), fi = el('input'), note = el('span', 'mut', ''), th = el('img', 'pc-thumb hidden');
+      fi.type = 'file'; fi.accept = 'image/png,image/jpeg,image/webp,image/gif'; fi.hidden = true;
+      th.alt = '';
+      const rm = mkBtn(L3('Remover imagem', 'Remove image', 'Quitar imagen'), () => { if (imgs[kind]) { URL.revokeObjectURL(imgs[kind].url); imgs[kind] = null; } set(''); note.textContent = ''; emit(); });
+      fi.onchange = async () => {
+        const f = fi.files && fi.files[0]; fi.value = ''; if (!f) return;
+        if (f.size > MAXI) { note.textContent = L3('Imagem grande demais (máx. 5 MB).', 'Image too large (max 5 MB).', 'Imagen demasiado grande (máx. 5 MB).'); return; }
+        const type = await sniff(f);
+        if (!type) { note.textContent = L3('Formato inválido. Use PNG, JPG, WEBP ou GIF.', 'Invalid format. Use PNG, JPG, WEBP or GIF.', 'Formato inválido. Usa PNG, JPG, WEBP o GIF.'); return; }
+        if (imgs[kind]) URL.revokeObjectURL(imgs[kind].url);
+        imgs[kind] = { file: f, type, url: URL.createObjectURL(f) }; set(PENDING); note.textContent = ''; emit();
+      };
+      wrap.append(th, mkBtn(L3('Foto / GIF', 'Photo / GIF', 'Foto / GIF'), () => fi.click()), rm, fi, note);
+      pickers.push(() => {
+        const u = imgs[kind] ? imgs[kind].url : (get() ? imgUrl('avatars', get()) : null);
+        if (u) { th.src = u; th.classList.remove('hidden'); } else { th.removeAttribute('src'); th.classList.add('hidden'); }
+        rm.classList.toggle('hidden', !get());
+      });
+      return wrap;
+    };
     const inp = (ph, max, get, set, w) => { const i = el('input'); i.maxLength = max; i.placeholder = ph; i.value = get(); i.autocomplete = 'off'; if (w) i.style.maxWidth = w; i.oninput = () => { set(i.value); emit(); }; return i; };
     const row = (...n) => { const r = el('div', 'ns-ctl'); r.append(...n); return r; };
     const mkBtn = (txt, fn, cls) => { const b = el('button', cls == null ? 'sec' : cls, txt); b.type = 'button'; b.onclick = fn; return b; };
     const inputs = [];   // para repreencher ao aplicar um modelo
 
     const PN = { 'Vermelho': ['Vermelho', 'Red', 'Rojo'], 'Roxo lunar': ['Roxo lunar', 'Lunar purple', 'Morado lunar'], 'Rosa': ['Rosa', 'Pink', 'Rosa'], 'Azul': ['Azul', 'Blue', 'Azul'], 'Branco': ['Branco', 'White', 'Blanco'], 'Borboleta': ['Borboleta', 'Butterfly', 'Mariposa'] };
-    const pre = el('div', 'chips'); CARD_PRESETS.forEach(([n, p]) => pre.append(mkBtn(PN[n] ? L3(...PN[n]) : n, () => { raw = { ...fromTh(cleanCard({ ...p })), loc: raw.loc, lvl: raw.lvl }; fill(); emit(); }, 'sec fch')));
+    const pre = el('div', 'chips'); CARD_PRESETS.forEach(([n, p]) => pre.append(mkBtn(PN[n] ? L3(...PN[n]) : n, () => { const keepDi = raw.di, keepAi = raw.act.i; raw = { ...fromTh(cleanCard({ ...p })), loc: raw.loc, lvl: raw.lvl }; raw.di = keepDi; raw.act.i = keepAi; fill(); emit(); }, 'sec fch')));
     group(L3('Modelos prontos', 'Ready-made themes', 'Modelos'), pre);
 
     const sw = el('div', 'swatches'); CARD_PAL.forEach(c => { const b = mkBtn('', () => { raw.accent = c; emit(); }, 'swatch'); b.style.setProperty('--c', c); b.dataset.c = c; sw.append(b); });
@@ -3606,7 +3642,7 @@ window.Acc = (() => {
     mkPairs(L3('Idiomas (bandeira + nome), até 4', 'Languages (flag + name), up to 4', 'Idiomas'), 'langs', 4, '', L3('ex.: Português', 'e.g. English', 'ej.: Español'));
 
     const d1 = inp('🦋', 8, () => raw.deco, v => { raw.deco = v; }, '90px'); inputs.push([d1, () => raw.deco]);
-    group(L3('Decoração grande no "Sobre mim" (um emoji)', 'Big decoration on "About me" (one emoji)', 'Decoración en "Sobre mí"'), d1);
+    group(L3('Decoração grande no "Sobre mim" (um emoji, foto ou GIF)', 'Big decoration on "About me" (an emoji, photo or GIF)', 'Decoración en "Sobre mí" (emoji, foto o GIF)'), d1).append(imgPicker('di', () => raw.di, v => { raw.di = v; }));
     const l1 = inp(L3('Muito alta', 'Very high', 'Muy alta'), 14, () => raw.lvl, v => { raw.lvl = v; }), l2 = inp(L3('ex.: Brasil', 'e.g. Brazil', 'ej.: Argentina'), 24, () => raw.loc, v => { raw.loc = v; });
     inputs.push([l1, () => raw.lvl], [l2, () => raw.loc]);
     group(L3('Nível de atividade e localização', 'Activity level and location', 'Nivel de actividad y ubicación'), row(l1, l2));
@@ -3615,8 +3651,8 @@ window.Acc = (() => {
     const a1 = inp('🎮', 8, () => raw.act.e, v => { raw.act.e = v; }, '64px'), a2 = inp(L3('Título (ex.: Minecraft)', 'Title (e.g. Minecraft)', 'Título'), 22, () => raw.act.t, v => { raw.act.t = v; });
     const a3 = inp(L3('Status (ex.: Jogando agora)', 'Status (e.g. Playing now)', 'Estado'), 26, () => raw.act.s, v => { raw.act.s = v; }), a4 = inp(L3('Frase', 'Quote', 'Frase'), 44, () => raw.act.q, v => { raw.act.q = v; });
     inputs.push([a1, () => raw.act.e], [a2, () => raw.act.t], [a3, () => raw.act.s], [a4, () => raw.act.q]);
-    const aw = el('div', 'ns-grp'); aw.append(row(a1, a2), a3, a4); group(L3('Atividade em destaque', 'Featured activity', 'Actividad'), aw);
-    box.append(mkBtn(L3('Limpar tema do cartão', 'Clear card theme', 'Limpiar tema'), () => { raw = fromTh(null); fill(); emit(); }));
+    const aw = el('div', 'ns-grp'); aw.append(row(a1, a2), imgPicker('ai', () => raw.act.i, v => { raw.act.i = v; }), a3, a4); group(L3('Atividade em destaque', 'Featured activity', 'Actividad'), aw);
+    box.append(mkBtn(L3('Limpar tema do cartão', 'Clear card theme', 'Limpiar tema'), () => { dropImgs(); raw = fromTh(null); fill(); emit(); }));
 
     function fill() { inputs.forEach(([i, g]) => { i.value = g(); }); full.checked = raw.full; }
     function refresh() {
@@ -3627,10 +3663,11 @@ window.Acc = (() => {
       hd.append(pav, el('b', '', (($('pfName') && $('pfName').value) || (me && me.display_name) || '')));
       prev.append(hd);
       if (!th) prev.append(el('span', 'mut', L3('Escolha um modelo ou preencha os campos abaixo para ver a prévia aqui.', 'Pick a theme or fill in the fields below to see the preview here.', 'Elige un modelo o rellena los campos.')));
-      if (th) { const P = themeParts(th); [P.badges, P.langs, P.stats, P.ach, P.act].forEach(n => { if (n) prev.append(n); }); }
+      if (th) { const P = themeParts(th, { ai: imgs.ai ? imgs.ai.url : '' }); [P.badges, P.langs, P.stats, P.ach, P.act].forEach(n => { if (n) prev.append(n); }); }
       Object.keys(ringB).forEach(v => ringB[v].classList.toggle('on', raw.ring === v));
       sw.querySelectorAll('.swatch').forEach(b => b.classList.toggle('on', b.dataset.c === raw.accent));
       if (raw.accent) ci.value = raw.accent;
+      pickers.forEach(f => f());
     }
     host.append(box); fill(); refresh();
   }
@@ -3987,7 +4024,7 @@ window.Acc = (() => {
       let th = $('pfTag'); if (!th) { th = document.createElement('div'); th.id = 'pfTag'; host.after(th); }
       tagEd = NS.tagEditor(th, me.tag, () => $('pfName').value, () => (nsEd ? nsEd.get() : null), v => { if (pend) pend.tag = v; }, { sniff, maxBytes: 3145728 });
       let ch = $('pfCard'); if (!ch) { ch = document.createElement('div'); ch.id = 'pfCard'; $('pfTag').after(ch); }
-      cardEditor(ch, me.card, v => { if (pend) pend.card = { v }; });
+      cardEditor(ch, me.card, (v, files) => { if (pend) pend.card = { v, files: files || {} }; });
     }
     if (window.PFX) {
       let fh = $('pfFX'); if (!fh) { fh = document.createElement('div'); fh.id = 'pfFX'; $('pfConns').before(fh); }
@@ -4102,7 +4139,25 @@ window.Acc = (() => {
         if (r3.error) { tagMissing = r3.error.message || 'erro'; if (upPath) bg(sb.storage.from('avatars').remove([upPath])); }
         else if (oldImg && oldImg !== ((tg && tg.img) || '')) toDelete.push(['avatars', oldImg]);
       }
-      if (pend.card) { const r4 = await sb.from('profiles').update({ card_theme: pend.card.v }).eq('id', uid); if (r4.error) cardMissing = r4.error.message || 'erro'; }
+      if (pend.card) {
+        const cv = pend.card.v ? JSON.parse(JSON.stringify(pend.card.v)) : null, cf = pend.card.files || {};
+        const oldDi = (me.card && me.card.di) || '', oldAi = (me.card && me.card.act && me.card.act.i) || '', cardUp = [];
+        for (const [k, tag] of [['di', 'deco'], ['ai', 'act']]) {   // foto/GIF da decoração e da atividade (bucket avatars, pasta da própria conta)
+          const f = cf[k]; if (!f || !cv) continue;
+          const path = uid + '/card-' + tag + '-' + Date.now() + '-' + rndHex(4) + '.' + f.type.ext;
+          const { error: ue } = await sb.storage.from('avatars').upload(path, f.file, { contentType: f.type.mime, cacheControl: '31536000', upsert: false });
+          if (ue) throw Object.assign(new Error(ue.message), { upload: true });
+          uploaded.push(['avatars', path]); cardUp.push(path);
+          if (k === 'di') cv.di = path; else if (cv.act) cv.act.i = path;
+        }
+        const r4 = await sb.from('profiles').update({ card_theme: cv }).eq('id', uid);
+        if (r4.error) { cardMissing = r4.error.message || 'erro'; cardUp.forEach(pp => bg(sb.storage.from('avatars').remove([pp]))); }
+        else {
+          const nDi = (cv && cv.di) || '', nAi = (cv && cv.act && cv.act.i) || '';
+          if (oldDi && oldDi !== nDi) toDelete.push(['avatars', oldDi]);
+          if (oldAi && oldAi !== nAi) toDelete.push(['avatars', oldAi]);
+        }
+      }
       toDelete.forEach(([b, p]) => bg(sb.storage.from(b).remove([p])));
       await loadMe();
       paint();
@@ -4714,10 +4769,15 @@ applyLang();
     .nsed .swatch { width: 34px; min-height: 34px; height: 34px; }
     .nsed input[type=color] { width: 48px; height: 40px; }
     .ns-prev { font-size: 1.15rem; }
+    .nsed .ns-ctl:has(.pc-thumb) { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .nsed .ns-ctl:has(.pc-thumb) > button { min-height: 42px; flex: 1 1 110px; padding: 6px 8px; font-size: .9rem; }
+    .nsed .ns-ctl:has(.pc-thumb) > .mut { flex: 1 1 100%; font-size: .8rem; }
+    .nsed .ns-ctl:has(.pc-thumb) > .pc-thumb.hidden { display: none; }
+    .nsed .pc-thumb { width: 48px; height: 48px; }
     .pc-body { padding: 0 14px 18px; }
     .pc-full .pc-body { margin-top: -17%; }
     .pc-panel { padding: 10px 12px; }
-    .pc-about .pc-bio { padding-right: 44px; } .pc-deco { font-size: 2.4rem; }
+    .pc-about .pc-bio { padding-right: 44px; } .pc-deco { font-size: 2.4rem; } .pc-deco.pc-deco-img { width: 2.6rem; height: 2.6rem; }
     .pc-stats { display: grid; grid-template-columns: 1fr 1fr; }
     .pc-ach { width: 40px; height: 40px; font-size: 1.2rem; } .pc-achs { gap: 6px; }
     .pc-actq { margin-left: 0; width: 100%; text-align: left; border-radius: 12px; }
