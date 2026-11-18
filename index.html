@@ -4633,7 +4633,7 @@ applyLang();
   .crow .cact { display: none; padding: 4px 6px; font-size: .75rem; }
   .crow:hover .cact { display: inline-block; }
   .crow button:hover:not(:disabled), .sgrp button:hover:not(:disabled) { transform: none; box-shadow: none; color: var(--fg); }
-  .sv-main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); min-width: 0; overflow: hidden; }
+  .sv-main { display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; grid-template-columns: minmax(0, 1fr); min-width: 0; overflow: hidden; }
   .sv-top { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 14px; border-bottom: 1px solid var(--line); }
   .sv-top strong { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sv-chdesc { margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--line); color: var(--mut); font-weight: 500; font-size: .86rem; }
@@ -4874,6 +4874,18 @@ applyLang();
     #srvRail .sbtn { width: 40px; height: 40px; min-height: 40px; }
     #emoPick .egrid { grid-template-columns: repeat(6, 1fr); }
   }
+
+
+  /* ---------- aviso "fulano está digitando…" ---------- */
+  .typing { min-height: 22px; padding: 2px 16px 3px; box-sizing: border-box; display: flex; align-items: center; gap: 7px; font-size: .78rem; color: var(--mut); white-space: nowrap; overflow: hidden; flex: 0 0 auto; }
+  .typing:empty { visibility: hidden; }
+  .typing .tytx { overflow: hidden; text-overflow: ellipsis; }
+  .typing b { color: var(--fg); font-weight: 700; }
+  .typdots { display: inline-flex; gap: 3px; flex: 0 0 auto; }
+  .typdots i { width: 5px; height: 5px; border-radius: 50%; background: var(--mut); animation: typb 1.2s infinite ease-in-out; }
+  .typdots i:nth-child(2) { animation-delay: .15s; } .typdots i:nth-child(3) { animation-delay: .3s; }
+  @keyframes typb { 0%, 60%, 100% { opacity: .35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+  .sv-main:has(#svForm.hidden) #svTyping { display: none; }
 
   /* ---------- presença, menções e @everyone ---------- */
   [data-st="online"] { --sc: #3ba55d; } [data-st="away"] { --sc: #f0b232; } [data-st="dnd"] { --sc: #ed4245; } [data-st="off"] { --sc: #6b7488; }
@@ -5416,7 +5428,7 @@ const rail = el('aside', 'hidden'); rail.id = 'srvRail';
 const view = el('section', 'hidden'); view.id = 'srvView';
 view.innerHTML = '<div class="sv-side" id="svSide"><div class="sv-banner hidden" id="svBanner"></div><button type="button" class="sv-head" id="svName"></button><div class="sv-desc hidden" id="svDesc"></div><div class="sv-list" id="svChans"></div></div>' +
   '<div class="sv-main"><div class="sv-top"><button type="button" class="sec sv-burger" id="svBurger">☰</button><strong id="svTitle"></strong><button type="button" class="sec sv-membtn" id="svMembers">👥</button><button type="button" class="sec pinbtn hidden" id="svPins">📌</button><button type="button" class="sec x" id="svClose">✕</button></div>' +
-  '<div id="svMsgs"></div><form id="svForm" class="hidden"><button type="button" class="sec" id="svEmoji">😊</button><textarea id="svInput" rows="1" maxlength="1000" autocomplete="off"></textarea><button type="submit">➤</button></form></div>' +
+  '<div id="svMsgs"></div><div class="typing" id="svTyping"></div><form id="svForm" class="hidden"><button type="button" class="sec" id="svEmoji">😊</button><textarea id="svInput" rows="1" maxlength="1000" autocomplete="off"></textarea><button type="submit">➤</button></form></div>' +
   '<div class="sv-mem" id="svMem"></div>';
 document.body.append(rail, view);
 
@@ -5544,15 +5556,15 @@ async function checkOwner() {
 /* ===== presença: online / ausente / não perturbar ===== */
 const LL = (pt, en) => String(lang).startsWith('en') ? en : pt;
 const myUser = () => String((A().myProfile() || {}).username || '').toLowerCase();
-const PRES_KEYS = ['online', 'away', 'dnd'];
+const PRES_KEYS = ['online', 'away', 'dnd', 'off'];
 const presInfo = k => k === 'online' ? [LL('Online', 'Online'), LL('Disponível', 'Available')]
   : k === 'away' ? [LL('Ausente', 'Away'), LL('Aparece como ausente para os outros', 'Shows as away to others')]
   : k === 'dnd' ? [LL('Não perturbar', 'Do not disturb'), LL('Sem avisos de menção; as mensagens continuam chegando', 'No mention alerts; messages still arrive')]
-  : [LL('Offline', 'Offline'), ''];
+  : [LL('Offline', 'Offline'), LL('Ninguém vê que você está online', 'No one can see that you are online')];
 let presMine = 'online', presSetAt = 0, presIdle = false, presLast = Date.now(), presCh = null, presMap = new Map(), presSig = '', presTimer = 0;
 try { const v = localStorage.getItem('ns-status'); if (PRES_KEYS.includes(v)) presMine = v; presSetAt = +localStorage.getItem('ns-status-t') || 0; } catch (e) {}
 const presEffective = () => (presMine === 'online' && presIdle) ? 'away' : presMine;
-const stOf = u => (u && u === uid) ? presEffective() : (presMap.get(u) || null);
+const stOf = u => { const k = (u && u === uid) ? presEffective() : presMap.get(u); return (!k || k === 'off') ? null : k; };   // 'off' (offline/invisível) conta como desconectado em toda a interface
 const presBtns = new Set();
 function presDot(u, pos) { const k = stOf(u) || 'off', d = el('span', 'pdot ' + (pos || '')); d.dataset.u = u || ''; d.dataset.st = k; d.title = presInfo(k)[0]; return d; }
 function paintPres() {
@@ -5588,7 +5600,7 @@ function presSync() {
   if (!presCh) return;
   const st = presCh.presenceState(), m = new Map();
   Object.keys(st).forEach(key => {
-    const metas = (st[key] || []).filter(x => PRES_KEYS.includes(x.status)); if (!metas.length) return;
+    const metas = (st[key] || []).filter(x => PRES_KEYS.includes(x.status) && x.status !== 'off'); if (!metas.length) return;   // quem escolheu Offline não aparece para os outros
     // vários aparelhos da mesma conta: não perturbar > online (algum aparelho em uso) > ausente
     m.set(key, metas.some(x => x.status === 'dnd') ? 'dnd' : metas.some(x => x.status === 'online') ? 'online' : 'away');
   });
@@ -5651,6 +5663,61 @@ function meBtn() {
   const w = el('div', 'smewrap'), b = mk('', () => presMenu(b), 'sbtn smine');
   b.append(A().avatar(A().myProfile(), 44)); b.title = LL('Seu status: ', 'Your status: ') + presInfo(presEffective())[0];
   w.append(b, presDot(uid, 'pos-rail')); return w;
+}
+
+/* ===== aviso "fulano está digitando…" (broadcast do Supabase: não grava nada no banco) ===== */
+const TYP_TTL = 6000, TYP_GAP = 2500;
+function typingBind(ta, bar, topic, nameOf) {
+  let ch = null, tick = 0, lastSent = 0, sentOn = false, dead = false;
+  const who = new Map();   // user -> { n, t }
+  const paint = () => {
+    if (dead) return;
+    const now = Date.now(); who.forEach((v, k) => { if (now - v.t > TYP_TTL) who.delete(k); });
+    const names = [...who.values()].map(v => v.n);
+    bar.textContent = '';
+    if (!names.length) { clearInterval(tick); tick = 0; return; }
+    const dots = el('span', 'typdots'); dots.append(el('i'), el('i'), el('i'));
+    const tx = el('span', 'tytx'), B = n => el('b', '', n), n = names.length;
+    if (n === 1) tx.append(B(names[0]), document.createTextNode(LL(' está digitando…', ' is typing…')));
+    else if (n === 2) tx.append(B(names[0]), document.createTextNode(LL(' e ', ' and ')), B(names[1]), document.createTextNode(LL(' estão digitando…', ' are typing…')));
+    else if (n === 3) tx.append(B(names[0]), document.createTextNode(', '), B(names[1]), document.createTextNode(LL(' e ', ' and ')), B(names[2]), document.createTextNode(LL(' estão digitando…', ' are typing…')));
+    else tx.append(document.createTextNode(LL('Várias pessoas estão digitando…', 'Several people are typing…')));
+    bar.append(dots, tx);
+    if (!tick) tick = setInterval(paint, 1000);
+  };
+  const send = stop => {
+    if (!ch || !uid || (!stop && presMine === 'off')) return;   // no modo Offline ninguém vê que você está digitando
+    try { ch.send({ type: 'broadcast', event: 'typing', payload: { u: uid, n: String((A().myProfile() || {}).display_name || '?').slice(0, 40), stop: !!stop } }); } catch (e) {}
+  };
+  try {
+    ch = sb().channel(topic, { config: { broadcast: { self: false } } });
+    ch.on('broadcast', { event: 'typing' }, m => {
+      const p = m && m.payload; if (dead || !p || !p.u || p.u === uid) return;
+      if (frMuted(p.u)) return;
+      if (p.stop) who.delete(p.u); else who.set(p.u, { n: String(nameOf(p.u) || p.n || '?').slice(0, 40), t: Date.now() });
+      paint();
+    }).subscribe();
+  } catch (e) { ch = null; }
+  const onInput = () => {
+    if (!ta.value.trim()) { if (sentOn) { send(true); sentOn = false; lastSent = 0; } return; }
+    const now = Date.now(); if (now - lastSent < TYP_GAP) return;
+    lastSent = now; sentOn = true; send(false);
+  };
+  const onSubmit = () => { if (sentOn) send(true); sentOn = false; lastSent = 0; };
+  ta.addEventListener('input', onInput);
+  const form = ta.form; if (form) form.addEventListener('submit', onSubmit);
+  return { destroy() {
+    dead = true; clearInterval(tick); tick = 0; if (sentOn) send(true);
+    ta.removeEventListener('input', onInput); if (form) form.removeEventListener('submit', onSubmit);
+    if (ch) { try { sb().removeChannel(ch); } catch (e) {} ch = null; }
+    bar.textContent = ''; who.clear();
+  } };
+}
+let srvTyp = null;
+function srvTypSync() {   // um canal de "digitando" por canal de texto aberto
+  if (srvTyp) { srvTyp.destroy(); srvTyp = null; }
+  const c = chan, bar = $('svTyping'); if (!c || !bar || !uid) return;
+  srvTyp = typingBind($('svInput'), bar, 'typ:c:' + c.id, u => { const m = memOf(u); return m && m.display_name; });
 }
 
 /* ===== menções: @pessoa e @everyone ===== */
@@ -5883,7 +5950,7 @@ async function loadChans() {
     else if (old.has(v.id) && old.get(v.id) !== v.voice_key) { leaveRoom(); setTimeout(() => joinVoice(v), 300); }   // chave trocada: entra de novo com a nova
   }
   if (chan) { const nc = chans.find(x => x.id === chan.id); if (nc) { Object.assign(chan, nc); paintTitle(chan); applyWriteState(); syncChanFlags(); } }   // canal aberto foi editado
-  if (chan && !chans.some(c => c.id === chan.id)) { chan = null; $('svMsgs').textContent = ''; $('svTitle').textContent = ''; $('svForm').classList.add('hidden'); syncChanFlags(); }
+  if (chan && !chans.some(c => c.id === chan.id)) { chan = null; srvTypSync(); $('svMsgs').textContent = ''; $('svTitle').textContent = ''; $('svForm').classList.add('hidden'); syncChanFlags(); }
 }
 async function loadCats() {
   const s = cur; if (!s) { cats = []; return; }
@@ -6834,7 +6901,7 @@ async function pickChan(c) {
     return joinVoice(c);
   }
   chan = c; unreadMent.delete(c.id); msgIds.clear(); msgData.clear(); reacts.clear(); pins = []; pinSet = new Set(); syncChanFlags(); renderChans(); closePicker();
-  paintTitle(c); $('svMsgs').textContent = ''; $('svForm').classList.remove('hidden'); $('svInput').placeholder = t('msgPh'); applyWriteState(); $('svEmoji').title = t('emojiBtn');
+  paintTitle(c); $('svMsgs').textContent = ''; $('svForm').classList.remove('hidden'); $('svInput').placeholder = t('msgPh'); applyWriteState(); $('svEmoji').title = t('emojiBtn'); srvTypSync();
   let res = await sb().rpc('ns_list_messages', { p_channel: c.id });
   if (res.error) res = await sb().rpc('list_messages', { p_channel: c.id });   // migração v7 ainda não rodou
   if (chan !== c) return;
@@ -7000,6 +7067,7 @@ function subscribe() {
     .subscribe();
 }
 function unsub() {
+  if (srvTyp) { srvTyp.destroy(); srvTyp = null; }
   [rt, rt2].forEach(c => { if (c) { try { sb().removeChannel(c); } catch (e) {} } });
   rt = null; rt2 = null;
   if (vpViewId) { const e = vpMap.get(vpViewId); if (e) { e.refs.delete('view'); if (!e.refs.size) vpRemove(e); } vpViewId = null; }
@@ -8233,7 +8301,7 @@ var dmPanel = null;
 function dmClose() {
   clearInterval(dmPoll); dmCur = null;
   try { closePicker(); } catch (e) {}
-  if (dmPanel) { dmPanel.remove(); dmPanel = null; }
+  if (dmPanel) { if (dmPanel._typ) dmPanel._typ.destroy(); dmPanel.remove(); dmPanel = null; }
   document.body.classList.remove('dmopen');
 }
 async function dmOpen(p) {
@@ -8253,7 +8321,7 @@ async function dmOpen(p) {
   const callB = mk('📞', () => callStart(o), 'sec x'); callB.title = LL('Ligar', 'Call');
   head.append(avw, who, callB, mk('✕', dmClose, 'sec x'));
   ta.rows = 1; ta.maxLength = 1000; ta.placeholder = LL('Escreva uma mensagem', 'Write a message'); ta.autocomplete = 'off'; emo.title = LL('Emojis', 'Emojis'); go.type = 'submit';
-  f.append(emo, ta, go); vozAttach(f, ta); d.append(head, list, f);
+  f.append(emo, ta, go); vozAttach(f, ta); { const tb = el('div', 'typing'); d.append(head, list, tb, f); d._typ = typingBind(ta, tb, 'typ:d:' + [uid, id].sort().join('.'), u => u === id ? o.display_name : null); }
   const ins = t => {
     const a = ta.selectionStart == null ? ta.value.length : ta.selectionStart, e2 = ta.selectionEnd == null ? a : ta.selectionEnd, v = ta.value.slice(0, a) + t + ta.value.slice(e2);
     if (v.length > ta.maxLength) return; ta.value = v; ta.focus(); try { ta.setSelectionRange(a + t.length, a + t.length); } catch (e) {} fit();
@@ -8899,7 +8967,7 @@ async function grpOpen(id) {
     ta.placeholder = LL('Escreva uma mensagem', 'Write a message'); emo.title = LL('Emojis', 'Emojis');
   };
   ta.rows = 1; ta.maxLength = 1000; ta.autocomplete = 'off'; go.type = 'submit';
-  f.append(emo, ta, go); vozAttach(f, ta); d.append(head, banner, list, f, sheet);
+  f.append(emo, ta, go); vozAttach(f, ta); { const tb = el('div', 'typing'); d.append(head, banner, list, tb, f, sheet); d._typ = typingBind(ta, tb, 'typ:g:' + id, u => (gm.get(u) || {}).display_name); }
   const ins = tx => {
     const a = ta.selectionStart == null ? ta.value.length : ta.selectionStart, e2 = ta.selectionEnd == null ? a : ta.selectionEnd, v = ta.value.slice(0, a) + tx + ta.value.slice(e2);
     if (v.length > ta.maxLength) return; ta.value = v; ta.focus(); try { ta.setSelectionRange(a + tx.length, a + tx.length); } catch (e) {} fit();
