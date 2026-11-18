@@ -4886,6 +4886,16 @@ applyLang();
   .typdots i:nth-child(2) { animation-delay: .15s; } .typdots i:nth-child(3) { animation-delay: .3s; }
   @keyframes typb { 0%, 60%, 100% { opacity: .35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
   .sv-main:has(#svForm.hidden) #svTyping { display: none; }
+  /* celular: texto um pouco maior, alinhado ao padding da caixa de texto e longe do entalhe da tela */
+  @media (max-width: 860px) {
+    .typing { min-height: 24px; font-size: .84rem; padding: 2px max(10px, env(safe-area-inset-right)) 2px max(10px, env(safe-area-inset-left)); }
+    .typdots i { width: 6px; height: 6px; }
+  }
+  /* tela baixa (teclado aberto / celular deitado): não reserva espaço enquanto ninguém digita */
+  @media (max-height: 520px) {
+    .typing:empty { display: none; }
+  }
+  #stMenu { max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; }
 
   /* ---------- presença, menções e @everyone ---------- */
   [data-st="online"] { --sc: #3ba55d; } [data-st="away"] { --sc: #f0b232; } [data-st="dnd"] { --sc: #ed4245; } [data-st="off"] { --sc: #6b7488; }
