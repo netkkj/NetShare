@@ -177,6 +177,11 @@
   .tbtn.fs svg { width: 17px; height: 17px; display: block; }
   .tile:fullscreen { border-radius: 0; border: 0; }
   .tile:-webkit-full-screen { border-radius: 0; border: 0; }
+  /* cursor sempre visível: alguns navegadores somem com o mouse em F11 / tela cheia (vídeo tocando, sem movimento) */
+  html, body { cursor: auto; }
+  .tile, .tile video { cursor: default; }
+  .tile:fullscreen { cursor: default; }
+  .tile:-webkit-full-screen { cursor: default; }
   .tbtn.hide { right: 10px; top: 10px; }
   .tvol { position: absolute; left: 10px; top: 15px; width: 95px; min-height: 0; padding: 0; border: 0; background: transparent; opacity: .85; }
   .label { position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 215px); padding: 6px 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 9px; background: rgba(7,11,24,.78); color: #fff; font-size: .78rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; backdrop-filter: blur(10px); }
@@ -1965,7 +1970,7 @@ $('facing').onchange = () => { if (myKind === 'cam') share('cam'); };
 async function getScreenStream(q, frameRate) {
   const md = navigator.mediaDevices;
   const tries = [
-    { video: { cursor: 'always', frameRate, width: { ideal: q.w, max: q.w }, height: { ideal: q.h, max: q.h } },
+    { video: { frameRate, width: { ideal: q.w, max: q.w }, height: { ideal: q.h, max: q.h } },   // sem 'cursor': forçar o cursor na captura faz o Chrome/Edge usar um modo que esconde o mouse em jogos/F11 no Windows; o padrão já mostra o cursor
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, restrictOwnAudio: true },
       systemAudio: 'include' },
     { video: { frameRate, width: { ideal: q.w }, height: { ideal: q.h } }, audio: true },
