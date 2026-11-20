@@ -172,10 +172,14 @@
   .tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #02040a; }
   .note { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mut); font-size: .9rem; text-align: center; padding: 12px; white-space: pre-line; }
   .tbtn { position: absolute; min-height: 34px; padding: 5px 10px; font-size: .76rem; border-radius: 9px; background: rgba(7,11,24,.78); box-shadow: none; backdrop-filter: blur(10px); }
-  .tbtn.snd { right: 10px; bottom: 10px; }
+  .tbtn.snd { right: 54px; bottom: 10px; }
+  .tbtn.fs { right: 10px; bottom: 10px; width: 34px; padding: 0; display: grid; place-items: center; }
+  .tbtn.fs svg { width: 17px; height: 17px; display: block; }
+  .tile:fullscreen { border-radius: 0; border: 0; }
+  .tile:-webkit-full-screen { border-radius: 0; border: 0; }
   .tbtn.hide { right: 10px; top: 10px; }
   .tvol { position: absolute; left: 10px; top: 15px; width: 95px; min-height: 0; padding: 0; border: 0; background: transparent; opacity: .85; }
-  .label { position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 160px); padding: 6px 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 9px; background: rgba(7,11,24,.78); color: #fff; font-size: .78rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; backdrop-filter: blur(10px); }
+  .label { position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 215px); padding: 6px 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 9px; background: rgba(7,11,24,.78); color: #fff; font-size: .78rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; backdrop-filter: blur(10px); }
   .tile .tbtn, .tile .tvol, .tile .label { transition: opacity .18s; }
   .tile:not(.ui) .tbtn, .tile:not(.ui) .tvol, .tile:not(.ui) .label { opacity: 0; pointer-events: none; }
   #empty { position: relative; display: grid; place-items: center; text-align: center; padding: 60px 20px 20px; border: 1px dashed rgba(139,151,186,.28); border-radius: 18px; color: var(--mut); background: radial-gradient(circle at center, rgba(108,124,255,.07), transparent 48%), rgba(255,255,255,.018); }
@@ -611,7 +615,7 @@ const I18N = {
   dc:'Desconectar', dcTime:'Desconectar por tempo…', confirmDc:'Desconectar {name} da call? A pessoa poderá entrar de novo na hora.', askDcTime:'Por quantos minutos {name} fica impedido de voltar à call? (1 a 1440)',
   eBlocked:'Um moderador impediu você de entrar nesta call por um tempo. Tente de novo mais tarde.', eDisc:'Um moderador desconectou você da call. Você pode entrar de novo.',
   you:'você', owner:'Dono da sala', kick:'Expulsar', ban:'Banir', makeOwner:'Passar posse',
-  hideScreen:'Ocultar tela', showScreen:'Mostrar tela', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
+  hideScreen:'Ocultar tela', showScreen:'Mostrar tela', fullBtn:'Tela cheia', fullExit:'Sair da tela cheia', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
   confirmKick:'Expulsar {name} da sala? A pessoa poderá entrar de novo.',
   confirmBan:'Banir {name}? A pessoa não poderá mais entrar enquanto a sala existir.',
   confirmOwner:'Passar a posse da sala para {name}? Você perderá os poderes de dono.',
@@ -664,7 +668,7 @@ const I18N = {
   dc:'Disconnect', dcTime:'Disconnect for a while…', confirmDc:'Disconnect {name} from the call? They will be able to join again right away.', askDcTime:'For how many minutes is {name} blocked from coming back to the call? (1 to 1440)',
   eBlocked:'A moderator blocked you from joining this call for a while. Try again later.', eDisc:'A moderator disconnected you from the call. You can join again.',
   you:'you', owner:'Room owner', kick:'Kick', ban:'Ban', makeOwner:'Make owner',
-  hideScreen:'Hide screen', showScreen:'Show screen', hideBtn:'Hide', soundOn:'Turn sound on', soundOff:'Mute',
+  hideScreen:'Hide screen', showScreen:'Show screen', fullBtn:'Fullscreen', fullExit:'Exit fullscreen', hideBtn:'Hide', soundOn:'Turn sound on', soundOff:'Mute',
   confirmKick:'Kick {name} from the room? They will be able to join again.',
   confirmBan:'Ban {name}? They will not be able to join again while the room exists.',
   confirmOwner:'Make {name} the room owner? You will lose the owner powers.',
@@ -717,7 +721,7 @@ const I18N = {
   dc:'Desligar da chamada', dcTime:'Desligar por tempo…', confirmDc:'Desligar {name} da chamada? A pessoa poderá voltar a entrar de imediato.', askDcTime:'Durante quantos minutos {name} fica impedido de voltar à chamada? (1 a 1440)',
   eBlocked:'Um moderador impediu-o de entrar nesta chamada durante algum tempo. Tente outra vez mais tarde.', eDisc:'Um moderador desligou-o da chamada. Pode voltar a entrar.',
   you:'você', owner:'Dono da sala', kick:'Expulsar', ban:'Banir', makeOwner:'Passar posse',
-  hideScreen:'Ocultar ecrã', showScreen:'Mostrar ecrã', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
+  hideScreen:'Ocultar ecrã', showScreen:'Mostrar ecrã', fullBtn:'Ecrã inteiro', fullExit:'Sair do ecrã inteiro', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
   confirmKick:'Expulsar {name} da sala? A pessoa poderá entrar novamente.',
   confirmBan:'Banir {name}? A pessoa não poderá voltar a entrar enquanto a sala existir.',
   confirmOwner:'Passar a posse da sala para {name}? Perderá os poderes de dono.',
@@ -2114,7 +2118,34 @@ function updateSoundBtn(t) {
   if (!t.snd) return;
   t.snd.textContent = t.video.muted ? '🔇 ' + T('soundOn') : '🔊 ' + T('soundOff');
 }
+const FS_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>';
+const FS_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5"/></svg>';
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+function toggleFs(t) {
+  if (fsEl()) { const ex = document.exitFullscreen || document.webkitExitFullscreen; if (ex) { const r = ex.call(document); if (r && r.catch) r.catch(() => {}); } return; }
+  const rq = t.el.requestFullscreen || t.el.webkitRequestFullscreen;
+  if (rq) { const r = rq.call(t.el); if (r && r.catch) r.catch(() => {}); }
+  else if (t.video.webkitEnterFullscreen) { try { t.video.webkitEnterFullscreen(); } catch (e) {} }   // iPhone: só o <video> entra em tela cheia
+}
+function paintFsBtn(t) {
+  if (!t.fbtn) return;
+  const on = fsEl() === t.el, tx = T(on ? 'fullExit' : 'fullBtn');
+  t.fbtn.innerHTML = on ? FS_OFF : FS_ON; t.fbtn.title = tx; t.fbtn.setAttribute('aria-label', tx);
+}
+let fsLocked = false;
+['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => document.addEventListener(ev, () => {
+  tiles.forEach(paintFsBtn);
+  const so = screen.orientation, fe = fsEl();
+  if (!so) return;
+  if (fe) {   // celular: vídeo largo entra deitado sozinho (só onde o navegador permite travar a orientação)
+    const t = [...tiles.values()].find(x => x.el === fe);
+    if (t && so.lock && matchMedia('(hover: none)').matches && t.video.videoWidth > t.video.videoHeight) {
+      so.lock('landscape').then(() => { fsLocked = true; }).catch(() => {});
+    }
+  } else if (fsLocked) { fsLocked = false; try { so.unlock(); } catch (e) {} }
+}));
 function updateTileTexts(t) {
+  paintFsBtn(t);
   if (t.hbtn) t.hbtn.textContent = '🙈 ' + T('hideBtn');
   if (t.vslider) t.vslider.title = T('volTile');
   updateSoundBtn(t);
@@ -2170,6 +2201,12 @@ function showTile(id, stream, call, isLocal) {
       el.append(t.note);
     }
     el.append(label);
+    if (!t.noPreview) {
+      t.fbtn = document.createElement('button'); t.fbtn.type = 'button'; t.fbtn.className = 'tbtn fs';
+      t.fbtn.onclick = e => { e.stopPropagation(); toggleFs(t); };
+      t.fbtn.ondblclick = e => e.stopPropagation();
+      el.append(t.fbtn);
+    }
     if (!isLocal) {
       t.note = document.createElement('div'); t.note.className = 'note hidden';
       t.note.style.pointerEvents = 'none';
@@ -2202,17 +2239,17 @@ function showTile(id, stream, call, isLocal) {
       el.append(t.vslider);
       applyVolume(t);
     }
-    el.ondblclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen(); };
+    el.ondblclick = () => toggleFs(t);
     {
-      let tmr = 0, down = false;
-      const busy = () => down || el.querySelector('.tbtn:hover, .tvol:hover');
+      let tmr = 0, down = false, touch = false;
+      const busy = () => down || (!touch && el.querySelector('.tbtn:hover, .tvol:hover'));   // no toque o :hover fica "preso" no último botão tocado
       const hideUi = () => { if (busy()) { tmr = setTimeout(hideUi, 1000); return; } el.classList.remove('ui'); };
-      const showUi = () => { el.classList.add('ui'); clearTimeout(tmr); tmr = setTimeout(hideUi, 2500); };
+      const showUi = e => { if (e && e.pointerType) touch = e.pointerType === 'touch'; el.classList.add('ui'); clearTimeout(tmr); tmr = setTimeout(hideUi, touch ? 12000 : 2500); };   // um toque deixa as opções por 12 s
       el.addEventListener('pointermove', showUi);
-      el.addEventListener('pointerdown', () => { down = true; showUi(); });
-      el.addEventListener('pointerup', () => { down = false; showUi(); });
+      el.addEventListener('pointerdown', e => { down = true; showUi(e); });
+      el.addEventListener('pointerup', e => { down = false; showUi(e); });
       el.addEventListener('pointercancel', () => { down = false; });
-      el.addEventListener('pointerleave', () => { if (!down) { clearTimeout(tmr); el.classList.remove('ui'); } });
+      el.addEventListener('pointerleave', e => { if (e.pointerType === 'touch') return; if (!down) { clearTimeout(tmr); el.classList.remove('ui'); } });   // no toque o dedo "sai" ao soltar, antes do clique: esconder aqui fazia o toque nos botões cair no vídeo
     }
     if (hidden.has(id)) el.classList.add('hidden');
     $('grid').append(el);
@@ -4887,6 +4924,7 @@ applyLang();
   @keyframes typb { 0%, 60%, 100% { opacity: .35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
   .sv-main:has(#svForm.hidden) #svTyping { display: none; }
   /* celular: texto um pouco maior, alinhado ao padding da caixa de texto e longe do entalhe da tela */
+  @media (hover: none) { .tbtn.fs { width: 42px; min-height: 42px; } .tbtn.snd { right: 60px; } }
   @media (max-width: 860px) {
     .typing { min-height: 24px; font-size: .84rem; padding: 2px max(10px, env(safe-area-inset-right)) 2px max(10px, env(safe-area-inset-left)); }
     .typdots i { width: 6px; height: 6px; }
