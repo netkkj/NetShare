@@ -1018,12 +1018,13 @@ async function start() {
 function claimSlot(i) {
   if (leaving) return;
   if (i >= (roomLimit > 0 ? Math.min(roomLimit, MAX_SLOTS) : MAX_SLOTS)) { kickOut('full'); return; }
-  let opened = false;
+  let opened = false, idRetries = 0;
   const me = new Peer(baseId + '_' + i, PEER_OPTS);
   peer = me;
 
   me.on('open', id => {
     if (me !== peer) return;
+    if (opened) { idRetries = 0; setTimeout(probe, 400); return; }   // voltou ao servidor de conexão: mantém a sala como está (antes recomeçava tudo e duplicava os timers)
     opened = true;
     myId = id; mySlot = i;
     if (window.Acc) Acc.claim(id);
@@ -1032,6 +1033,7 @@ function claimSlot(i) {
     setTimeout(probe, 1000); setTimeout(probe, 3000);
     const tick = () => {
       probeTimer = setTimeout(() => {
+        try { if (me.disconnected && !me.destroyed && !leaving) me.reconnect(); } catch (e) {}   // rede de segurança: caiu do servidor e nenhuma tentativa deu certo
         probe();
         if (isOwner()) broadcast({ t: 'owner', id: own.id, epoch: own.epoch });
         broadcastMods(); syncVoiceOut(); enforceBlocks();
@@ -1058,6 +1060,9 @@ function claimSlot(i) {
   me.on('error', e => {
     if (me !== peer) return;
     if (e.type === 'unavailable-id') {
+      // acabou de cair do servidor e ele ainda acha que o ID está em uso: esperar e reconectar (as conexões diretas continuam).
+      // Antes isso reiniciava a sala inteira: todo mundo via a pessoa sair, e a transmissão dela parava.
+      if (opened && !me.destroyed && idRetries < 20) { idRetries++; return; }
       kill(me);
       if (!opened) claimSlot(i + 1);
       else { msgK('reconnecting'); setTimeout(() => { if (!leaving) start(); }, 300); }
@@ -1076,7 +1081,11 @@ function claimSlot(i) {
     }
     msgK('errConn', { e: e.type });
   });
-  me.on('disconnected', () => { if (me === peer && !me.destroyed && !leaving) { try { me.reconnect(); } catch (e) {} } });
+  me.on('disconnected', () => {
+    if (me !== peer || !opened || me.destroyed || leaving) return;
+    // volta ao servidor com uma pequena pausa (se o servidor ainda não liberou o ID, espera mais)
+    setTimeout(() => { try { if (me === peer && me.disconnected && !me.destroyed && !leaving) me.reconnect(); } catch (e) {} }, idRetries ? 4000 : 1000);
+  });
   me.on('close', () => { if (me === peer && !me._dead && !leaving) { msgK('reconnecting'); setTimeout(() => { if (!leaving) start(); }, 500); } });
 }
 
@@ -1826,7 +1835,8 @@ function qualitySettings() {
 
 function preferCodecs(sdp) {
   try {
-    const rank = { VP8: 0, H264: 1, VP9: 2, AV1: 3 };
+    // no app desktop (Electron) o H264 vem primeiro: é o codec que a placa de vídeo codifica em hardware; no navegador continua VP8 primeiro
+    const rank = (window.netshareDesktop && window.netshareDesktop.preferH264) ? { H264: 0, VP8: 1, VP9: 2, AV1: 3 } : { VP8: 0, H264: 1, VP9: 2, AV1: 3 };
     const lines = sdp.split('\r\n');
     const mi = lines.findIndex(l => l.startsWith('m=video'));
     if (mi < 0) return sdp;
@@ -5424,6 +5434,7 @@ const fmtDate = iso => new Date(iso).toLocaleString([], { day: '2-digit', month:
 let vsrv = null, vmem = [], vmemT = 0;
 const vpMap = new Map(); let vpViewId = null; const vpSess = Math.random().toString(36).slice(2, 8);   // quem está em cada canal de voz de cada servidor (presença em tempo real)   // servidor do canal de voz em que estou e os membros dele (independe do servidor aberto na tela)
 var callActive = null;
+let chansSrv = null;   // id do servidor a que pertence a lista 'chans' carregada
 let voiceCh = null, uid = null, servers = [], cur = null, chans = [], mem = [], chan = null, rt = null, rt2 = null, myRole = 'member', voiceJoin = false, lastSend = 0;
 let roles = [], mroles = new Map(), emojis = [], siteOwner = false;
 let cats = [];   // categorias de canais do servidor aberto
@@ -5985,20 +5996,26 @@ async function openServer(id) {
   subscribe();
 }
 async function loadChans() {
-  const qc = cols => sb().from('channels').select(cols).eq('server_id', cur.id).order('position').order('created_at');
+  const s = cur; if (!s) return;
+  const qc = cols => sb().from('channels').select(cols).eq('server_id', s.id).order('position').order('created_at');
   let { data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles,category_id,description,desc_font,desc_color,desc_color2,desc_fx,slowmode_seconds');
   if (error) ({ data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles,category_id,description,desc_font,desc_color,desc_color2,desc_fx'));   // v17 ainda não rodou
   if (error) ({ data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles,category_id'));   // v16 ainda não rodou
   if (error) ({ data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit,is_private,view_roles,locked,write_roles'));   // v15 ainda não rodou
   if (error) ({ data, error } = await qc('id,name,kind,voice_key,position,icon,name_font,name_color,name_color2,name_fx,user_limit'));   // v14 ainda não rodou
-  if (error) ({ data } = await qc('id,name,kind,voice_key,position'));   // v13 ainda não rodou
+  if (error) ({ data, error } = await qc('id,name,kind,voice_key,position'));   // v13 ainda não rodou
+  if (cur !== s) return;   // trocou de servidor enquanto carregava
+  if (error || !data) {    // falha de rede/token: NÃO é 'canal apagado' (antes isso tirava a pessoa da call sozinha)
+    if (chansSrv !== s.id) chans = [];
+    return;
+  }
   const old = new Map(chans.map(c => [c.id, c.voice_key]));
-  chans = data || [];
+  chans = data; chansSrv = s.id;
   await loadChanExtras();
   await loadCats();
   const inRoom = !$('room').classList.contains('hidden');
   const v = voiceCh && chans.find(c => c.id === voiceCh);
-  if (voiceCh && inRoom) {
+  if (voiceCh && inRoom && vsrv === s.id) {   // só vale se o servidor aberto é o da call (em outro servidor o canal nunca está na lista)
     if (!v) { voiceCh = null; leaveRoom(); }                                            // canal apagado ou perdi o acesso
     else if (old.has(v.id) && old.get(v.id) !== v.voice_key) { leaveRoom(); setTimeout(() => joinVoice(v), 300); }   // chave trocada: entra de novo com a nova
   }
