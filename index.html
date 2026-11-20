@@ -566,6 +566,24 @@
           <button type="button" id="pfDisable" class="dz-blue" data-i18n="dzDisable"></button>
         </div>
       </div>
+      <div class="pf-acct" id="pfAcct">
+        <h3 data-i18n="acHead"></h3>
+        <div class="ac-row"><span class="ac-lbl" data-i18n="acEmailLbl"></span><strong id="acEmail" class="ac-mail"></strong></div>
+        <div class="dz-btns">
+          <button type="button" id="acPassBtn" class="sec" data-i18n="acChangePass"></button>
+          <button type="button" id="acMailBtn" class="sec" data-i18n="acChangeMail"></button>
+        </div>
+        <div id="acPassBox" class="ac-box" hidden>
+          <input type="password" id="acPass1" autocomplete="new-password" minlength="8" data-i18n-ph="acNewPass">
+          <input type="password" id="acPass2" autocomplete="new-password" minlength="8" data-i18n-ph="acNewPass2">
+          <button type="button" id="acPassOk" data-i18n="acSavePass"></button>
+        </div>
+        <div id="acMailBox" class="ac-box" hidden>
+          <input type="email" id="acMail1" autocomplete="email" data-i18n-ph="acNewMail">
+          <button type="button" id="acMailOk" data-i18n="acSaveMail"></button>
+        </div>
+        <p id="acMsg" class="amsg" role="status"></p>
+      </div>
     </form>
   </div>
 </dialog>
@@ -837,7 +855,6 @@ const PEER_OPTS = { config: { sdpSemantics: 'unified-plan', iceServers: [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:global.stun.twilio.com:3478' },
-  { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' },
   { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp', 'turns:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
 ].concat(CUSTOM_TURN) } };
 
@@ -3413,6 +3430,7 @@ const ACC_I18N = {
   dzBadCode:'Código inválido ou expirado.', dzNoCode:'Digite o código que chegou no seu e-mail.', dzNoEmail:'Sua conta não tem e-mail cadastrado, então não dá para confirmar.',
   dzNeed:'Falta rodar a migração SQL v34 no Supabase para usar essa opção.',
   dzDoneDel:'Conta excluída.', dzDoneOff:'Conta desabilitada. Entre de novo quando quiser reativar.', dzBack:'Conta reativada. Bem-vindo de volta!',
+  acHead:'Conta', acEmailLbl:'E-mail cadastrado', acChangePass:'Alterar senha', acChangeMail:'Alterar e-mail', acNewPass:'Nova senha (mín. 8 caracteres)', acNewPass2:'Repita a nova senha', acSavePass:'Salvar nova senha', acNewMail:'Novo e-mail', acSaveMail:'Enviar confirmação', acPassMismatch:'As senhas não coincidem.', acPassDone:'Senha alterada com sucesso.', acMailSame:'Esse já é o seu e-mail atual.', acMailSent:'Enviamos um link de confirmação. Confirme no novo e-mail (e, se pedido, no atual) para concluir a troca.',
   muFriends:'Amigos em comum · {n}', muServers:'Servidores em comum · {n}',
   pcVol:'Volume da voz', pcMuted:'Mudo', pcMute:'Silenciar essa pessoa', pcUnmute:'Voltar a ouvir', pcNoSlider:'Neste aparelho só dá para silenciar.', pcVolHint:'Só você nota a diferença; a pessoa não é avisada.'
 },
@@ -3450,6 +3468,7 @@ const ACC_I18N = {
   dzBadCode:'Invalid or expired code.', dzNoCode:'Enter the code from your email.', dzNoEmail:'Your account has no email, so it cannot be confirmed.',
   dzNeed:'The v34 SQL migration still needs to be run in Supabase to use this option.',
   dzDoneDel:'Account deleted.', dzDoneOff:'Account disabled. Sign in again whenever you want to reactivate it.', dzBack:'Account reactivated. Welcome back!',
+  acHead:'Account', acEmailLbl:'Registered email', acChangePass:'Change password', acChangeMail:'Change email', acNewPass:'New password (min. 8 characters)', acNewPass2:'Repeat new password', acSavePass:'Save new password', acNewMail:'New email', acSaveMail:'Send confirmation', acPassMismatch:'Passwords do not match.', acPassDone:'Password changed successfully.', acMailSame:'That is already your current email.', acMailSent:'We sent a confirmation link. Confirm it in the new email (and the current one, if asked) to finish the change.',
   muFriends:'Mutual friends · {n}', muServers:'Mutual servers · {n}',
   pcVol:'Voice volume', pcMuted:'Muted', pcMute:'Mute this person', pcUnmute:'Listen again', pcNoSlider:'On this device you can only mute.', pcVolHint:'Only you notice the difference; the person is not notified.'
 },
@@ -4068,6 +4087,8 @@ window.Acc = (() => {
     $('pfBio').value = me.bio;
     $('pfBioN').textContent = me.bio.length + '/200';
     msgTo('pfMsg', null);
+    $('acEmail').textContent = (session && session.user && session.user.email) || '—';
+    $('acPassBox').hidden = $('acMailBox').hidden = true; msgTo('acMsg', null);
     paintPreview();
     if (window.NS) {
       let host = $('pfNS');
@@ -4601,6 +4622,27 @@ window.Acc = (() => {
     $('frmProfile').addEventListener('submit', onProfileSave);
     $('pfDelete').onclick = () => openDanger('delete');
     $('pfDisable').onclick = () => openDanger('disable');
+    $('acPassBtn').onclick = () => { $('acPassBox').hidden = !$('acPassBox').hidden; $('acMailBox').hidden = true; msgTo('acMsg', null); };
+    $('acMailBtn').onclick = () => { $('acMailBox').hidden = !$('acMailBox').hidden; $('acPassBox').hidden = true; msgTo('acMsg', null); };
+    $('acPassOk').onclick = async () => {
+      const a = $('acPass1').value, b = $('acPass2').value;
+      if (a.length < 8) return msgTo('acMsg', 'accWeakPass', 'err');
+      if (a !== b) return msgTo('acMsg', 'acPassMismatch', 'err');
+      const { error } = await sb.auth.updateUser({ password: a });
+      if (error) { const [k, v] = authError(error); return msgTo('acMsg', k, 'err', v); }
+      $('acPass1').value = $('acPass2').value = ''; $('acPassBox').hidden = true;
+      msgTo('acMsg', 'acPassDone', 'ok');
+    };
+    $('acMailOk').onclick = async () => {
+      const m = $('acMail1').value.trim();
+      if (!validEmail(m)) return msgTo('acMsg', 'accBadEmail', 'err');
+      if (session && session.user && String(session.user.email || '').toLowerCase() === m.toLowerCase()) return msgTo('acMsg', 'acMailSame', 'err');
+      const opts = /^https?:/.test(location.protocol) ? { emailRedirectTo: redirectUrl() } : undefined;
+      const { error } = await sb.auth.updateUser({ email: m }, opts);
+      if (error) { const [k, v] = authError(error); return msgTo('acMsg', k, 'err', v); }
+      $('acMail1').value = ''; $('acMailBox').hidden = true;
+      msgTo('acMsg', 'acMailSent', 'ok');
+    };
     $('frmDanger').addEventListener('submit', onDangerSubmit);
     $('pfBannerPick').onclick = () => $('fileBanner').click();
     $('pfAvatarPick').onclick = () => $('fileAvatar').click();
@@ -5141,6 +5183,13 @@ applyLang();
   @media (max-width: 520px) { #dlgProfile .dlg-in { padding: 18px; } }
   /* zona de perigo: excluir (vermelho) e desabilitar (azul) */
   .pf-danger { display: grid; gap: 12px; margin-top: 6px; padding-top: 18px; border-top: 1px solid rgba(255,59,78,.35); }
+  .pf-acct { display: grid; gap: 10px; margin-top: 6px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.12); }
+  .pf-acct h3 { margin: 0; font: 800 .8rem/1 'Manrope', sans-serif; letter-spacing: .08em; text-transform: uppercase; opacity: .8; }
+  .pf-acct .ac-row { display: grid; gap: 4px; }
+  .pf-acct .ac-lbl { font-size: .78rem; opacity: .7; }
+  .pf-acct .ac-mail { word-break: break-all; font-size: .95rem; }
+  .pf-acct .ac-box { display: grid; gap: 8px; }
+  .pf-acct .ac-box[hidden] { display: none; }
   .pf-danger h3 { margin: 0; color: #ff8a98; font: 800 .8rem/1 'Manrope', sans-serif; letter-spacing: .08em; text-transform: uppercase; }
   .dz-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   @media (max-width: 520px) { .dz-btns { grid-template-columns: 1fr; } }
