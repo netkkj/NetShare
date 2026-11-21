@@ -183,6 +183,8 @@
   .tile:fullscreen { cursor: default; }
   .tile:-webkit-full-screen { cursor: default; }
   .tbtn.hide { right: 10px; top: 10px; }
+  .tbtn.zm { right: 10px; top: 52px; }
+  .tile.fill video { object-fit: cover; }
   .tvol { position: absolute; left: 10px; top: 15px; width: 95px; min-height: 0; padding: 0; border: 0; background: transparent; opacity: .85; }
   .label { position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 215px); padding: 6px 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 9px; background: rgba(7,11,24,.78); color: #fff; font-size: .78rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; backdrop-filter: blur(10px); }
   .tile .tbtn, .tile .tvol, .tile .label { transition: opacity .18s; }
@@ -494,6 +496,8 @@
       </select>
     </label>
     <label class="mut"><span data-i18n="lblVol"></span> <input id="vol" type="range" min="0" max="100" value="100" style="width:90px;padding:0;vertical-align:middle"></label>
+    <label class="mut"><span data-i18n="lblOut"></span> <select id="outMode" data-i18n-title="outTitle" style="vertical-align:middle">
+      <option value="phone" data-i18n="outPhone"></option><option value="speaker" data-i18n="outSpeaker"></option><option value="pc" data-i18n="outPc" selected></option></select></label>
     <span class="sp"></span>
     <button id="btnLeave" class="sec" data-i18n="btnLeave"></button>
   </div>
@@ -638,7 +642,7 @@ const I18N = {
   dc:'Desconectar', dcTime:'Desconectar por tempo…', confirmDc:'Desconectar {name} da call? A pessoa poderá entrar de novo na hora.', askDcTime:'Por quantos minutos {name} fica impedido de voltar à call? (1 a 1440)',
   eBlocked:'Um moderador impediu você de entrar nesta call por um tempo. Tente de novo mais tarde.', eDisc:'Um moderador desconectou você da call. Você pode entrar de novo.',
   you:'você', owner:'Dono da sala', kick:'Expulsar', ban:'Banir', makeOwner:'Passar posse',
-  hideScreen:'Ocultar tela', showScreen:'Mostrar tela', fullBtn:'Tela cheia', fullExit:'Sair da tela cheia', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
+  hideScreen:'Ocultar tela', showScreen:'Mostrar tela', fullBtn:'Tela cheia', fullExit:'Sair da tela cheia', lblOut:'Saída:', outPhone:'Celular', outSpeaker:'Alto-falante', outPc:'PC', outTitle:'Reforça o volume para o aparelho em que você está ouvindo', zoomFill:'Preencher', zoomFit:'Ajustar', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
   confirmKick:'Expulsar {name} da sala? A pessoa poderá entrar de novo.',
   confirmBan:'Banir {name}? A pessoa não poderá mais entrar enquanto a sala existir.',
   confirmOwner:'Passar a posse da sala para {name}? Você perderá os poderes de dono.',
@@ -691,7 +695,7 @@ const I18N = {
   dc:'Disconnect', dcTime:'Disconnect for a while…', confirmDc:'Disconnect {name} from the call? They will be able to join again right away.', askDcTime:'For how many minutes is {name} blocked from coming back to the call? (1 to 1440)',
   eBlocked:'A moderator blocked you from joining this call for a while. Try again later.', eDisc:'A moderator disconnected you from the call. You can join again.',
   you:'you', owner:'Room owner', kick:'Kick', ban:'Ban', makeOwner:'Make owner',
-  hideScreen:'Hide screen', showScreen:'Show screen', fullBtn:'Fullscreen', fullExit:'Exit fullscreen', hideBtn:'Hide', soundOn:'Turn sound on', soundOff:'Mute',
+  hideScreen:'Hide screen', showScreen:'Show screen', fullBtn:'Fullscreen', fullExit:'Exit fullscreen', lblOut:'Output:', outPhone:'Phone', outSpeaker:'Speaker', outPc:'PC', outTitle:'Boosts the volume for the device you are listening on', zoomFill:'Fill', zoomFit:'Fit', hideBtn:'Hide', soundOn:'Turn sound on', soundOff:'Mute',
   confirmKick:'Kick {name} from the room? They will be able to join again.',
   confirmBan:'Ban {name}? They will not be able to join again while the room exists.',
   confirmOwner:'Make {name} the room owner? You will lose the owner powers.',
@@ -744,7 +748,7 @@ const I18N = {
   dc:'Desligar da chamada', dcTime:'Desligar por tempo…', confirmDc:'Desligar {name} da chamada? A pessoa poderá voltar a entrar de imediato.', askDcTime:'Durante quantos minutos {name} fica impedido de voltar à chamada? (1 a 1440)',
   eBlocked:'Um moderador impediu-o de entrar nesta chamada durante algum tempo. Tente outra vez mais tarde.', eDisc:'Um moderador desligou-o da chamada. Pode voltar a entrar.',
   you:'você', owner:'Dono da sala', kick:'Expulsar', ban:'Banir', makeOwner:'Passar posse',
-  hideScreen:'Ocultar ecrã', showScreen:'Mostrar ecrã', fullBtn:'Ecrã inteiro', fullExit:'Sair do ecrã inteiro', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
+  hideScreen:'Ocultar ecrã', showScreen:'Mostrar ecrã', fullBtn:'Ecrã inteiro', fullExit:'Sair do ecrã inteiro', lblOut:'Saída:', outPhone:'Telemóvel', outSpeaker:'Altifalante', outPc:'PC', outTitle:'Reforça o volume para o aparelho em que está a ouvir', zoomFill:'Preencher', zoomFit:'Ajustar', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
   confirmKick:'Expulsar {name} da sala? A pessoa poderá entrar novamente.',
   confirmBan:'Banir {name}? A pessoa não poderá voltar a entrar enquanto a sala existir.',
   confirmOwner:'Passar a posse da sala para {name}? Perderá os poderes de dono.',
@@ -802,6 +806,7 @@ function applyLang() {
   document.title = 'NetShare';
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = T(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = T(el.dataset.i18nPh); });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = T(el.dataset.i18nTitle); });
   $('lang').value = lang;
   if (curMsg.k) $('msg').textContent = T(curMsg.k, curMsg.v);
   if (curErr.k) $('joinErr').textContent = T(curErr.k, curErr.v);
@@ -1665,7 +1670,7 @@ function syncAudio() {
   vplay.forEach((r, id) => {
     const a = r.el; if (!a) return;
     a.muted = forcedMute(id);
-    a.volume = Math.min(1, Math.max(0, masterVol * userGain(id)));
+    setLevel(a, masterVol * userGain(id) * outGain());
     if (!a.muted && a.srcObject && a.paused) { const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); }
   });
 }
@@ -2135,10 +2140,44 @@ let masterVol = (() => {
   try { const v = parseFloat(localStorage.getItem('sala-vol')); return isNaN(v) ? 1 : Math.min(1, Math.max(0, v)); }
   catch (e) { return 1; }
 })();
+/* ---- saída: reforço de volume (passa de 100%) conforme o aparelho de quem ouve ---- */
+const OUT_PROFILES = { pc: 1, speaker: 1.8, phone: 3 };
+let outMode = (() => { try { const m = localStorage.getItem('ns-out'); return OUT_PROFILES[m] ? m : 'pc'; } catch (e) { return 'pc'; } })();
+const outGain = () => OUT_PROFILES[outMode] || 1;
+let boostCtx = null; const boosts = new WeakMap();
+function setLevel(el, v) {   // v pode passar de 1: o excedente vem de um GainNode (com limitador para não estourar)
+  v = Math.max(0, v);
+  let b = boosts.get(el);
+  if (v <= 1) { el.volume = v; if (b) { b.v = 0; b.gain.gain.value = 0; } return; }
+  try {
+    const ms = el.srcObject;
+    if (!(ms instanceof MediaStream) || !ms.getAudioTracks().length) { el.volume = 1; return; }
+    if (!boostCtx) boostCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (boostCtx.state === 'suspended') boostCtx.resume().catch(() => {});
+    if (b && b.ms !== ms) { try { b.src.disconnect(); } catch (e) {} boosts.delete(el); el.removeEventListener('volumechange', b.h); b = null; }
+    if (!b) {
+      const src = boostCtx.createMediaStreamSource(ms), gain = boostCtx.createGain(), lim = boostCtx.createDynamicsCompressor();
+      lim.threshold.value = -8; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = .003; lim.release.value = .2;
+      src.connect(gain); gain.connect(lim); lim.connect(boostCtx.destination);
+      b = { ms, src, gain, v, h: null };
+      b.h = () => { b.gain.gain.value = el.muted ? 0 : b.v; };
+      el.addEventListener('volumechange', b.h);
+      boosts.set(el, b);
+    }
+    b.v = v; el.volume = 0; b.gain.gain.value = el.muted ? 0 : v;
+  } catch (e) { el.volume = 1; }
+}
 function applyVolume(t) {
-  try { t.video.volume = Math.min(1, Math.max(0, masterVol * (t.vol == null ? 1 : t.vol) * userGain(t.id))); } catch (e) {}
+  try { setLevel(t.video, masterVol * (t.vol == null ? 1 : t.vol) * userGain(t.id) * outGain()); } catch (e) {}
 }
 $('vol').value = Math.round(masterVol * 100);
+$('outMode').value = outMode;
+$('outMode').onchange = () => {
+  outMode = $('outMode').value;
+  try { localStorage.setItem('ns-out', outMode); } catch (e) {}
+  tiles.forEach(t => { if (!t.local) applyVolume(t); });
+  syncAudio();
+};
 $('vol').oninput = () => {
   masterVol = $('vol').value / 100;
   try { localStorage.setItem('sala-vol', String(masterVol)); } catch (e) {}
@@ -2179,6 +2218,7 @@ let fsLocked = false;
 function updateTileTexts(t) {
   paintFsBtn(t);
   if (t.hbtn) t.hbtn.textContent = '🙈 ' + T('hideBtn');
+  if (t.zbtn) t.zbtn.textContent = '⤢ ' + T(t.el.classList.contains('fill') ? 'zoomFit' : 'zoomFill');
   if (t.vslider) t.vslider.title = T('volTile');
   updateSoundBtn(t);
 }
@@ -2238,6 +2278,10 @@ function showTile(id, stream, call, isLocal) {
       t.fbtn.onclick = e => { e.stopPropagation(); toggleFs(t); };
       t.fbtn.ondblclick = e => e.stopPropagation();
       el.append(t.fbtn);
+      t.zbtn = document.createElement('button'); t.zbtn.type = 'button'; t.zbtn.className = 'tbtn zm';
+      t.zbtn.onclick = e => { e.stopPropagation(); el.classList.toggle('fill'); updateTileTexts(t); };
+      t.zbtn.ondblclick = e => e.stopPropagation();
+      el.append(t.zbtn);
     }
     if (!isLocal) {
       t.note = document.createElement('div'); t.note.className = 'note hidden';
