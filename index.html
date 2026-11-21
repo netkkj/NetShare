@@ -882,7 +882,8 @@ const PEER_OPTS = { config: { sdpSemantics: 'unified-plan', iceServers: [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:global.stun.twilio.com:3478' },
-  { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp', 'turns:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
+  { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp', 'turns:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: ['turn:freestun.net:3479', 'turn:freestun.net:5349'], username: 'free', credential: 'free' }   // reserva pública extra (instável; o TURN de verdade vem da função turn-credentials)
 ].concat(CUSTOM_TURN) } };
 
 /* ---------- TURN confiável: credenciais temporárias vindas de uma Edge Function do Supabase ----------
@@ -899,17 +900,23 @@ function iceEndpoint() {
 function ensureIce(force) {
   if (!force && iceCache && Date.now() < iceCache.exp) return Promise.resolve();
   if (icePending) return icePending;
-  if (!force && Date.now() - iceFailAt < 60000) return Promise.resolve();
+  if (!force && Date.now() - iceFailAt < 8000) return Promise.resolve();   // falhou há pouco: tenta de novo logo, sem esperar 1 minuto
   const url = iceEndpoint();
   if (!url) return Promise.resolve();
   icePending = (async () => {
     const ctl = new AbortController();
-    const tm = setTimeout(() => ctl.abort(), 3500);
+    const tm = setTimeout(() => ctl.abort(), 10000);   // a função do Supabase pode demorar na primeira chamada (cold start)
     try {
       let key = ''; try { key = SB_KEY; } catch (e) {}
-      const r = await fetch(url, { headers: key ? { apikey: key } : {}, signal: ctl.signal, cache: 'no-store' });
-      if (!r.ok) { iceFailAt = Date.now(); return; }
-      const j = await r.json();
+      let j;
+      if (window.netshareDesktop && window.netshareDesktop.fetchIce) {   // app desktop: o processo principal busca (a função só aceita a origem do site)
+        j = await window.netshareDesktop.fetchIce(url, key);
+        if (!j) { iceFailAt = Date.now(); return; }
+      } else {
+        const r = await fetch(url, { headers: key ? { apikey: key } : {}, signal: ctl.signal, cache: 'no-store' });
+        if (!r.ok) { iceFailAt = Date.now(); return; }
+        j = await r.json();
+      }
       const list = (Array.isArray(j.iceServers) ? j.iceServers : [j.iceServers]).filter(x => x && x.urls);
       if (!list.length) { iceFailAt = Date.now(); return; }
       PEER_OPTS.config.iceServers = list
