@@ -211,7 +211,9 @@
   #controls button.live:hover:not(:disabled) { background: rgba(67,217,163,.24); box-shadow: none; }
 
   #controls { grid-column: 1/-1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px; border: 1px solid var(--line); border-radius: 16px; background: rgba(17,25,49,.84); box-shadow: 0 15px 40px rgba(0,0,0,.22); backdrop-filter: blur(18px); }
-  #controls .sp { flex: 1; }
+  #controls .sp { flex: 1; min-width: 0; }
+  #controls .vo { white-space: nowrap; flex: none; }
+  @media (min-width: 901px) { #controls { gap: 6px; } #controls button { padding: 8px 11px; } #controls label { padding-left: 2px; } }
   #controls label { display: flex; gap: 7px; align-items: center; padding-left: 5px; }
   #controls select { width: auto; min-height: 38px; padding: 7px 32px 7px 10px; border-radius: 9px; font-size: .78rem; }
   #controls input[type='range'] { min-height: 0; accent-color: var(--acc); box-shadow: none; }
@@ -495,13 +497,33 @@
         <option value="2160" data-i18n="res2160"></option>
       </select>
     </label>
-    <label class="mut"><span data-i18n="lblVol"></span> <input id="vol" type="range" min="0" max="100" value="100" style="width:90px;padding:0;vertical-align:middle"></label>
-    <label class="mut"><span data-i18n="lblOut"></span> <select id="outMode" data-i18n-title="outTitle" style="vertical-align:middle">
+    <label class="mut vo"><span data-i18n="lblVol"></span> <input id="vol" type="range" min="0" max="100" value="100" style="width:70px;padding:0;vertical-align:middle">
+      <select id="outMode" data-i18n-title="outTitle" style="vertical-align:middle">
       <option value="phone" data-i18n="outPhone"></option><option value="speaker" data-i18n="outSpeaker"></option><option value="pc" data-i18n="outPc" selected></option></select></label>
     <span class="sp"></span>
     <button id="btnLeave" class="sec" data-i18n="btnLeave"></button>
   </div>
 </section>
+
+<dialog id="dlgShare" class="dlg confirm" aria-labelledby="shTitle">
+  <div class="dlg-in">
+    <div class="dlg-head">
+      <h2 id="shTitle" data-i18n="shTitle"></h2>
+      <button type="button" class="sec x" id="shX">✕</button>
+    </div>
+    <div style="display:grid;gap:10px;margin-top:6px">
+      <label class="chk"><input type="radio" name="shSurf" value="monitor" checked><span data-i18n="shFull"></span></label>
+      <label class="chk"><input type="radio" name="shSurf" value="window"><span data-i18n="shWin"></span></label>
+      <label class="chk"><input type="radio" name="shSurf" value="browser"><span data-i18n="shTab"></span></label>
+      <label class="chk"><input type="checkbox" id="shAudio" checked><span data-i18n="shAudio"></span></label>
+      <p class="mut" style="margin:0;font-size:.8rem" data-i18n="shHint"></p>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="sec" id="shNo" data-i18n="shNo"></button>
+      <button type="button" id="shGo" data-i18n="shGo"></button>
+    </div>
+  </div>
+</dialog>
 
 <dialog id="dlgAuth" class="dlg" aria-labelledby="authTitle">
   <div class="dlg-in">
@@ -642,7 +664,7 @@ const I18N = {
   dc:'Desconectar', dcTime:'Desconectar por tempo…', confirmDc:'Desconectar {name} da call? A pessoa poderá entrar de novo na hora.', askDcTime:'Por quantos minutos {name} fica impedido de voltar à call? (1 a 1440)',
   eBlocked:'Um moderador impediu você de entrar nesta call por um tempo. Tente de novo mais tarde.', eDisc:'Um moderador desconectou você da call. Você pode entrar de novo.',
   you:'você', owner:'Dono da sala', kick:'Expulsar', ban:'Banir', makeOwner:'Passar posse',
-  hideScreen:'Ocultar tela', showScreen:'Mostrar tela', fullBtn:'Tela cheia', fullExit:'Sair da tela cheia', lblOut:'Saída:', outPhone:'Celular', outSpeaker:'Alto-falante', outPc:'PC', outTitle:'Reforça o volume para o aparelho em que você está ouvindo', zoomFill:'Preencher', zoomFit:'Ajustar', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
+  hideScreen:'Ocultar tela', showScreen:'Mostrar tela', fullBtn:'Tela cheia', fullExit:'Sair da tela cheia', lblOut:'Saída:', outPhone:'Celular', outSpeaker:'Alto-falante', outPc:'PC', shTitle:'O que você quer compartilhar?', shFull:'Tela inteira', shWin:'Uma janela', shTab:'Uma aba do navegador', shAudio:'Compartilhar o áudio', shHint:'Em seguida o navegador mostra a lista para você escolher.', shNo:'Cancelar', shGo:'Continuar', outTitle:'Reforça o volume para o aparelho em que você está ouvindo', zoomFill:'Preencher', zoomFit:'Ajustar', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
   confirmKick:'Expulsar {name} da sala? A pessoa poderá entrar de novo.',
   confirmBan:'Banir {name}? A pessoa não poderá mais entrar enquanto a sala existir.',
   confirmOwner:'Passar a posse da sala para {name}? Você perderá os poderes de dono.',
@@ -695,7 +717,7 @@ const I18N = {
   dc:'Disconnect', dcTime:'Disconnect for a while…', confirmDc:'Disconnect {name} from the call? They will be able to join again right away.', askDcTime:'For how many minutes is {name} blocked from coming back to the call? (1 to 1440)',
   eBlocked:'A moderator blocked you from joining this call for a while. Try again later.', eDisc:'A moderator disconnected you from the call. You can join again.',
   you:'you', owner:'Room owner', kick:'Kick', ban:'Ban', makeOwner:'Make owner',
-  hideScreen:'Hide screen', showScreen:'Show screen', fullBtn:'Fullscreen', fullExit:'Exit fullscreen', lblOut:'Output:', outPhone:'Phone', outSpeaker:'Speaker', outPc:'PC', outTitle:'Boosts the volume for the device you are listening on', zoomFill:'Fill', zoomFit:'Fit', hideBtn:'Hide', soundOn:'Turn sound on', soundOff:'Mute',
+  hideScreen:'Hide screen', showScreen:'Show screen', fullBtn:'Fullscreen', fullExit:'Exit fullscreen', lblOut:'Output:', outPhone:'Phone', outSpeaker:'Speaker', outPc:'PC', shTitle:'What do you want to share?', shFull:'Entire screen', shWin:'A window', shTab:'A browser tab', shAudio:'Share audio', shHint:'The browser will then show a list to choose from.', shNo:'Cancel', shGo:'Continue', outTitle:'Boosts the volume for the device you are listening on', zoomFill:'Fill', zoomFit:'Fit', hideBtn:'Hide', soundOn:'Turn sound on', soundOff:'Mute',
   confirmKick:'Kick {name} from the room? They will be able to join again.',
   confirmBan:'Ban {name}? They will not be able to join again while the room exists.',
   confirmOwner:'Make {name} the room owner? You will lose the owner powers.',
@@ -748,7 +770,7 @@ const I18N = {
   dc:'Desligar da chamada', dcTime:'Desligar por tempo…', confirmDc:'Desligar {name} da chamada? A pessoa poderá voltar a entrar de imediato.', askDcTime:'Durante quantos minutos {name} fica impedido de voltar à chamada? (1 a 1440)',
   eBlocked:'Um moderador impediu-o de entrar nesta chamada durante algum tempo. Tente outra vez mais tarde.', eDisc:'Um moderador desligou-o da chamada. Pode voltar a entrar.',
   you:'você', owner:'Dono da sala', kick:'Expulsar', ban:'Banir', makeOwner:'Passar posse',
-  hideScreen:'Ocultar ecrã', showScreen:'Mostrar ecrã', fullBtn:'Ecrã inteiro', fullExit:'Sair do ecrã inteiro', lblOut:'Saída:', outPhone:'Telemóvel', outSpeaker:'Altifalante', outPc:'PC', outTitle:'Reforça o volume para o aparelho em que está a ouvir', zoomFill:'Preencher', zoomFit:'Ajustar', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
+  hideScreen:'Ocultar ecrã', showScreen:'Mostrar ecrã', fullBtn:'Ecrã inteiro', fullExit:'Sair do ecrã inteiro', lblOut:'Saída:', outPhone:'Telemóvel', outSpeaker:'Altifalante', outPc:'PC', shTitle:'O que quer partilhar?', shFull:'Ecrã inteiro', shWin:'Uma janela', shTab:'Um separador do navegador', shAudio:'Partilhar o áudio', shHint:'A seguir o navegador mostra a lista para escolher.', shNo:'Cancelar', shGo:'Continuar', outTitle:'Reforça o volume para o aparelho em que está a ouvir', zoomFill:'Preencher', zoomFit:'Ajustar', hideBtn:'Ocultar', soundOn:'Ativar som', soundOff:'Silenciar',
   confirmKick:'Expulsar {name} da sala? A pessoa poderá entrar novamente.',
   confirmBan:'Banir {name}? A pessoa não poderá voltar a entrar enquanto a sala existir.',
   confirmOwner:'Passar a posse da sala para {name}? Perderá os poderes de dono.',
@@ -1999,7 +2021,8 @@ $('facing').onchange = () => { if (myKind === 'cam') share('cam'); };
 
 // Navegadores diferentes rejeitam constraints diferentes (Safari, Firefox, Chrome antigo, Opera, Samsung...).
 // Tenta o pedido completo e vai simplificando; só desiste de vez se a pessoa cancelar/bloquear.
-async function getScreenStream(q, frameRate) {
+async function getScreenStream(q, frameRate, opt) {
+  opt = opt || { surface: '', audio: true };
   const md = navigator.mediaDevices;
   const tries = [
     { video: { frameRate, width: { ideal: q.w, max: q.w }, height: { ideal: q.h, max: q.h } },   // sem 'cursor': forçar o cursor na captura faz o Chrome/Edge usar um modo que esconde o mouse em jogos/F11 no Windows; o padrão já mostra o cursor
@@ -2009,6 +2032,10 @@ async function getScreenStream(q, frameRate) {
     { video: true, audio: true },
     { video: true }
   ];
+  tries.forEach(c => {
+    if (opt.surface && typeof c.video === 'object') c.video.displaySurface = opt.surface;   // só uma dica: o navegador abre já na aba "Tela / Janela / Aba"
+    if (!opt.audio) { delete c.audio; delete c.systemAudio; }
+  });
   let last;
   for (const c of tries) {
     try { return await md.getDisplayMedia(c); }
@@ -2018,6 +2045,23 @@ async function getScreenStream(q, frameRate) {
     }
   }
   throw last;
+}
+
+const SH_KEY = 'ns-share-opt';
+function askShareOpts() {   // no navegador: pergunta tela/janela/aba e áudio; no app desktop quem pergunta é a janela do Electron
+  return new Promise(resolve => {
+    const d = $('dlgShare'); let done = false;
+    try { const o = JSON.parse(localStorage.getItem(SH_KEY) || '{}'); const r = document.querySelector('input[name=shSurf][value="' + o.surface + '"]'); if (r) r.checked = true; if (typeof o.audio === 'boolean') $('shAudio').checked = o.audio; } catch (e) {}
+    const end = v => { if (done) return; done = true; if (d.open) d.close(); resolve(v); };
+    $('shGo').onclick = () => {
+      const v = { surface: (document.querySelector('input[name=shSurf]:checked') || {}).value || '', audio: $('shAudio').checked };
+      try { localStorage.setItem(SH_KEY, JSON.stringify(v)); } catch (e) {}
+      end(v);
+    };
+    $('shNo').onclick = $('shX').onclick = () => end(null);
+    d.addEventListener('close', () => end(null), { once: true });
+    d.showModal();
+  });
 }
 
 async function share(kind) {
@@ -2030,7 +2074,9 @@ async function share(kind) {
   let stream, camAudioFailed = false;
   try {
     if (kind === 'screen') {
-      stream = await getScreenStream(q, frameRate);
+      let opt = null;
+      if (!window.netshareDesktop) { opt = await askShareOpts(); if (!opt) return; }
+      stream = await getScreenStream(q, frameRate, opt);
     } else {
       const video = { frameRate, width: { ideal: q.w }, height: { ideal: q.h }, facingMode: { ideal: $('facing').value } };
       try { stream = await navigator.mediaDevices.getUserMedia({ video, audio: true }); }
