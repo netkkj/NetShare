@@ -215,6 +215,10 @@
   #controls .vo { white-space: nowrap; flex: none; }
   @media (min-width: 901px) { #controls { gap: 6px; } #controls button { padding: 8px 11px; } #controls label { padding-left: 2px; } }
   #controls label { display: flex; gap: 7px; align-items: center; padding-left: 5px; }
+  #controls .vo { display: flex; gap: 7px; align-items: center; padding-left: 2px; }
+  #controls .vbtn { width: 40px; min-height: 40px; padding: 0 !important; display: grid; place-items: center; }
+  #controls .vbtn svg { width: 20px; height: 20px; display: block; }
+  #controls .vbtn.off { color: #ff8a98; }
   #controls select { width: auto; min-height: 38px; padding: 7px 32px 7px 10px; border-radius: 9px; font-size: .78rem; }
   #controls input[type='range'] { min-height: 0; accent-color: var(--acc); box-shadow: none; }
   #controls button { min-height: 40px; padding: 8px 13px; font-size: .82rem; }
@@ -255,7 +259,7 @@
     #room header h2 { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #controls label { width: calc(50% - 5px); justify-content: space-between; }
     #controls label select { min-width: 0; max-width: 105px; }
-    #controls label:has(#vol) { width: 100%; }
+    #controls .vo { width: 100%; }
     #controls label:has(#micDev) { width: 100%; }
     #controls label:has(#micDev) select { flex: 1; max-width: none; }
     #btnLeave { width: 100%; }
@@ -497,9 +501,9 @@
         <option value="2160" data-i18n="res2160"></option>
       </select>
     </label>
-    <label class="mut vo"><span data-i18n="lblVol"></span> <input id="vol" type="range" min="0" max="100" value="100" style="width:70px;padding:0;vertical-align:middle">
+    <div class="mut vo"><button type="button" id="volBtn" class="sec vbtn" data-i18n-title="volMute" aria-pressed="false"></button> <input id="vol" type="range" min="0" max="100" value="100" style="width:70px;padding:0;vertical-align:middle">
       <select id="outMode" data-i18n-title="outTitle" style="vertical-align:middle">
-      <option value="phone" data-i18n="outPhone"></option><option value="speaker" data-i18n="outSpeaker"></option><option value="pc" data-i18n="outPc" selected></option></select></label>
+      <option value="phone" data-i18n="outPhone"></option><option value="speaker" data-i18n="outSpeaker"></option><option value="pc" data-i18n="outPc" selected></option></select></div>
     <span class="sp"></span>
     <button id="btnLeave" class="sec" data-i18n="btnLeave"></button>
   </div>
@@ -655,7 +659,7 @@ const I18N = {
   btnScreen:'Compartilhar tela', btnScreenRe:'Reiniciar tela', btnScreenNA:'Tela indisponível neste aparelho',
   btnCam:'Ligar câmera', btnCamRe:'Reiniciar câmera', lblCam:'Câmera:', camFront:'Frontal', camBack:'Traseira',
   btnStop:'Parar', lblFps:'Fluidez:', lblRes:'Resolução:', res720:'720p (leve)', res1080:'1080p (Full HD)', res1440:'1440p (2K)', res2160:'2160p (4K)',
-  btnLeave:'Sair da sala', lblVol:'Volume:', volTile:'Volume desta transmissão',
+  btnLeave:'Sair da sala', lblVol:'Volume:', volMute:'Silenciar / ativar o som de tudo', volTile:'Volume desta transmissão',
   btnMicOn:'🎙️ Ligar microfone', btnMicOff:'🎙️ Desligar microfone', btnDeafOn:'🎧 Parar de ouvir tudo', btnDeafOff:'🎧 Voltar a ouvir', lblMic:'Microfone:', micDefault:'Padrão',
   micDenied:'O navegador não deixou usar o microfone. Libere a permissão nas configurações do site e tente de novo.', micFail:'Não foi possível ligar o microfone: {e}', cantMic:'O microfone só funciona em páginas seguras (https).',
   micNone:'Nenhum microfone encontrado neste aparelho.', micBusy:'Não foi possível usar o microfone: outro app está usando ele.',
@@ -708,7 +712,7 @@ const I18N = {
   btnScreen:'Share screen', btnScreenRe:'Restart screen', btnScreenNA:'Screen sharing unavailable on this device',
   btnCam:'Turn on camera', btnCamRe:'Restart camera', lblCam:'Camera:', camFront:'Front', camBack:'Rear',
   btnStop:'Stop', lblFps:'Smoothness:', lblRes:'Resolution:', res720:'720p (light)', res1080:'1080p (Full HD)', res1440:'1440p (2K)', res2160:'2160p (4K)',
-  btnLeave:'Leave room', lblVol:'Volume:', volTile:'Volume of this stream',
+  btnLeave:'Leave room', lblVol:'Volume:', volMute:'Mute / unmute everything', volTile:'Volume of this stream',
   btnMicOn:'🎙️ Turn on microphone', btnMicOff:'🎙️ Turn off microphone', btnDeafOn:'🎧 Stop hearing everyone', btnDeafOff:'🎧 Hear again', lblMic:'Microphone:', micDefault:'Default',
   micDenied:'The browser did not allow the microphone. Allow it in the site settings and try again.', micFail:'Could not turn on the microphone: {e}', cantMic:'The microphone only works on secure pages (https).',
   micNone:'No microphone was found on this device.', micBusy:'Could not use the microphone: another app is using it.',
@@ -761,7 +765,7 @@ const I18N = {
   btnScreen:'Partilhar ecrã', btnScreenRe:'Reiniciar ecrã', btnScreenNA:'Ecrã indisponível neste dispositivo',
   btnCam:'Ligar câmara', btnCamRe:'Reiniciar câmara', lblCam:'Câmara:', camFront:'Frontal', camBack:'Traseira',
   btnStop:'Parar', lblFps:'Fluidez:', lblRes:'Resolução:', res720:'720p (leve)', res1080:'1080p (Full HD)', res1440:'1440p (2K)', res2160:'2160p (4K)',
-  btnLeave:'Sair da sala', lblVol:'Volume:', volTile:'Volume desta transmissão',
+  btnLeave:'Sair da sala', lblVol:'Volume:', volMute:'Silenciar / ativar o som de tudo', volTile:'Volume desta transmissão',
   btnMicOn:'🎙️ Ligar microfone', btnMicOff:'🎙️ Desligar microfone', btnDeafOn:'🎧 Deixar de ouvir tudo', btnDeafOff:'🎧 Voltar a ouvir', lblMic:'Microfone:', micDefault:'Predefinido',
   micDenied:'O navegador não permitiu usar o microfone. Autorize nas definições do site e tente outra vez.', micFail:'Não foi possível ligar o microfone: {e}', cantMic:'O microfone só funciona em páginas seguras (https).',
   micNone:'Não foi encontrado nenhum microfone neste dispositivo.', micBusy:'Não foi possível usar o microfone: outra aplicação está a usá-lo.',
@@ -1699,7 +1703,7 @@ function syncAudio() {
   vplay.forEach((r, id) => {
     const a = r.el; if (!a) return;
     a.muted = forcedMute(id);
-    setLevel(a, masterVol * userGain(id) * outGain());
+    setLevel(a, mvol() * userGain(id) * outGain());
     if (!a.muted && a.srcObject && a.paused) { const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); }
   });
 }
@@ -2189,6 +2193,8 @@ function updateButtons() {
 }
 
 /* =====================  INTERFACE  ===================== */
+let masterMuted = (() => { try { return localStorage.getItem('sala-vol-mute') === '1'; } catch (e) { return false; } })();
+const mvol = () => (masterMuted ? 0 : masterVol);
 let masterVol = (() => {
   try { const v = parseFloat(localStorage.getItem('sala-vol')); return isNaN(v) ? 1 : Math.min(1, Math.max(0, v)); }
   catch (e) { return 1; }
@@ -2221,9 +2227,26 @@ function setLevel(el, v) {   // v pode passar de 1: o excedente vem de um GainNo
   } catch (e) { el.volume = 1; }
 }
 function applyVolume(t) {
-  try { setLevel(t.video, masterVol * (t.vol == null ? 1 : t.vol) * userGain(t.id) * outGain()); } catch (e) {}
+  try { setLevel(t.video, mvol() * (t.vol == null ? 1 : t.vol) * userGain(t.id) * outGain()); } catch (e) {}
 }
 $('vol').value = Math.round(masterVol * 100);
+const ICO_VOL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const ICO_MUTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="m16 9 5 6M21 9l-5 6"/></svg>';
+function paintVolBtn() {
+  const b = $('volBtn'), off = masterMuted || masterVol === 0;
+  b.innerHTML = off ? ICO_MUTE : ICO_VOL; b.classList.toggle('off', off); b.setAttribute('aria-pressed', String(masterMuted));
+}
+function applyMaster() {
+  tiles.forEach(t => { if (!t.local) applyVolume(t); });
+  syncAudio(); paintVolBtn();
+}
+$('volBtn').onclick = () => {
+  if (!masterMuted && masterVol === 0) { masterVol = 1; $('vol').value = 100; try { localStorage.setItem('sala-vol', '1'); } catch (e) {} }
+  else masterMuted = !masterMuted;
+  try { localStorage.setItem('sala-vol-mute', masterMuted ? '1' : '0'); } catch (e) {}
+  applyMaster();
+};
+paintVolBtn();
 $('outMode').value = outMode;
 $('outMode').onchange = () => {
   outMode = $('outMode').value;
@@ -2234,8 +2257,8 @@ $('outMode').onchange = () => {
 $('vol').oninput = () => {
   masterVol = $('vol').value / 100;
   try { localStorage.setItem('sala-vol', String(masterVol)); } catch (e) {}
-  tiles.forEach(t => { if (!t.local) applyVolume(t); });
-  syncAudio();
+  if (masterMuted && masterVol > 0) { masterMuted = false; try { localStorage.setItem('sala-vol-mute', '0'); } catch (e) {} }   // mexer no controle volta o som
+  applyMaster();
 };
 
 function updateSoundBtn(t) {
