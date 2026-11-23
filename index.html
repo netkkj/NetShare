@@ -5599,6 +5599,10 @@ const CTRL = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069
 const ini = n => [...String(n).trim()].slice(0, 2).join('').toUpperCase();
 const normCh = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);   // aceita maiúsculas
 const normVoice = s => String(s || '').replace(CTRL, '').replace(/\s+/g, ' ').trim().slice(0, 30);   // canal de voz: mantém espaços, maiúsculas e acentos
+/* emoji digitado no começo do nome do canal: sai do nome e vira o ícone do canal (o nome de texto só aceita letras, números e hífen) */
+let LEAD_EMO = null;
+try { LEAD_EMO = /^\s*(\p{Regional_Indicator}{2}|[0-9#*]\ufe0f?\u20e3|\p{Extended_Pictographic}(?:\ufe0f|[\u{1F3FB}-\u{1F3FF}])*(?:\u200d\p{Extended_Pictographic}(?:\ufe0f|[\u{1F3FB}-\u{1F3FF}])*)*)/u; } catch (e) {}
+const takeLeadEmoji = str => { const m = LEAD_EMO && LEAD_EMO.exec(str || ''); return m ? { emoji: m[1], rest: (str || '').slice(m[0].length).replace(/^\s+/, ''), len: m[0].length } : null; };
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const okHex = c => (typeof c === 'string' && HEX.test(c)) ? c.toLowerCase() : '';
 const PAL = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#1abc9c', '#3498db', '#6c7cff', '#9b59b6', '#e91e63', '#99aab5'];
@@ -5726,6 +5730,7 @@ async function loadServers() {
   if (error) return console.warn(error);
   servers = data || [];
   if (cur) { cur = servers.find(s => s.id === cur.id) || null; if (!cur) closeView(); else { paintDesc(); renderMembers(); setSrvName(); repaintNames(); } }
+  syncRoomLabel();
   renderRail();
 }
 /* estilo do nome do servidor (fonte, cor e efeito, igual ao do perfil) */
@@ -6396,6 +6401,7 @@ function renderChans() {   // enquanto o dedo/mouse está apertando um botão da
 }
 function renderChansNow() {
   vpCheck();
+  syncRoomLabel();
   const box = $('svChans'); box.textContent = '';
   const en0 = String(lang).startsWith('en'), L = (x, y) => en0 ? y : x, mng = can('manage_channels');
   const row = (c, inCat) => {
@@ -7417,9 +7423,10 @@ function vpSync(e) {
   try {
     Object.values(e.ch.presenceState()).forEach(arr => (arr || []).forEach(p => {
       if (!p || typeof p.uid !== 'string' || typeof p.ch !== 'string' || !p.ch || seen.has(p.uid)) return;   // ch vazio = só está olhando o servidor (não está em call)
-      seen.add(p.uid); list.push({ uid: p.uid, u: typeof p.u === 'string' ? p.u.slice(0, 20) : '', ch: p.ch });
+      seen.add(p.uid); list.push({ uid: p.uid, u: typeof p.u === 'string' ? p.u.slice(0, 20) : '', ch: p.ch, ts: +p.ts || 0 });
     }));
   } catch (x) {}
+  list.sort((x, y) => (x.ts - y.ts) || (x.uid < y.uid ? -1 : x.uid > y.uid ? 1 : 0));   // ordem fixa: quem entrou primeiro fica em cima (antes variava a cada atualização)
   e.roster = list;
   if (cur && cur.id === e.id) renderChans();
 }
@@ -7506,6 +7513,18 @@ async function loadVoiceMem() {
   } catch (e) {}
 }
 
+/* rótulo da sala de voz (barra do meio): ícone + nome do canal + nome do servidor, sempre os atuais */
+const roomLabelOf = r => '🔊 ' + (r.icon && !String(r.icon).startsWith('c:') ? r.icon + ' ' : '') + r.ch + ' · ' + r.srv;
+function syncRoomLabel() {
+  const r = window.__roomParts;
+  if (!r || !voiceCh || String(voiceCh) !== String(r.cid) || $('room').classList.contains('hidden')) return;
+  const sv = servers.find(x => x.id === r.sid) || (cur && cur.id === r.sid ? cur : null);
+  if (sv && sv.name) r.srv = sv.name;
+  const c = cur && cur.id === r.sid ? chans.find(x => x.id === r.cid) : null;
+  if (c) { r.ch = c.name; r.icon = c.icon || ''; }
+  const txt = roomLabelOf(r), el0 = $('roomName');
+  if (el0 && el0.textContent !== txt) el0.textContent = txt;
+}
 /* ----- voz: reaproveita a sala (e o compartilhamento de tela) de sempre ----- */
 async function joinVoice(c) {
   let { data, error } = await sb().from('channels').select('voice_key,user_limit').eq('id', c.id).single();   // chave sempre fresca; quem foi banido não consegue ler
@@ -7519,7 +7538,8 @@ async function joinVoice(c) {
   vmemT = setInterval(() => { if (!voiceCh) { clearInterval(vmemT); vsrv = null; vmem = []; return; } loadVoiceMem(); }, 30000);
   $('inRoom').value = 'v' + c.id.replace(/-/g, '').slice(0, 20);
   $('inPass').value = data.voice_key;                   // só membros leem esta chave
-  window.__roomLabel = '🔊 ' + c.name + ' · ' + cur.name;
+  window.__roomParts = { sid: cur.id, cid: c.id, ch: c.name, icon: c.icon || '', srv: cur.name };
+  window.__roomLabel = roomLabelOf(window.__roomParts);
   window.__roomNs = 'v';                                // entra no espaço de nome de voz (separado das salas avulsas)
   $('btnJoin').click();
 }
@@ -7630,6 +7650,15 @@ function dlgEditChannel(c, isNew) {
     const il = el('div'); il.style.cssText = 'display:grid;gap:8px';
     il.append(el('span', 'mut', L('Ícone do canal (emoji ou emoji do servidor)', 'Channel icon (emoji or server emoji)')), irow);
     w.append(il);
+    const moveLeadEmoji = () => {   // emoji no começo do nome vira o ícone do canal
+      const m = takeLeadEmoji(nameIn.value); if (!m) return false;
+      const caret = nameIn.selectionStart == null ? 0 : nameIn.selectionStart;
+      icon = m.emoji; paintIcon(); nameIn.value = m.rest;
+      try { const pos = Math.max(0, caret - m.len); nameIn.setSelectionRange(pos, pos); } catch (e) {}
+      if (typeof ed !== 'undefined' && ed) ed.refresh();
+      return true;
+    };
+    nameIn.addEventListener('input', moveLeadEmoji);
 
     /* estilo do nome: fonte, cor e efeito */
     let pend = nsOfChan(c);
@@ -7719,6 +7748,7 @@ function dlgEditChannel(c, isNew) {
 
     const acts = el('div', 'dlg-actions');
     const saveBtn = mk(L('Salvar', 'Save'), async () => {
+      moveLeadEmoji();
       const name = (c.kind === 'voice' ? normVoice(nameIn.value) : normCh(nameIn.value)); if (!name) return err(L('Digite um nome para o canal.', 'Type a channel name.'));
       const ps = NS.clean(pend);
       saveBtn.disabled = true;
