@@ -5401,7 +5401,9 @@ applyLang();
   @media (max-width: 520px) { .fgrid { grid-template-columns: 1fr; } .tabs.t4 button, .tabs.t5 button { padding: 4px; font-size: .78rem; } }
 .sgrp .cattog { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
   .sgrp.cat .cact { display: none; padding: 2px 5px !important; font-size: .75rem !important; }
-  .sgrp.cat:hover .cact { display: inline-block; }
+  .sgrp.cat:hover .cact, .sgrp:hover .cact { display: inline-block; }
+  .sgrp .cact { display: none; padding: 2px 5px !important; font-size: .75rem !important; }
+  #srvView.dock .crow .cact, #srvView.dock .sgrp .cact { display: inline-block !important; }
   .crow.incat { margin-left: 8px; }
   .crow.dragging, .sgrp.cat.dragging { opacity: .4; }
   .crow.drop-before, .sgrp.cat.drop-before { box-shadow: inset 0 2px 0 var(--acc); }
@@ -5551,6 +5553,7 @@ const ST = {
    permCount:'{n} permissão(ões)', permAll:'todas as permissões',
    ownerRoleAuto:'cargo automático do dono', ownerRoleOff:'etiqueta oculta', editOwnerH:'Editar cargo de dono', ownerRoleHide:'Tirar a etiqueta de dono', ownerRoleShow:'Mostrar a etiqueta de dono',
    ownerRoleHint:'Este é o cargo automático de quem criou o servidor. Mude o nome e a cor (deixe o nome vazio para voltar ao padrão). Se você tirar a etiqueta, continua sendo o dono, com todos os poderes.',
+   confirmMakeOwner:'Dar o cargo de dono para {n}? Essa pessoa terá os mesmos poderes que você no servidor.', confirmDemoteOwner:'Tirar o cargo de dono de {n}?', needV39:'Falta rodar a migração SQL v39 no Supabase para ter mais de um dono no servidor.',
    confirmOwnerHide:'Tirar a etiqueta de dono? Você continua sendo o dono do servidor, só some o nome do cargo.', needV9:'Falta rodar a migração SQL v9 no Supabase para usar isso.',
    emojis:'Emojis', emojisTitle:'Emojis do servidor', emojiAdd:'Adicionar emoji', emojiName:'Nome do emoji', emojiPick:'Escolher imagem',
    emojiHint:'PNG, JPG, WebP ou GIF de até 256 KB. No chat, use pelo botão de emojis ou digitando :nome:', emojiBadName:'Nome do emoji: 2 a 24 caracteres, só letras minúsculas, números e _.',
@@ -5578,6 +5581,7 @@ const ST = {
    permCount:'{n} permission(s)', permAll:'all permissions',
    ownerRoleAuto:'automatic owner role', ownerRoleOff:'tag hidden', editOwnerH:'Edit owner role', ownerRoleHide:'Remove the owner tag', ownerRoleShow:'Show the owner tag',
    ownerRoleHint:'This is the automatic role of whoever created the server. Change its name and color (leave the name empty to go back to the default). If you remove the tag, you are still the owner with all the powers.',
+   confirmMakeOwner:'Give the owner role to {n}? They will have the same powers as you in this server.', confirmDemoteOwner:'Remove the owner role from {n}?', needV39:'The v39 SQL migration still needs to be run in Supabase to have more than one owner in a server.',
    confirmOwnerHide:'Remove the owner tag? You are still the server owner, only the role name disappears.', needV9:'The v9 SQL migration still needs to be run in Supabase to use this.',
    emojis:'Emojis', emojisTitle:'Server emojis', emojiAdd:'Add emoji', emojiName:'Emoji name', emojiPick:'Choose image',
    emojiHint:'PNG, JPG, WebP or GIF up to 256 KB. In chat, use the emoji button or type :name:', emojiBadName:'Emoji name: 2 to 24 characters, lowercase letters, numbers and _ only.',
@@ -6131,13 +6135,49 @@ document.addEventListener('pointerdown', e => { const m = $('svMem'); if (m && m
 function onAuth(id) {
   if (id === uid) { if (uid) renderRail(); return; }
   uid = id; siteOwner = false; frStop(); dmStop(); grpStop(); closeView(); servers = []; renderRail(); syncRail();
-  if (!id) { presStop(); try { callForget(); } catch (e) {} return; }
+  if (!id) { navOn = false; try { localStorage.removeItem(NAV_KEY); } catch (e) {} presStop(); try { callForget(); } catch (e) {} return; }
   presStart(); checkOwner(); frStart(); dmStart(); grpStart();
   loadServers().then(() => {
     const c = sessionStorage.getItem('sala-convite');
-    if (c) { sessionStorage.removeItem('sala-convite'); dlgAdd(c); }
+    if (c) { sessionStorage.removeItem('sala-convite'); navOn = true; dlgAdd(c); }
+    else navRestore(id);
   });
 }
+
+/* ----- lembra onde você estava: o F5 volta para o mesmo servidor/canal, conversa privada, grupo ou amigos ----- */
+const NAV_KEY = 'ns-nav';
+let navOn = false;   // só salva depois de tentar restaurar (senão a tela vazia do carregamento apagaria o que estava salvo)
+function navSave() {
+  if (!navOn || !uid) return;
+  const o = { u: uid };
+  if (cur && !view.classList.contains('hidden')) { o.srv = cur.id; if (chan && chan.id) o.ch = chan.id; }
+  if (dmCur && dmPanel) { if (dmCur.group) o.grp = dmCur.id; else if (dmCur.peer) o.dm = dmCur.peer; }
+  if (frIsOpen) o.fr = 1;
+  try { const j = JSON.stringify(o); if (j !== navSave._l) { navSave._l = j; localStorage.setItem(NAV_KEY, j); } } catch (e) {}
+}
+async function navRestore(me) {
+  navOn = false;
+  try {
+    let o = null; try { o = JSON.parse(localStorage.getItem(NAV_KEY) || 'null'); } catch (e) {}
+    if (!o || o.u !== me) return;
+    if (o.srv && servers.some(x => x.id === o.srv)) {
+      await openServer(o.srv);
+      if (uid === me && cur && cur.id === o.srv && o.ch && !(chan && chan.id === o.ch)) {
+        const c = chans.find(x => x.id === o.ch && x.kind === 'text'); if (c) await pickChan(c);
+      }
+    }
+    if (uid !== me) return;
+    if (o.dm && o.dm.id) await dmOpen(o.dm);
+    else if (o.grp) {
+      for (let i = 0; i < 20 && uid === me && !grpL.some(x => x.id === o.grp); i++) await new Promise(r => setTimeout(r, 250));
+      if (uid === me && grpL.some(x => x.id === o.grp)) await grpOpen(o.grp);
+    } else if (o.fr) frSet(true);
+  } catch (e) { console.warn('restaurar navegação', e); }
+  finally { if (uid === me) navOn = true; }
+}
+setInterval(navSave, 800);
+addEventListener('pagehide', navSave);
+document.addEventListener('visibilitychange', () => { if (document.hidden) navSave(); });
 (() => {
   const q = new URLSearchParams(location.search).get('convite');
   if (q) { try { sessionStorage.setItem('sala-convite', q.slice(0, 40)); } catch (e) {} history.replaceState(null, '', location.pathname + location.hash); }
@@ -6344,7 +6384,17 @@ function renderMembers() {
   try { render(); } catch (e) {}                 // lista de participantes da call usa as mesmas cores
 }
 
-function renderChans() {
+var chansPress = false, chansPending = false, chansPressT = 0;
+document.addEventListener('pointerdown', e => {
+  if (e.target && e.target.closest && e.target.closest('#svChans')) { chansPress = true; clearTimeout(chansPressT); chansPressT = setTimeout(() => chansRelease(), 8000); }
+}, true);
+function chansRelease() { clearTimeout(chansPressT); if (!chansPress) return; chansPress = false; if (chansPending) { chansPending = false; renderChans(); } }
+['pointerup', 'pointercancel', 'dragend'].forEach(ev => document.addEventListener(ev, () => setTimeout(chansRelease, 250), true));
+function renderChans() {   // enquanto o dedo/mouse está apertando um botão da lista, adia o redesenho (senão o clique se perde)
+  if (chansPress) { chansPending = true; return; }
+  renderChansNow();
+}
+function renderChansNow() {
   vpCheck();
   const box = $('svChans'); box.textContent = '';
   const en0 = String(lang).startsWith('en'), L = (x, y) => en0 ? y : x, mng = can('manage_channels');
@@ -6374,19 +6424,25 @@ function renderChans() {
     return withRoster(r, c);
   };
   const ids = new Set(cats.map(x => x.id));
-  // canais sem categoria (como era antes)
+  // canais sem categoria (como era antes); grupo vazio some, assim dá para ter só texto, só voz ou só categorias
   [['text', t('textCh')], ['voice', t('voiceCh')]].forEach(([k, label]) => {
+    const loose = chans.filter(c => c.kind === k && !(c.category_id && ids.has(c.category_id)));
+    if (!loose.length && (chans.length || cats.length)) return;
     const h = el('div', 'sgrp'); h.append(el('span', '', label));
     if (mng) { const a = mk('+', () => dlgChannel(k)); a.title = t('newCh'); h.append(a); }
+    if (mng && loose.length) { const x = mk('✕', () => delLoose(k, loose), 'cact'); x.title = L('Apagar todos os canais deste grupo', 'Delete all channels in this group'); h.append(x); }
     if (mng) dropWire(h, d => d.type === 'chan' && groupAccepts('_' + k, d.id)
       ? { mode: 'in', go: () => placeChan(d.id, '_' + k, null, false) } : null);
     box.append(h);
-    chans.filter(c => c.kind === k && !(c.category_id && ids.has(c.category_id))).forEach(c => box.append(row(c, false)));
+    loose.forEach(c => box.append(row(c, false)));
   });
   // categorias
   if (mng || cats.length) {
     const h = el('div', 'sgrp'); h.append(el('span', '', L('Categorias', 'Categories')));
-    if (mng) { const a = mk('+', () => dlgCategory()); a.title = L('Nova categoria', 'New category'); h.append(a); }
+    if (mng) {
+      const nc = mk('# 🔊', () => dlgChannel('text'), 'cact'); nc.title = L('Novo canal (texto ou voz) sem categoria', 'New channel (text or voice) without category'); h.append(nc);
+      const a = mk('+', () => dlgCategory()); a.title = L('Nova categoria', 'New category'); h.append(a);
+    }
     box.append(h);
   }
   cats.forEach((g, i) => {
@@ -6490,9 +6546,22 @@ async function moveCat(g, dir) {
   await loadChans(); renderChans();
 }
 async function delCat(g) {
-  const en = String(lang).startsWith('en');
-  if (!confirm(en ? 'Delete the category "' + g.name + '"? Its channels are kept, just without a category.' : 'Apagar a categoria "' + g.name + '"? Os canais dela continuam, só ficam sem categoria.')) return;
+  const en = String(lang).startsWith('en'), inside = chans.filter(c => String(c.category_id) === String(g.id));
+  if (!confirm(en ? 'Delete the category "' + g.name + '"?' : 'Apagar a categoria "' + g.name + '"?')) return;
+  let wipe = false;
+  if (inside.length) wipe = confirm(en
+    ? 'This category has ' + inside.length + ' channel(s).\n\nOK = also DELETE these channels (and their messages)\nCancel = keep the channels, just without a category'
+    : 'Esta categoria tem ' + inside.length + ' canal(is).\n\nOK = apagar TAMBÉM os canais (e as mensagens deles)\nCancelar = manter os canais, só sem categoria');
+  if (wipe) for (const c of inside) { const r = await sb().from('channels').delete().eq('id', c.id); if (r.error) { err(r.error); break; } }
   const { error } = await sb().rpc('ns_delete_category', { p_category: g.id }); if (error) return err(missingFn(error) ? needV15() : error);
+  await loadChans(); renderChans();
+}
+async function delLoose(kind, list) {   // apaga todos os canais soltos (sem categoria) de texto ou de voz
+  const en = String(lang).startsWith('en');
+  if (!confirm(en
+    ? 'Delete ALL ' + list.length + ' ' + (kind === 'text' ? 'text' : 'voice') + ' channel(s) without a category? Messages in them are lost.'
+    : 'Apagar TODOS os ' + list.length + ' canais de ' + (kind === 'text' ? 'texto' : 'voz') + ' sem categoria? As mensagens deles se perdem.')) return;
+  for (const c of list) { const r = await sb().from('channels').delete().eq('id', c.id); if (r.error) { err(r.error); break; } }
   await loadChans(); renderChans();
 }
 /* seletor de categoria (criar e editar canal) */
@@ -7340,26 +7409,26 @@ function vpSync(e) {
   const seen = new Set(), list = [];
   try {
     Object.values(e.ch.presenceState()).forEach(arr => (arr || []).forEach(p => {
-      if (!p || typeof p.uid !== 'string' || typeof p.ch !== 'string' || seen.has(p.uid)) return;
+      if (!p || typeof p.uid !== 'string' || typeof p.ch !== 'string' || !p.ch || seen.has(p.uid)) return;   // ch vazio = só está olhando o servidor (não está em call)
       seen.add(p.uid); list.push({ uid: p.uid, u: typeof p.u === 'string' ? p.u.slice(0, 20) : '', ch: p.ch });
     }));
   } catch (x) {}
   e.roster = list;
   if (cur && cur.id === e.id) renderChans();
 }
-function vpTrack(e) {   // só quem está numa call anuncia presença
+function vpTrack(e) {   // quem está numa call anuncia o canal; quem só vê o servidor entra na presença com canal vazio (assim o Realtime sempre entrega a lista de quem está nas calls)
   if (!e.ch || !e.ready) return;
-  const want = e.refs.has('call') && voiceCh && vsrv === e.id ? voiceCh : null;
+  const want = e.refs.has('call') && voiceCh && vsrv === e.id ? voiceCh : (e.refs.has('view') ? '' : null);
   if (want === e.tracked) return;
   e.tracked = want; e.trackedAt = Date.now();
-  try { if (want) e.ch.track({ uid, u: myUser() || '', ch: want, ts: Date.now() }); else e.ch.untrack(); } catch (x) {}
+  try { if (want !== null) e.ch.track({ uid, u: myUser() || '', ch: want, ts: Date.now() }); else e.ch.untrack(); } catch (x) {}
 }
 function vpCheck() {
   const inCall = !!voiceCh && !!vsrv && !!uid;
   if (inCall && !vpMap.has(vsrv)) vpGet(vsrv, 'call');
   [...vpMap.values()].forEach(e => {
     if (inCall && e.id === vsrv) e.refs.add('call'); else e.refs.delete('call');
-    if (e.tracked && Date.now() - (e.trackedAt || 0) > 40000) e.tracked = null;   // reafirma a presença de tempos em tempos
+    if (e.tracked && Date.now() - (e.trackedAt || 0) > 40000) e.tracked = null;   // reafirma a presença de tempos em tempos (só de quem está em call)
     vpTrack(e);
     if (!e.refs.size) vpRemove(e);
   });
@@ -7839,10 +7908,9 @@ function dlgSettings() {
       const r = el('div', 'mem-row'); const nmE = el('b', '', m.display_name); paintName(nmE, m.user_id, m.username);
       r.append(A().avatar(m, 30), nmE);
       const lab = m.role === 'owner' ? (ownerHidden() ? t('owner') : ownerName()) : m.role === 'admin' ? t('admin') : t('member');
-      if (myRole === 'owner' && m.role !== 'owner') {
-        const sel = el('select'); [['member', t('member')], ['admin', t('admin')]].forEach(([v, x]) => { const o = el('option', '', x); o.value = v; sel.append(o); });
-        sel.value = m.role; sel.style.marginLeft = 'auto'; sel.style.width = 'auto';
-        sel.onchange = async () => { const { error } = await sb().rpc('set_member_role', { p_server: s.id, p_user: m.user_id, p_role: sel.value }); if (error) err(error); reopen(); };
+      if (canEditMemberRole(m)) {
+        const sel = memberRoleSelect(m, () => reopen());
+        sel.style.marginLeft = 'auto'; sel.style.width = 'auto';
         r.append(sel);
       } else { const sp = el('span', 'mut', lab); sp.style.marginLeft = 'auto'; r.append(sp); }
       if (can('manage_roles')) { const rb = mk('🏷️', () => dlgMemberRoles(m), 'sec'); rb.title = t('rolesOf', { n: m.display_name }); r.append(rb); }
@@ -7875,6 +7943,25 @@ function dlgSettings() {
       close(); closeView(); loadServers();
     }, 'sec'));
   });
+}
+
+/* ----- cargo de membro: dono pode dar o cargo de dono a outra pessoa (v39); só o dono principal tira de outro dono ----- */
+const isPrimaryOwner = () => !!cur && cur.owner_id === uid;
+const canEditMemberRole = m => myRole === 'owner' && (m.role !== 'owner' || (isPrimaryOwner() && m.user_id !== uid));
+function memberRoleSelect(m, done) {
+  const sel = el('select');
+  [['member', t('member')], ['admin', t('admin')], ['owner', t('owner')]].forEach(([v, x]) => { const o = el('option', '', x); o.value = v; sel.append(o); });
+  sel.value = m.role;
+  sel.onchange = async () => {
+    const v = sel.value;
+    if (v === m.role) return;
+    if (v === 'owner' && !confirm(t('confirmMakeOwner', { n: m.display_name }))) { sel.value = m.role; return; }
+    if (m.role === 'owner' && !confirm(t('confirmDemoteOwner', { n: m.display_name }))) { sel.value = m.role; return; }
+    const { error } = await sb().rpc('set_member_role', { p_server: cur.id, p_user: m.user_id, p_role: v });
+    if (error) { err(/owner|check|constraint|role/i.test(String(error.message || '')) && v === 'owner' ? t('needV39') : error); sel.value = m.role; return done(false); }
+    m.role = v; done(true);
+  };
+  return sel;
 }
 
 /* ----- cargos: dar/tirar de uma pessoa ----- */
@@ -8706,7 +8793,7 @@ async function dmOpen(p) {
   };
   ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && innerWidth > 860) { e.preventDefault(); f.requestSubmit(); } };
   d._relang = () => { ta.placeholder = LL('Escreva uma mensagem', 'Write a message'); emo.title = LL('Emojis', 'Emojis'); empty.textContent = LL('Esta é a sua conversa com ' + o.display_name + '. Diga oi! 👋', 'This is your conversation with ' + o.display_name + '. Say hi! 👋'); };
-  document.body.append(d); document.body.classList.add('dmopen'); dmCur = { id, pull };
+  document.body.append(d); document.body.classList.add('dmopen'); dmCur = { id, pull, peer: o };
   await pull(); if (dmPanel !== d) return;
   clearInterval(dmPoll); dmPoll = setInterval(pull, 6000); ta.focus();
 }
@@ -9649,16 +9736,9 @@ function cardExtras(p, box) {
   paintBase(); chips.append(base);
   rs.forEach(r => { const c = el('span', 'gbadge', r.name); c.style.setProperty('--c', r.color); NS.style(c, nsOfRole(r), ''); chips.append(c); });
   box.append(chips);
-  if (myRole === 'owner' && m.role !== 'owner') {
-    const sel = el('select'); sel.style.marginTop = '8px';
-    [['member', t('member')], ['admin', t('admin')]].forEach(([v, x]) => { const o = el('option', '', x); o.value = v; sel.append(o); });
-    sel.value = m.role;
-    sel.onchange = async () => {
-      const { error } = await sb().rpc('set_member_role', { p_server: cur.id, p_user: m.user_id, p_role: sel.value });
-      if (error) { err(error); sel.value = m.role; return; }
-      m.role = sel.value; loadMembers();
-      paintBase();
-    };
+  if (canEditMemberRole(m)) {
+    const sel = memberRoleSelect(m, ok => { if (ok) { loadMembers(); paintBase(); } });
+    sel.style.marginTop = '8px';
     box.append(sel);
   }
   if (can('manage_roles') && roles.length) {
