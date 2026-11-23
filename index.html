@@ -5408,6 +5408,15 @@ applyLang();
   .crow.dragging, .sgrp.cat.dragging { opacity: .4; }
   .crow.drop-before, .sgrp.cat.drop-before { box-shadow: inset 0 2px 0 var(--acc); }
   .crow.drop-after, .sgrp.cat.drop-after { box-shadow: inset 0 -2px 0 var(--acc); }
+  #nsCtx { position: fixed; z-index: 2147483000; min-width: 210px; max-width: 290px; max-height: calc(100vh - 16px); overflow-y: auto; padding: 6px; border-radius: 12px; background: var(--card-solid); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  #nsCtx button { display: block; width: 100%; min-height: 0; padding: 8px 10px; border: 0; border-radius: 8px; background: none; box-shadow: none; color: var(--fg); font-size: .88rem; font-weight: 600; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; transform: none; }
+  #nsCtx button:hover:not(:disabled) { background: var(--surface-hover); transform: none; box-shadow: none; }
+  #nsCtx button:disabled { opacity: .4; cursor: default; }
+  #nsCtx button.bad { color: var(--bad); }
+  #nsCtx hr { border: 0; border-top: 1px solid var(--line); margin: 5px 2px; }
+  #nsCtx .hd { padding: 4px 10px 2px; color: var(--mut); font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .sv-empty { min-height: 90px; flex: 1 0 90px; border-radius: 9px; }
+  .sv-empty.drop-in { background: rgba(108,124,255,.14); outline: 1px dashed var(--acc); }
   .crow.drop-in, .sgrp.drop-in { background: rgba(108,124,255,.22); border-radius: 9px; outline: 1px dashed var(--acc); }
   /* ---------- amigos (casinha) ---------- */
   :root { --frw: 360px; }
@@ -6429,6 +6438,39 @@ function renderMembers() {
   try { render(); } catch (e) {}                 // lista de participantes da call usa as mesmas cores
 }
 
+/* ----- menu do botão direito (canais, categorias e área vazia da lista) ----- */
+let ctxEl = null;
+function closeCtx() { if (ctxEl) { ctxEl.remove(); ctxEl = null; } }
+function openCtx(x, y, items) {   // items: { label, fn, danger, disabled } | { head: 'texto' } | '-'
+  closeCtx();
+  const m = el('div'); m.id = 'nsCtx'; m.setAttribute('role', 'menu');
+  items.forEach(it => {
+    if (it === '-') return m.append(document.createElement('hr'));
+    if (it.head) return m.append(el('div', 'hd', it.head));
+    const b = el('button', it.danger ? 'bad' : '', it.label); b.type = 'button'; b.disabled = !!it.disabled;
+    b.onclick = () => { closeCtx(); try { const r = it.fn(); if (r && r.catch) r.catch(e => err(e)); } catch (e) { err(e); } };
+    m.append(b);
+  });
+  m.addEventListener('contextmenu', e => e.preventDefault());
+  document.body.append(m); ctxEl = m;
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.max(8, Math.min(x, innerWidth - w - 8)) + 'px';
+  m.style.top = Math.max(8, Math.min(y, innerHeight - h - 8)) + 'px';
+}
+function ctxWire(node, getItems) {
+  node.addEventListener('contextmenu', e => {
+    const items = getItems(); e.__nsCtx = true;
+    if (!items || !items.length) return;   // sem opções: deixa o menu normal do navegador
+    e.preventDefault(); e.stopPropagation(); openCtx(e.clientX, e.clientY, items);
+  });
+}
+document.addEventListener('contextmenu', e => { if (!e.__nsCtx) closeCtx(); });
+document.addEventListener('mousedown', e => { if (ctxEl && !ctxEl.contains(e.target)) closeCtx(); }, true);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCtx(); });
+document.addEventListener('scroll', () => closeCtx(), true);
+window.addEventListener('resize', closeCtx);
+window.addEventListener('blur', closeCtx);
+
 var chansPress = false, chansPending = false, chansPressT = 0;
 document.addEventListener('pointerdown', e => {
   if (e.target && e.target.closest && e.target.closest('#svChans')) { chansPress = true; clearTimeout(chansPressT); chansPressT = setTimeout(() => chansRelease(), 8000); }
@@ -6444,6 +6486,42 @@ function renderChansNow() {
   syncRoomLabel();
   const box = $('svChans'); box.textContent = '';
   const en0 = String(lang).startsWith('en'), L = (x, y) => en0 ? y : x, mng = can('manage_channels');
+  const toGroupEnd = (c, group) => {   // põe o canal no fim de um grupo (categoria ou "sem categoria")
+    const l = chans.filter(x => chanGroup(x) === group && x.id !== c.id);
+    return l.length ? placeChan(c.id, group, l[l.length - 1].id, true) : placeChan(c.id, group, null, false);
+  };
+  const newItems = kind => [   // criar coisas (sem categoria)
+    ...(kind !== 'voice' ? [{ label: L('# Novo canal de texto', '# New text channel'), fn: () => dlgChannel('text') }] : []),
+    ...(kind !== 'text' ? [{ label: L('🔊 Novo canal de voz', '🔊 New voice channel'), fn: () => dlgChannel('voice') }] : []),
+    { label: L('📁 Nova categoria', '📁 New category'), fn: () => dlgCategory() }
+  ];
+  const chanItems = c => {
+    const it = [{ label: c.kind === 'voice' ? L('🔊 Entrar na call', '🔊 Join call') : L('# Abrir chat', '# Open chat'), fn: () => pickChan(c) }];
+    if (!mng) return it;
+    const grp = chanGroup(c), gl = chans.filter(x => chanGroup(x) === grp), gi = gl.findIndex(x => x.id === c.id);
+    it.push('-', { label: L('✎ Editar canal', '✎ Edit channel'), fn: () => dlgEditChannel(c) },
+      { label: L('▲ Subir', '▲ Move up'), fn: () => moveChan(c, -1), disabled: gi <= 0 },
+      { label: L('▼ Descer', '▼ Move down'), fn: () => moveChan(c, 1), disabled: gi < 0 || gi >= gl.length - 1 });
+    const dest = cats.filter(g => String(g.id) !== grp);
+    if (dest.length || grp[0] !== '_') {
+      it.push('-', { head: L('Mover para', 'Move to') });
+      if (grp[0] !== '_') it.push({ label: L('Sem categoria (solto)', 'No category (loose)'), fn: () => toGroupEnd(c, '_' + c.kind) });
+      dest.forEach(g => it.push({ label: '📁 ' + g.name, fn: () => toGroupEnd(c, String(g.id)) }));
+    }
+    it.push('-', { label: L('🗑 Apagar canal', '🗑 Delete channel'), fn: () => delChan(c), danger: true });
+    return it;
+  };
+  const catItems = (g, i, off) => {
+    const it = [{ label: off ? L('▸ Expandir', '▸ Expand') : L('▾ Recolher', '▾ Collapse'), fn: () => { if (off) collapsed.delete(g.id); else collapsed.add(g.id); saveCollapsed(); renderChans(); } }];
+    if (!mng) return it;
+    it.push('-', { label: L('# Novo canal de texto aqui', '# New text channel here'), fn: () => dlgChannel('text', g.id) },
+      { label: L('🔊 Novo canal de voz aqui', '🔊 New voice channel here'), fn: () => dlgChannel('voice', g.id) },
+      '-', { label: L('✎ Editar categoria', '✎ Edit category'), fn: () => dlgCategory(g) },
+      { label: L('▲ Subir', '▲ Move up'), fn: () => moveCat(g, -1), disabled: i === 0 },
+      { label: L('▼ Descer', '▼ Move down'), fn: () => moveCat(g, 1), disabled: i === cats.length - 1 },
+      '-', { label: L('🗑 Apagar categoria (os canais ficam)', '🗑 Delete category (channels are kept)'), fn: () => delCat(g), danger: true });
+    return it;
+  };
   const row = (c, inCat) => {
     const k = c.kind;
     const r = el('div', 'crow' + (inCat ? ' incat' : '') + ((chan && chan.id === c.id) || voiceCh === c.id ? ' on' : ''));
@@ -6467,6 +6545,7 @@ function renderChansNow() {
       dropWire(r, d => d.type === 'chan' && d.id !== c.id && groupAccepts(chanGroup(c), d.id)
         ? { mode: 'half', go: after => placeChan(d.id, chanGroup(c), c.id, after) } : null);
     }
+    ctxWire(r, () => chanItems(c));
     return withRoster(r, c);
   };
   const ids = new Set(cats.map(x => x.id));
@@ -6478,6 +6557,7 @@ function renderChansNow() {
     if (mng) { const a = mk('+', () => dlgChannel(k)); a.title = t('newCh'); h.append(a); }
     if (mng) dropWire(h, d => d.type === 'chan' && groupAccepts('_' + k, d.id)
       ? { mode: 'in', go: () => placeChan(d.id, '_' + k, null, false) } : null);
+    ctxWire(h, () => mng ? newItems(k) : null);
     box.append(h);
     loose.forEach(c => box.append(row(c, false)));
   });
@@ -6488,6 +6568,7 @@ function renderChansNow() {
       const nc = mk('# 🔊', () => dlgChannel('text'), 'cact'); nc.title = L('Novo canal (texto ou voz) sem categoria', 'New channel (text or voice) without category'); h.append(nc);
       const a = mk('+', () => dlgCategory()); a.title = L('Nova categoria', 'New category'); h.append(a);
     }
+    ctxWire(h, () => mng ? newItems() : null);
     box.append(h);
   }
   cats.forEach((g, i) => {
@@ -6509,11 +6590,18 @@ function renderChansNow() {
         ? (d.id !== g.id ? { mode: 'half', go: after => placeCat(d.id, g.id, after) } : null)
         : d.type === 'chan' ? { mode: 'in', go: () => placeChan(d.id, g.id, null, false) } : null);
     }
+    ctxWire(h, () => catItems(g, i, off));
     box.append(h);
     chans.filter(c => c.category_id === g.id)
       .filter(c => !off || (chan && chan.id === c.id) || voiceCh === c.id)   // fechada: só mostra o canal em uso
       .forEach(c => box.append(row(c, true)));
   });
+  if (mng) {   // área vazia no fim: botão direito cria coisas; soltar um canal aqui tira ele da categoria
+    const sp = el('div', 'sv-empty');
+    ctxWire(sp, () => newItems());
+    dropWire(sp, d => d.type === 'chan' ? { mode: 'in', go: () => { const c = chans.find(x => x.id === d.id); if (c && chanGroup(c)[0] !== '_') toGroupEnd(c, '_' + c.kind); } } : null);
+    box.append(sp);
+  }
 }
 /* ----- reordenar canais e categorias: arrastar e soltar (+ setas ▲▼ para celular) ----- */
 let dragSt = null;   // { type: 'chan' | 'cat', id }
