@@ -6553,9 +6553,11 @@ async function delCat(g) {   // apaga só a categoria: os canais (texto e voz) d
   if (!confirm((en ? 'Delete the category "' + g.name + '"?' : 'Apagar a categoria "' + g.name + '"?') + extra)) return;
   // 1) solta os canais da categoria (category_id = null) para nenhum deles sumir junto
   for (const c of inside) {
-    const r = await sb().rpc('ns_set_channel_category', { p_channel: c.id, p_category: null });
+    let r = await sb().rpc('ns_set_channel_category', { p_channel: c.id, p_category: null });
+    if (r.error) r = await sb().from('channels').update({ category_id: null }).eq('id', c.id);   // plano B: atualiza direto
     if (r.error) { await loadChans(); renderChans(); return err(missingFn(r.error) ? needV15() : r.error); }
   }
+  await sb().from('channels').update({ category_id: null }).eq('category_id', g.id);   // garante que nada fique preso na categoria antes de apagá-la
   // 2) apaga a categoria
   const { error } = await sb().rpc('ns_delete_category', { p_category: g.id }); if (error) { await loadChans(); renderChans(); return err(missingFn(error) ? needV15() : error); }
   collapsed.delete(g.id); saveCollapsed();
