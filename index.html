@@ -6579,6 +6579,7 @@ function renderChansNow() {
       const nc = mk('# 🔊', () => dlgChannel('text'), 'cact'); nc.title = L('Novo canal (texto ou voz) sem categoria', 'New channel (text or voice) without category'); h.append(nc);
       const a = mk('+', () => dlgCategory()); a.title = L('Nova categoria', 'New category'); h.append(a);
     }
+    if (mng) dropWire(h, d => d.type === 'chan' ? { mode: 'in', go: () => dlgCategory(null, id => placeChan(d.id, String(id), null, false)) } : null);   // soltar canal aqui: cria categoria nova com ele dentro
     ctxWire(h, () => mng ? newItems() : null);
     box.append(h);
   }
@@ -6610,7 +6611,7 @@ function renderChansNow() {
   if (mng) {   // área vazia no fim: botão direito cria coisas; soltar um canal aqui tira ele da categoria
     const sp = el('div', 'sv-empty');
     ctxWire(sp, () => newItems());
-    dropWire(sp, d => d.type === 'chan' ? { mode: 'in', go: () => { const c = chans.find(x => x.id === d.id); if (c && chanGroup(c)[0] !== '_') toGroupEnd(c, '_' + c.kind); } } : null);
+    dropWire(sp, d => d.type === 'chan' ? { mode: 'in', go: () => { const c = chans.find(x => x.id === d.id); if (c) toGroupEnd(c, '_' + c.kind); } } : null);
     box.append(sp);
   }
 }
@@ -6646,6 +6647,7 @@ function dropWire(node, rule) {   // rule(d) -> null (não aceita) ou { mode: 'h
   });
 }
 async function placeChan(id, group, relId, after) {
+  group = String(group);   // ids de categoria podem vir como número: sempre comparar como texto
   const c = chans.find(x => x.id === id); if (!c || !cur) return;
   const toCat = group[0] === '_' ? null : (cats.find(g => String(g.id) === group) || {}).id;
   const list = chans.filter(x => chanGroup(x) === group && x.id !== id);
@@ -6661,7 +6663,7 @@ async function placeChan(id, group, relId, after) {
     }
     if (jobs.length) {
       const r = await sb().rpc('ns_reorder_channels', { p_ids: list.map(x => String(x.id)) });
-      if (r.error) throw r.error;
+      if (r.error && !(moved && missingFn(r.error))) throw r.error;   // mudou de categoria mas falta a v23 (só a ordem): a mudança vale, sem erro
     }
   } catch (e) {
     err(missingFn(e) && /ns_reorder_channels/.test(String(e.message || ''))
@@ -6717,7 +6719,7 @@ function catSelect(w, val) {
   l.append(el('span', '', en ? 'Category' : 'Categoria'), s); w.append(l); return s;
 }
 /* criar ou editar categoria: nome, ícone, estilo do nome e privacidade por cargo (igual ao canal) */
-function dlgCategory(g) {
+function dlgCategory(g, onCreated) {   // onCreated(id): chamado depois de criar (usado ao soltar um canal em "Categorias")
   const en = String(lang).startsWith('en'), L = (a, b) => en ? b : a, edit = !!g;
   modal(edit ? L('Editar categoria', 'Edit category') : L('Nova categoria', 'New category'), (w, close) => {
     const nameIn = fld(w, L('Nome da categoria', 'Category name'), { maxLength: 30 }); nameIn.value = edit ? g.name : '';
@@ -6769,6 +6771,7 @@ function dlgCategory(g) {
         const { error } = await sb().rpc('ns_update_category', { p_category: id, p_name: name, p_icon: icon || null, p_font: ps.font || null, p_color: ps.color || null, p_color2: ps.color2 || null, p_fx: ps.fx || null, p_private: privChk.checked, p_view_roles: [...viewSet] });
         if (error) return err(missingFn(error) ? needV15() : error);
         close(); await loadChans(); renderChans();
+        if (!edit && onCreated) await onCreated(id);
       } finally { save.disabled = false; }
     });
     acts.append(mk(t('cancel'), () => close(), 'sec'), save); w.append(acts);
