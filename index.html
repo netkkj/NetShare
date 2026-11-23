@@ -5590,7 +5590,47 @@ const ST = {
    ecat0:'Faces', ecat1:'Gestures', ecat2:'Hearts and symbols', ecat3:'Nature', ecat4:'Food', ecat5:'Activities and objects', ecustom:'This server' }
 };
 const t = (k, v) => { let s = (ST[String(lang).startsWith('en') ? 'en' : 'pt'][k]) ?? ST.pt[k] ?? k; for (const x in (v || {})) s = s.replace('{' + x + '}', v[x]); return s; };
-const A = () => window.Acc, sb = () => A().sb();
+const A = () => window.Acc, sb = () => { const c = A().sb(); if (c && !c.__nsHook) hookSb(c); return c; };
+/* ===== tempo real do servidor: quem mexe (dono/admin) avisa todos que estão com o servidor aberto ===== */
+const NSSYNC = { ch: null, ok: false, down: false, t: 0, poll: 0 };
+const SYNC_T = new Set(['servers', 'channels', 'channel_categories', 'server_roles', 'member_roles', 'server_members', 'server_emojis']);
+const SYNC_RPC = /^(ns_(set|update|create|delete|move|reorder|add)_|kick_member$|unban_member$|set_member_role$|regen_invite$)/;
+function syncPing(w) { try { if (NSSYNC.ch && NSSYNC.ok && cur) NSSYNC.ch.send({ type: 'broadcast', event: 'refresh', payload: { s: cur.id, w: String(w) } }); } catch (e) {} }
+function hookThen(b, w) {
+  if (!b || typeof b.then !== 'function') return b;
+  const ot = b.then.bind(b);
+  b.then = (ok, no) => ot(r => { try { if (r && !r.error) syncPing(w); } catch (e) {} return ok ? ok(r) : r; }, no);
+  return b;
+}
+function hookSb(c) {
+  c.__nsHook = true;
+  try {
+    const of = c.from.bind(c), orpc = c.rpc.bind(c);
+    c.from = tb => {
+      const q = of(tb); if (!SYNC_T.has(tb)) return q;
+      ['insert', 'update', 'upsert', 'delete'].forEach(m => { const o = q[m]; if (typeof o === 'function') q[m] = function () { return hookThen(o.apply(q, arguments), tb); }; });
+      return q;
+    };
+    c.rpc = function (n) { const b = orpc.apply(null, arguments); return SYNC_RPC.test(String(n)) ? hookThen(b, n) : b; };
+  } catch (e) { console.warn(e); }
+}
+// atualiza tudo do servidor aberto (debounce): servidor, canais, categorias, cargos, membros, emojis
+function srvRefresh(quiet) {
+  if (!NSSYNC.ok) return;
+  clearTimeout(NSSYNC.t);
+  NSSYNC.t = setTimeout(async () => {
+    const id = cur && cur.id; if (!id) return;
+    try {
+      await loadServers(); if (!cur || cur.id !== id) return;
+      if (quiet) { const r = await sb().rpc('list_members', { p_server: id }); if (!cur || cur.id !== id) return; if (JSON.stringify(r.data || []) !== JSON.stringify(mem)) loadMembers(); }
+      else loadMembers();
+      await Promise.all([loadRoles(), loadEmojis(), loadEveryone()]);
+      if (cur && cur.id === id) renderChans();
+    } catch (e) {}
+  }, quiet ? 0 : 250);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) srvRefresh(true); });
+addEventListener('online', () => srvRefresh(true));
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const mk = (txt, fn, cls) => { const b = el('button', cls || '', txt); b.type = 'button'; b.onclick = fn; return b; };
 const err = e => alert(String((e && e.message) || e));
@@ -6433,7 +6473,7 @@ function renderChansNow() {
   // canais sem categoria (como era antes); grupo vazio some, assim dá para ter só texto, só voz ou só categorias
   [['text', t('textCh')], ['voice', t('voiceCh')]].forEach(([k, label]) => {
     const loose = chans.filter(c => c.kind === k && !(c.category_id && ids.has(c.category_id)));
-    if (!loose.length && (chans.length || cats.length)) return;
+    if (!loose.length && (!mng || chans.length || cats.length)) return;   // servidor vazio: só quem gerencia vê os grupos (para criar o primeiro canal)
     const h = el('div', 'sgrp'); h.append(el('span', '', label));
     if (mng) { const a = mk('+', () => dlgChannel(k)); a.title = t('newCh'); h.append(a); }
     if (mng && loose.length) { const x = mk('✕', () => delLoose(k, loose), 'cact'); x.title = L('Apagar todos os canais deste grupo', 'Delete all channels in this group'); h.append(x); }
@@ -7370,7 +7410,7 @@ function subscribe() {
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, p => { const n = document.getElementById('m' + p.old.id); if (n) { n.remove(); regroup(); } pinDrop(p.old.id); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'channels', filter: f }, async () => { await loadChans(); renderChans(); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'server_members', filter: f }, () => loadMembers())
-    .subscribe();
+    .subscribe(st => rtStat(st));
   // canal à parte: se a migração v7 ainda não foi rodada, só estes recursos ficam sem tempo real e o chat segue normal
   rt2 = sb().channel('srvx:' + id)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: f }, p => updateMsg(p.new))
@@ -7385,12 +7425,20 @@ function subscribe() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'channel_categories', filter: f }, async () => { await loadChans(); renderChans(); })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'channel_categories' }, async () => { await loadChans(); renderChans(); })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'servers', filter: 'id=eq.' + id }, async () => { await loadServers(); if (cur) $('svName').textContent = cur.name + ' ▾'; })
-    .subscribe();
+    .subscribe(st => rtStat(st));
+  // aviso direto entre os clientes (não depende da replicação do banco): quem altera avisa, todos atualizam na hora
+  NSSYNC.ok = false; NSSYNC.down = false;
+  NSSYNC.ch = sb().channel('srvsync:' + id, { config: { broadcast: { self: false } } })
+    .on('broadcast', { event: 'refresh' }, () => srvRefresh())
+    .subscribe(st => { if (st === 'SUBSCRIBED') { NSSYNC.ok = true; if (NSSYNC.down) { NSSYNC.down = false; srvRefresh(true); } } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') { NSSYNC.down = true; } });
+  clearInterval(NSSYNC.poll);
+  NSSYNC.poll = setInterval(() => { if (!document.hidden) srvRefresh(true); }, 45000);   // rede de segurança caso algum aviso se perca
 }
+function rtStat(st) { if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') NSSYNC.down = true; else if (st === 'SUBSCRIBED' && NSSYNC.down && NSSYNC.ok) { NSSYNC.down = false; srvRefresh(true); } }
 function unsub() {
   if (srvTyp) { srvTyp.destroy(); srvTyp = null; }
-  [rt, rt2].forEach(c => { if (c) { try { sb().removeChannel(c); } catch (e) {} } });
-  rt = null; rt2 = null;
+  [rt, rt2, NSSYNC.ch].forEach(c => { if (c) { try { sb().removeChannel(c); } catch (e) {} } });
+  rt = null; rt2 = null; NSSYNC.ch = null; NSSYNC.ok = false; clearInterval(NSSYNC.poll); clearTimeout(NSSYNC.t);
   if (vpViewId) { const e = vpMap.get(vpViewId); if (e) { e.refs.delete('view'); if (!e.refs.size) vpRemove(e); } vpViewId = null; }
 }
 
@@ -9832,5 +9880,62 @@ return { onAuth, cardExtras, badgeEl, colorOfUser, colorSig, statusButton, voice
   html, body, * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
   *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
 </style>
+<style>
+  /* =====================  SALA: chat redimensionável (tela pequena / chat grande, como no Discord)  ===================== */
+  #dockGrip { display: none; position: fixed; top: 0; bottom: 0; left: calc(var(--rail) + var(--dock) - 4px); width: 9px; z-index: 27; cursor: col-resize; touch-action: none; }
+  #dockGrip::before { content: ''; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; background: transparent; transition: background .15s; }
+  #dockGrip:hover::before, #dockGrip.drag::before { background: var(--acc); }
+  #dockGrip button { position: absolute; top: 50%; left: -9px; width: 26px; min-height: 44px; height: 44px; padding: 0; transform: translateY(-50%); border: 1px solid var(--line); border-radius: 10px; background: var(--card-solid); color: var(--fg); box-shadow: 0 4px 14px rgba(0,0,0,.4); cursor: pointer; font-size: .8rem; display: grid; place-items: center; }
+  #dockGrip button:hover:not(:disabled) { transform: translateY(-50%); background: var(--surface-hover); box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+  body.dockdrag { user-select: none; cursor: col-resize; }
+  @media (min-width: 861px) {
+    body.dockopen #dockGrip { display: block; }
+    /* chat grande: mostra a lista de canais ao lado, igual ao Discord */
+    body.dockwide #srvView.dock { grid-template-columns: 230px minmax(0, 1fr); }
+    body.dockwide #srvView.dock .sv-side { position: relative; inset: auto; width: auto; transform: none; transition: none; z-index: auto; background: rgba(6, 10, 24, .7); }
+    body.dockwide #srvView.dock .sv-burger { display: none; }
+  }
+  /* sala estreita (chat expandido): tela encolhe, participantes vão para baixo e os controles rolam */
+  #room.narrow { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 8px; padding: 10px; }
+  #room.narrow header { padding: 4px; }
+  #room.narrow aside { max-height: 96px; padding: 10px; }
+  #room.narrow aside h3 { margin-bottom: 8px; }
+  #room.narrow #people { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  #room.narrow #controls { flex-wrap: nowrap; overflow-x: auto; }
+  #room.narrow #controls > * { flex: none; }
+  #room.narrow #controls .sp { display: none; }
+</style>
+<script>
+(() => {
+  const KEY = 'ns-dock-w', DEF = 400, MIN = 320, ROOM_MIN = 300, root = document.documentElement, body = document.body;
+  const L = (root.lang || navigator.language || 'pt').slice(0, 2);
+  const TX = { pt: ['Arraste para redimensionar · duplo clique restaura', 'Alternar: chat grande / tela grande'], en: ['Drag to resize · double-click to reset', 'Toggle: big chat / big screen'], es: ['Arrastra para redimensionar · doble clic restaura', 'Alternar: chat grande / pantalla grande'] };
+  const tx = TX[L] || TX.pt;
+  const num = (el, v) => parseFloat(getComputedStyle(el).getPropertyValue(v)) || 0;
+  const rail = () => num(root, '--rail') || 72;
+  const maxW = () => Math.max(MIN, innerWidth - rail() - num(body, '--dmo') - ROOM_MIN);
+  let w = DEF; try { w = +localStorage.getItem(KEY) || DEF; } catch (e) {}
+  function apply(n, save) {
+    w = Math.round(Math.min(maxW(), Math.max(MIN, n)));
+    root.style.setProperty('--dock', w + 'px');
+    body.classList.toggle('dockwide', w >= 720 && innerWidth > 860);
+    if (save) { try { localStorage.setItem(KEY, String(w)); } catch (e) {} }
+  }
+  const g = document.createElement('div'); g.id = 'dockGrip'; g.title = tx[0];
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = '⇔'; b.title = tx[1]; b.setAttribute('aria-label', tx[1]);
+  g.append(b); body.append(g);
+  let drag = false;
+  g.addEventListener('pointerdown', e => { if (e.target === b) return; drag = true; g.setPointerCapture(e.pointerId); g.classList.add('drag'); body.classList.add('dockdrag'); e.preventDefault(); });
+  g.addEventListener('pointermove', e => { if (drag) apply(e.clientX - rail()); });
+  const end = e => { if (!drag) return; drag = false; g.classList.remove('drag'); body.classList.remove('dockdrag'); try { g.releasePointerCapture(e.pointerId); } catch (x) {} apply(w, true); };
+  g.addEventListener('pointerup', end); g.addEventListener('pointercancel', end);
+  g.addEventListener('dblclick', e => { if (e.target !== b) apply(DEF, true); });
+  b.addEventListener('click', () => apply(w >= 720 ? DEF : (innerWidth - rail()) * 0.7, true));
+  addEventListener('resize', () => apply(w));
+  apply(w);
+  const room = document.getElementById('room');
+  new ResizeObserver(() => room.classList.toggle('narrow', room.clientWidth > 0 && room.clientWidth < 700 && innerWidth > 860)).observe(room);
+})();
+</script>
 </body>
 </html>
