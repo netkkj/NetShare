@@ -6438,6 +6438,14 @@ function renderMembers() {
   try { render(); } catch (e) {}                 // lista de participantes da call usa as mesmas cores
 }
 
+/* títulos fixos "Canais de texto/voz": dá para ocultar (só o título some, os canais ficam) */
+const hiddenGrp = () => { try { const a = JSON.parse(localStorage.getItem('ns-hidegrp') || '[]'); return new Set(Array.isArray(a) ? a : []); } catch (e) { return new Set(); } };
+const isGrpHidden = k => !!cur && hiddenGrp().has(cur.id + ':' + k);
+function setGrpHidden(k, on) {
+  if (!cur) return; const st = hiddenGrp(), key = cur.id + ':' + k; if (on) st.add(key); else st.delete(key);
+  try { localStorage.setItem('ns-hidegrp', JSON.stringify([...st])); } catch (e) {}
+  renderChans();
+}
 /* ----- menu do botão direito (canais, categorias e área vazia da lista) ----- */
 let ctxEl = null;
 function closeCtx() { if (ctxEl) { ctxEl.remove(); ctxEl = null; } }
@@ -6493,7 +6501,9 @@ function renderChansNow() {
   const newItems = kind => [   // criar coisas (sem categoria)
     ...(kind !== 'voice' ? [{ label: L('# Novo canal de texto', '# New text channel'), fn: () => dlgChannel('text') }] : []),
     ...(kind !== 'text' ? [{ label: L('🔊 Novo canal de voz', '🔊 New voice channel'), fn: () => dlgChannel('voice') }] : []),
-    { label: L('📁 Nova categoria', '📁 New category'), fn: () => dlgCategory() }
+    { label: L('📁 Nova categoria', '📁 New category'), fn: () => dlgCategory() },
+    ...(kind ? ['-', { label: kind === 'text' ? L('🗑 Excluir título "Canais de texto" (os canais ficam)', '🗑 Remove "Text channels" title (channels stay)') : L('🗑 Excluir título "Canais de voz" (os canais ficam)', '🗑 Remove "Voice channels" title (channels stay)'), fn: () => setGrpHidden(kind, true), danger: true }] : []),
+    ...['text', 'voice'].filter(k2 => isGrpHidden(k2)).map(k2 => ({ label: k2 === 'text' ? L('↩ Mostrar título "Canais de texto"', '↩ Show "Text channels" title') : L('↩ Mostrar título "Canais de voz"', '↩ Show "Voice channels" title'), fn: () => setGrpHidden(k2, false) }))
   ];
   const chanItems = c => {
     const it = [{ label: c.kind === 'voice' ? L('🔊 Entrar na call', '🔊 Join call') : L('# Abrir chat', '# Open chat'), fn: () => pickChan(c) }];
@@ -6553,6 +6563,7 @@ function renderChansNow() {
   [['text', t('textCh')], ['voice', t('voiceCh')]].forEach(([k, label]) => {
     const loose = chans.filter(c => c.kind === k && !(c.category_id && ids.has(c.category_id)));
     if (!loose.length && (!mng || chans.length || cats.length)) return;   // servidor vazio: só quem gerencia vê os grupos (para criar o primeiro canal)
+    if (isGrpHidden(k)) { loose.forEach(c => box.append(row(c, false))); return; }   // título oculto: só os canais aparecem
     const h = el('div', 'sgrp'); h.append(el('span', '', label));
     if (mng) { const a = mk('+', () => dlgChannel(k)); a.title = t('newCh'); h.append(a); }
     if (mng) dropWire(h, d => d.type === 'chan' && groupAccepts('_' + k, d.id)
