@@ -6476,7 +6476,6 @@ function renderChansNow() {
     if (!loose.length && (!mng || chans.length || cats.length)) return;   // servidor vazio: só quem gerencia vê os grupos (para criar o primeiro canal)
     const h = el('div', 'sgrp'); h.append(el('span', '', label));
     if (mng) { const a = mk('+', () => dlgChannel(k)); a.title = t('newCh'); h.append(a); }
-    if (mng && loose.length) { const x = mk('✕', () => delLoose(k, loose), 'cact'); x.title = L('Apagar todos os canais deste grupo', 'Delete all channels in this group'); h.append(x); }
     if (mng) dropWire(h, d => d.type === 'chan' && groupAccepts('_' + k, d.id)
       ? { mode: 'in', go: () => placeChan(d.id, '_' + k, null, false) } : null);
     box.append(h);
@@ -6607,14 +6606,6 @@ async function delCat(g) {   // apaga só a categoria: os canais (texto e voz) d
   // 2) apaga a categoria
   const { error } = await sb().rpc('ns_delete_category', { p_category: g.id }); if (error) { await loadChans(); renderChans(); return err(missingFn(error) ? needV15() : error); }
   collapsed.delete(g.id); saveCollapsed();
-  await loadChans(); renderChans();
-}
-async function delLoose(kind, list) {   // apaga todos os canais soltos (sem categoria) de texto ou de voz
-  const en = String(lang).startsWith('en');
-  if (!confirm(en
-    ? 'Delete ALL ' + list.length + ' ' + (kind === 'text' ? 'text' : 'voice') + ' channel(s) without a category? Messages in them are lost.'
-    : 'Apagar TODOS os ' + list.length + ' canais de ' + (kind === 'text' ? 'texto' : 'voz') + ' sem categoria? As mensagens deles se perdem.')) return;
-  for (const c of list) { const r = await sb().from('channels').delete().eq('id', c.id); if (r.error) { err(r.error); break; } }
   await loadChans(); renderChans();
 }
 /* seletor de categoria (criar e editar canal) */
